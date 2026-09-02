@@ -2,7 +2,7 @@
 
 Mailing is an open-source, transactional email client built on top of the **Resend API**. It gives you a clean, modern interface to manage, send, and track emails out of the box, without needing to build your own email management UI from scratch.
 
-![Screenshot placeholder](https://via.placeholder.com/800x450.png?text=Mailing+Dashboard)
+![Screenshot placeholder](/public/showcase.png)
 
 ---
 
