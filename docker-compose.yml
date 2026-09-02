@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mailing_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://mailing_user:password@postgres:5432/mailing_db
+      - NEXT_PUBLIC_APP_URL=http://localhost:3000
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: mailing_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mailing_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mailing_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - mailing_db_data:/var/lib/postgresql/data
+
+volumes:
+  mailing_db_data:
