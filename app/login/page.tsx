@@ -104,12 +104,10 @@ function LoginForm() {
       {}
       {error && (
         <div
+          className="bg-destructive/10 border border-destructive/20 text-destructive"
           style={{
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
             padding: "10px 14px",
             fontSize: 13,
-            color: "var(--destructive)",
             marginBottom: 20,
           }}
         >

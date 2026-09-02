@@ -714,10 +714,12 @@ export default function MailDetailPane() {
                       <div className="attachments-list">
                         {message.attachments.map((att) => (
                           <a
-                            key={att.id}
+                            key={att.id || att.filename}
                             className="attachment"
-                            href={att.url}
+                            href={att.id ? `/api/v1/messages/${message.id}/attachments/${att.id}` : att.url}
                             download={att.filename}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
                             <div className="attachment-icon">
                               <FileText />

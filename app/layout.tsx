@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 import { NotificationListener } from "@/components/NotificationListener";
 import { PwaRegistration } from "@/components/PwaRegistration";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,21 +69,32 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#ffffff",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable } ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        {children}
-        <Toaster position="bottom-right" richColors closeButton />
-        <NotificationListener />
-        <PwaRegistration />
-      </body>
-    </html>
+      <html
+        lang="en"
+        className={`${geistSans.variable } ${geistMono.variable} h-full antialiased`}
+        suppressHydrationWarning
+      >
+        <body className="min-h-full flex flex-col">
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster position="bottom-right" richColors closeButton />
+            <NotificationListener />
+            <PwaRegistration />
+          </ThemeProvider>
+        </body>
+      </html>
   );
 }

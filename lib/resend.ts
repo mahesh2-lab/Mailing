@@ -15,7 +15,7 @@ export async function getResendClient(userId: string): Promise<Resend | null> {
     )
   });
 
-  if (!apiKeyRecord) return null;
+  if (!apiKeyRecord) return resend || null;
 
   try {
     const decryptedKey = await decrypt(apiKeyRecord.encryptedKey);

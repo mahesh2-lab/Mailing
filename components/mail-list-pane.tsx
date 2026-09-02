@@ -3,11 +3,13 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip, Pencil, RefreshCw, Star, Tag, Trash2 } from "lucide-react";
 import axios from "axios";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { MailItem } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { getInitials, avatarColor } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 
 function SkeletonRows() {
@@ -224,6 +226,12 @@ export default function MailListPane() {
     refreshTick,
     openCompose,
   } = useMailContext();
+
+  const { theme, systemTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const currentTheme = theme === "system" ? systemTheme : theme;
+  const isDark = mounted && currentTheme === "dark";
 
   const { mail, setMail, initialLoading, isFetching, error } = useListData(
     folder,
@@ -653,7 +661,9 @@ export default function MailListPane() {
 
           {!initialLoading && !isFetching && !error && visible.length === 0 && (
             <div className="empty">
-              <div className="empty-icon">✉️</div>
+              <div style={{ width: "200px", margin: "0 auto", marginBottom: "16px" }}>
+                <DotLottieReact src={isDark ? "/empty.json" : "/No-Item-In-Box.lottie"} loop autoplay />
+              </div>
               <strong>Nothing here</strong>
               <span>
                 {query

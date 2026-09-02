@@ -11,6 +11,7 @@ import MailListPane from "./mail-list-pane";
 import MailDetailPane from "./mail-detail-pane";
 import ComposePanel from "./compose-panel";
 import { authClient } from "@/src/lib/auth-client";
+import { ThemeToggle } from "./theme-toggle";
 
 function AppShell() {
   const router = useRouter();
@@ -151,6 +152,7 @@ function AppShell() {
         </div>
 
         <div className="top-actions">
+          <ThemeToggle />
           <div className="menu-wrap">
             <button
               className="icon-button"

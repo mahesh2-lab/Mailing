@@ -85,6 +85,7 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 button,
@@ -1877,7 +1878,7 @@ button:disabled:not([data-loading="true"]) {
 .skel {
   display: block;
   border-radius: 3px;
-  background: linear-gradient(90deg, #e8e8e3 25%, #f3f3ef 50%, #e8e8e3 75%);
+  background: linear-gradient(90deg, var(--muted) 25%, var(--border) 50%, var(--muted) 75%);
   background-size: 600px 100%;
   animation: shimmer 1.4s infinite linear;
 }
