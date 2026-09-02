@@ -266,6 +266,12 @@ function AppShell() {
 
       <div className="workspace">
         <MailSidebar />
+        {mobileNavOpen && (
+          <div 
+            className="sidebar-backdrop visible"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
         <MailListPane />
         <MailDetailPane />
       </div>

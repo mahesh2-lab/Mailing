@@ -2683,4 +2683,227 @@ a.wordmark:hover .mark {
   left: 0;
 }
 
+/* =========================================
+   Mobile Responsiveness Overrides
+   ========================================= */
 
+@media (max-width: 768px) {
+  /* Prevent zooming on iOS */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Convert workspace to single column full-height flex container */
+  .workspace {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: none !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden;
+  }
+
+  /* Gmail-style floating pill topbar */
+  .topbar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    height: 52px !important;
+    background: var(--card) !important;
+    border-radius: 26px !important;
+    padding: 0 12px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06) !important;
+    z-index: 10;
+    flex-wrap: nowrap !important;
+    border: none !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .wordmark, .top-actions > .menu-wrap:first-child, .top-search kbd, .top-search svg {
+    display: none !important;
+  }
+  .top-search {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    flex: 1;
+    order: 2; 
+    margin: 0 !important;
+    height: auto !important;
+  }
+  .top-search input {
+    background: transparent !important;
+    font-size: 16px !important; 
+    padding: 0 8px !important;
+  }
+  .top-search:focus-within {
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
+  .top-actions {
+    order: 3;
+    padding-right: 0 !important;
+  }
+  .top-actions .avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Floating Action Button for compose */
+  .fab-compose {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--primary);
+    color: var(--primary-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    border: none;
+    z-index: 20;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .fab-compose:active {
+    transform: scale(0.95);
+  }
+  .fab-compose svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Detail pane adjustments to match Gmail */
+  .detail-pane {
+    padding-top: 0;
+  }
+  .toolbar-reply-group {
+    display: none !important; /* Hide reply/forward from top bar on mobile */
+  }
+
+  /* Make sidebar a slide-in drawer overlay */
+  .sidebar {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    z-index: 100;
+    background: var(--background);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+  }
+  
+  .sidebar.nav-open {
+    transform: translateX(0);
+  }
+
+  /* Tap target minimums */
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .nav-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .email-row {
+    min-height: 60px;
+  }
+  
+  .compose-button {
+    min-height: 44px;
+  }
+
+  /* Full screen panes, toggled by React state via classes */
+  .list-pane {
+    padding-top: 76px; /* Space for the floating search pill */
+  }
+
+  .list-pane, .detail-pane {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* When an email is selected, hide the list pane on mobile */
+  .list-pane.mobile-hidden {
+    display: none !important;
+  }
+
+  /* When no email is selected, hide the detail pane on mobile */
+  .detail-pane.mobile-hidden {
+    display: none !important;
+  }
+
+  /* Sidebar overlay backdrop */
+  .sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  /* Show hamburger menu on mobile */
+  .mobile-only {
+    display: flex !important;
+  }
+
+  /* Full screen compose panel on mobile */
+  .compose-panel {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    z-index: 200 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .compose-panel textarea {
+    flex: 1 !important;
+    height: auto !important;
+  }
+}
+
+/* Hide mobile-only elements on desktop by default */
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+  .sidebar-backdrop {
+    display: none !important;
+  }
+}

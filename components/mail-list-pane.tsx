@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, RefreshCw, Star, Tag, Trash2 } from "lucide-react";
+import { Paperclip, Pencil, RefreshCw, Star, Tag, Trash2 } from "lucide-react";
 import axios from "axios";
 import { MailItem } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
@@ -222,6 +222,7 @@ export default function MailListPane() {
     notify,
     refresh,
     refreshTick,
+    openCompose,
   } = useMailContext();
 
   const { mail, setMail, initialLoading, isFetching, error } = useListData(
@@ -521,8 +522,8 @@ export default function MailListPane() {
 
   return (
     <>
-      <section className={`list-pane ${openId ? "has-open" : ""}`}>
-        {}
+      <section className={`list-pane ${openId ? "has-open mobile-hidden" : ""}`}>
+        {/* Header */}
         <div className="pane-heading">
           <div className="pane-heading-title">
             <h1>{label ? `#${label}` : folder || "Mail"}</h1>
@@ -662,6 +663,14 @@ export default function MailListPane() {
             </div>
           )}
         </div>
+
+        <button 
+          className="fab-compose mobile-only" 
+          aria-label="Compose"
+          onClick={() => openCompose()}
+        >
+          <Pencil />
+        </button>
       </section>
 
       {}

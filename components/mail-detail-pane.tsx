@@ -351,7 +351,7 @@ export default function MailDetailPane() {
   
   if (!openId) {
     return (
-      <section className="detail-pane">
+      <section className="detail-pane mobile-hidden">
         <div className="detail-empty">
           <div className="detail-empty-icon">
             <Mail />
@@ -366,7 +366,7 @@ export default function MailDetailPane() {
   
   if (error) {
     return (
-      <section className="detail-pane detail-visible">
+      <section className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}>
         <div className="detail-toolbar">
           <button
             className="icon-button back-button"
@@ -386,7 +386,7 @@ export default function MailDetailPane() {
 
   return (
     <>
-      <section className="detail-pane detail-visible">
+      <section className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}>
         {}
         <div className="detail-toolbar">
           <button
