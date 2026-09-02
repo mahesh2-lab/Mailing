@@ -9,7 +9,7 @@ import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { getInitials, avatarColor } from "@/lib/utils";
 
-// ─── skeleton rows shown ONLY on initial cold boot ─────────────────────────────
+
 function SkeletonRows() {
   return (
     <>
@@ -27,7 +27,7 @@ function SkeletonRows() {
   );
 }
 
-// ─── memoized email row component to prevent full list re-renders ──────────────
+
 interface EmailRowProps {
   item: MailItem;
   isOpen: boolean;
@@ -64,7 +64,7 @@ const EmailRow = memo(function EmailRow({
         </div>
       )}
 
-      {/* row quick-actions — context-aware */}
+      {}
       <div className="row-actions" onClick={(e) => e.stopPropagation()}>
         {primaryActions.map((action) => {
           const Icon = action.icon;
@@ -139,7 +139,7 @@ const EmailRow = memo(function EmailRow({
   );
 });
 
-// ─── data hook with data preservation ─────────────────────────────────────────
+
 function useListData(
   folder: string | undefined,
   label: string | undefined,
@@ -211,7 +211,7 @@ function useListData(
   return { mail, setMail, initialLoading, isFetching, error };
 }
 
-// ─── main component ───────────────────────────────────────────────────────────
+
 export default function MailListPane() {
   const {
     folder,
@@ -232,14 +232,14 @@ export default function MailListPane() {
   const [selected, setSelected] = useState<string[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
 
-  // Label bulk action state
+  
   const [allLabels, setAllLabels] = useState<
     Array<{ id: string; name: string }>
   >([]);
   const [labelBulkOpen, setLabelBulkOpen] = useState(false);
   const labelBulkRef = useRef<HTMLDivElement>(null);
 
-  // Fetch labels
+  
   useEffect(() => {
     axios
       .get("/api/v1/labels")
@@ -247,7 +247,7 @@ export default function MailListPane() {
       .catch(() => {});
   }, [refreshTick]);
 
-  // Close label dropdown on outside click
+  
   useEffect(() => {
     if (!labelBulkOpen) return;
     function handleClick(e: MouseEvent) {
@@ -281,7 +281,7 @@ export default function MailListPane() {
     }
   }
 
-  // Dialog states
+  
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -522,7 +522,7 @@ export default function MailListPane() {
   return (
     <>
       <section className={`list-pane ${openId ? "has-open" : ""}`}>
-        {/* heading */}
+        {}
         <div className="pane-heading">
           <div className="pane-heading-title">
             <h1>{label ? `#${label}` : folder || "Mail"}</h1>
@@ -554,7 +554,7 @@ export default function MailListPane() {
           </div>
         </div>
 
-        {/* toolbar */}
+        {}
         <div className="list-toolbar">
           <label className="check-wrap">
             <input
@@ -583,7 +583,7 @@ export default function MailListPane() {
                   </button>
                 );
               })}
-              {/* Label bulk action */}
+              {}
               <div className="label-bulk-wrap" ref={labelBulkRef}>
                 <button
                   className="toolbar-action"
@@ -622,7 +622,7 @@ export default function MailListPane() {
           )}
         </div>
 
-        {/* list */}
+        {}
         <div className={`email-list ${isFetching ? "fetching" : ""}`}>
           {initialLoading && <SkeletonRows />}
 
@@ -664,7 +664,7 @@ export default function MailListPane() {
         </div>
       </section>
 
-      {/* Confirmation modal */}
+      {}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
         title={confirmDialog.title}

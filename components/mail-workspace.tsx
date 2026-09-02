@@ -35,7 +35,7 @@ function AppShell() {
     setHeaderMenu((cur) => (cur === name ? null : name));
   }
 
-  // Global Keyboard Shortcuts (Cmd+K, Cmd+N, C, Escape)
+  
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const isInputFocused =
@@ -43,21 +43,21 @@ function AppShell() {
         document.activeElement?.tagName === "TEXTAREA" ||
         (document.activeElement as HTMLElement)?.isContentEditable;
 
-      // Cmd/Ctrl + K -> Focus search input
+      
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
 
-      // Cmd/Ctrl + N -> Open Compose panel
+      
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         openCompose();
         return;
       }
 
-      // 'c' or 'C' when not typing in any input field -> Open Compose
+      
       if (
         !isInputFocused &&
         !e.metaKey &&
@@ -70,7 +70,7 @@ function AppShell() {
         return;
       }
 
-      // Escape -> Close compose or deselect active conversation
+      
       if (e.key === "Escape") {
         if (headerMenu) {
           setHeaderMenu(null);
@@ -116,7 +116,7 @@ function AppShell() {
         </button>
 
         <Link href="/inbox" className="wordmark" title="Go to Inbox">
-          {/* Brand mark — envelope icon */}
+          {}
           <span className="mark" aria-hidden="true">
             <svg
               width="16"

@@ -131,7 +131,7 @@ export default function ComposePanel() {
           new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         );
       } catch {
-        // silent fail on auto-save
+        
       } finally {
         setAutoSaving(false);
       }
@@ -246,7 +246,7 @@ export default function ComposePanel() {
     }, 0);
   }
 
-  // Handle file uploads
+  
   async function handleFiles(files: File[]) {
     const newItems: AttachedFile[] = [];
     for (const file of files) {
@@ -272,7 +272,7 @@ export default function ComposePanel() {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
-  // Keyboard shortcut listener
+  
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
@@ -384,7 +384,7 @@ export default function ComposePanel() {
         try {
           await axios.delete(`/api/v1/drafts/${draftId}`);
         } catch {
-          // silent cleanup
+          
         }
       }
       close();
@@ -422,7 +422,7 @@ export default function ComposePanel() {
           }
         }}
       >
-        {/* Hidden file picker */}
+        {}
         <input
           type="file"
           ref={fileInputRef}
@@ -512,7 +512,7 @@ export default function ComposePanel() {
           onChange={(e) => setBody(e.target.value)}
         />
 
-        {/* Attachment chips preview */}
+        {}
         {attachments.length > 0 && (
           <div className="compose-attachments-list">
             {attachments.map((att) => {
@@ -557,7 +557,7 @@ export default function ComposePanel() {
               {sending ? "Sending…" : "Send"}
             </button>
 
-            {/* Auto-save status */}
+            {}
             <div className="compose-save-status">
               {autoSaving ? (
                 <span className="saving-indicator">
@@ -574,7 +574,7 @@ export default function ComposePanel() {
           </div>
 
           <div className="compose-foot-actions">
-            {/* Formatting tools */}
+            {}
             <div className="formatting-toolbar">
               <button
                 type="button"
@@ -678,7 +678,7 @@ export default function ComposePanel() {
         </div>
       </div>
 
-      {/* Close prompt modal when closing with unsaved changes */}
+      {}
       {showClosePrompt && (
         <div className="modal-backdrop" onClick={() => setShowClosePrompt(false)}>
           <div

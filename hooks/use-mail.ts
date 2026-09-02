@@ -56,7 +56,7 @@ export function useMailList(initialFolder?: Folder, initialLabel?: string) {
 
   const refresh = () => setRefreshCount((c) => c + 1);
 
-  // Fetch all messages (no filter) to compute accurate sidebar counts
+  
   useEffect(() => {
     let isMounted = true;
     const fetchAllMessages = async () => {
@@ -86,14 +86,14 @@ export function useMailList(initialFolder?: Folder, initialLabel?: string) {
         }));
         if (isMounted) setAllMail(mapped);
       } catch {
-        // silently fail for counts
+        
       }
     };
     fetchAllMessages();
     return () => { isMounted = false; };
   }, [refreshCount]);
 
-  // Fetch emails when folder, label or refreshCount changes
+  
   useEffect(() => {
     let isMounted = true;
 

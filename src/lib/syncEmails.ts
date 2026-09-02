@@ -37,7 +37,7 @@ export async function syncSentEmails() {
 
   for (const email of sentEmails) {
     try {
-      // Get full email
+      
       const {
         data: fullEmail,
         error: emailError,
@@ -52,7 +52,7 @@ export async function syncSentEmails() {
         continue;
       }
 
-      // Get email attachments
+      
       const {
         data: attachmentsResponse,
         error: attachmentsError,
@@ -117,7 +117,7 @@ export async function syncReceivedEmails() {
     "Fetching received emails from Resend...",
   );
 
-  // Get received email list
+  
   const {
     data: response,
     error,
@@ -141,7 +141,7 @@ export async function syncReceivedEmails() {
 
   for (const email of receivedEmails) {
     try {
-      // Get full received email
+      
       const {
         data: fullEmail,
         error: emailError,
@@ -159,7 +159,7 @@ export async function syncReceivedEmails() {
         continue;
       }
 
-      // Get received email attachments
+      
       const {
         data: attachmentsResponse,
         error: attachmentsError,

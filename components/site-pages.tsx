@@ -25,7 +25,7 @@ import { authClient } from "@/src/lib/auth-client";
 import { toast } from "sonner";
 import ConfirmDialog from "./confirm-dialog";
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+
 
 function getInitials(name: string | null | undefined) {
   if (!name) return "?";
@@ -43,18 +43,18 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-// ─── Profile panel ──────────────────────────────────────────────────────────
+
 
 function ProfilePanel() {
   const { data: session, refetch } = authClient.useSession();
   const user = session?.user;
 
-  // avatar
+  
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  // profile fields
+  
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
@@ -141,7 +141,7 @@ function ProfilePanel() {
     }
   }
 
-  // ── password change ──────────────────────────────────────────────────────
+  
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -192,9 +192,9 @@ function ProfilePanel() {
         maxWidth: 720,
       }}
     >
-      {/* ── Identity card ───────────────────────────────────────────────── */}
+      {}
       <section className="panel profile-card">
-        {/* avatar + info hero */}
+        {}
         <div className="profile-hero">
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div className="profile-avatar-wrap">
@@ -241,7 +241,7 @@ function ProfilePanel() {
           </div>
         </div>
 
-        {/* ── Edit form ──────────────────────────────────────────────── */}
+        {}
         <form onSubmit={handleProfileSave}>
           <div className="profile-form">
             <label className="form-field">
@@ -292,7 +292,7 @@ function ProfilePanel() {
         </form>
       </section>
 
-      {/* ── Change password card ─────────────────────────────────────────── */}
+      {}
       <section className="panel">
         <div
           className="panel-title"
@@ -373,7 +373,7 @@ function ProfilePanel() {
               />
             </label>
 
-            {/* strength bar */}
+            {}
             {newPw.length > 0 && (
               <div className="pw-strength">
                 <div
@@ -416,7 +416,7 @@ function ProfilePanel() {
         )}
       </section>
 
-      {/* ── Danger zone ─────────────────────────────────────────────────── */}
+      {}
       <section className="panel" style={{ borderColor: "rgba(239,68,68,0.3)" }}>
         <div className="panel-title">
           <div>
@@ -450,7 +450,7 @@ function ProfilePanel() {
   );
 }
 
-// ─── API Keys panel ─────────────────────────────────────────────────────────
+
 
 const PROVIDERS = [
   "Resend",
@@ -475,7 +475,7 @@ function ApiKeysPanel() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  // form state
+  
   const [provider, setProvider] = useState(PROVIDERS[0]);
   const [domain, setDomain] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -716,7 +716,7 @@ function ApiKeysPanel() {
   );
 }
 
-// ─── Page data ──────────────────────────────────────────────────────────────
+
 
 const pageData = {
   automation: {
@@ -748,7 +748,7 @@ const pageData = {
 
 type PageKey = keyof typeof pageData;
 
-// ─── Site page shell ─────────────────────────────────────────────────────────
+
 
 export function SitePage({ type }: { type: PageKey }) {
   const [saved, setSaved] = useState(false);

@@ -100,7 +100,7 @@ export function getActionsForFolder(
     };
   }
 
-  // Default (Inbox, Starred, Drafts, custom labels)
+  
   return {
     primaryActions: [
       {

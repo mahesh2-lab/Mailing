@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         webhookKeyLastFour: true,
         createdAt: true,
         updatedAt: true,
-        // never return encrypted values
+        
         encryptedKey: false,
         encryptedWebhookKey: false,
       },

@@ -28,7 +28,7 @@ export function NotificationListener() {
       console.error("[NotificationListener] Pusher error:", err);
     });
 
-    // 1. Subscribe to "emails" channel for email lifecycle events
+    
     const emailsChannel = pusher.subscribe("emails");
 
     emailsChannel.bind(
@@ -110,7 +110,7 @@ export function NotificationListener() {
       window.dispatchEvent(new CustomEvent("mail:refresh", { detail: data }));
     });
 
-    // 2. Subscribe to "notifications" channel for payment and general notifications
+    
     const notificationsChannel = pusher.subscribe("notifications");
 
     notificationsChannel.bind(

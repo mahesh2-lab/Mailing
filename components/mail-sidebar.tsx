@@ -160,7 +160,7 @@ export default function MailSidebar() {
 
   const { counts, storageBytes, labels } = useMailSummary(refreshTick);
 
-  // Creating label state
+  
   const [creatingLabel, setCreatingLabel] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [creatingLoading, setCreatingLoading] = useState(false);
@@ -367,7 +367,7 @@ export default function MailSidebar() {
         </div>
       </aside>
 
-      {/* Confirmation modal for deleting label */}
+      {}
       <ConfirmDialog
         isOpen={!!deleteLabelTarget}
         title={`Delete label "${deleteLabelTarget}"?`}

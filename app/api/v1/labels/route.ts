@@ -5,7 +5,7 @@ import { sql, ne } from "drizzle-orm";
 
 const DEFAULT_LABELS = ["Important", "Work", "Personal"];
 
-// Ensure table exists and default labels seeded
+
 async function ensureLabelsInitialized() {
   try {
     await db.execute(sql`

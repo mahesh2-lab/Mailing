@@ -65,7 +65,7 @@ export default function RegisterPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex" }}>
-      {/* Left branding column */}
+      {}
       <div
         className="auth-brand-col"
         style={{
@@ -146,7 +146,7 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      {/* Right form column */}
+      {}
       <div
         style={{
           flex: 1,
@@ -157,7 +157,7 @@ export default function RegisterPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 360 }}>
-          {/* Header */}
+          {}
           <div style={{ marginBottom: 40 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 32 }}>
               <div
@@ -199,7 +199,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* Error */}
+          {}
           {error && (
             <div
               style={{
@@ -216,7 +216,7 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column" }}>
-            {/* Name */}
+            {}
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="name" style={labelStyle}>Full name</label>
               <input
@@ -234,7 +234,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Email */}
+            {}
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="email" style={labelStyle}>Email address</label>
               <input
@@ -252,7 +252,7 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Password */}
+            {}
             <div style={{ marginBottom: 24 }}>
               <label htmlFor="password" style={labelStyle}>Password</label>
               <div style={{ position: "relative" }}>
@@ -302,7 +302,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Submit */}
+            {}
             <button
               type="submit"
               disabled={isLoading}

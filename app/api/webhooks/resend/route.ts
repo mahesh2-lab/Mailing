@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch the user's webhook secret
+    
     const apiKeyRecord = await db.query.userApiKeys.findFirst({
       where: and(
         eq(userApiKeys.userId, userId),
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify Svix signature
+    
     const payload = await request.text();
     const headersList = request.headers;
     const svix_id = headersList.get("svix-id");
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Make webhook processing idempotent using the svix-id
+    
     const existingEvent = await db.query.webhookEvents.findFirst({
       where: eq(webhookEvents.id, svix_id),
     });

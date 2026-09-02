@@ -11,10 +11,10 @@ export async function DELETE(
     const { label } = await Promise.resolve(params);
     const decodedLabel = decodeURIComponent(label);
 
-    // Delete label from customLabels
+    
     await db.delete(customLabels).where(eq(customLabels.name, decodedLabel));
 
-    // Also remove the label from all emails that currently have it
+    
     const affectedEmails = await db
       .select({ id: emails.id, labels: emails.labels })
       .from(emails)

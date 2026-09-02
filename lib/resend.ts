@@ -4,7 +4,7 @@ import { userApiKeys } from '@/src/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { decrypt } from '@/src/lib/crypto';
 
-// Keep the global instance for fallback/legacy if needed, but it's better to use getResendClient
+
 export const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null as unknown as Resend;
 
 export async function getResendClient(userId: string): Promise<Resend | null> {

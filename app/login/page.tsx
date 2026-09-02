@@ -41,7 +41,7 @@ function LoginForm() {
 
   return (
     <div style={{ width: "100%", maxWidth: 360 }}>
-      {/* Wordmark */}
+      {}
       <div style={{ marginBottom: 40 }}>
         <div
           style={{
@@ -101,7 +101,7 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Error */}
+      {}
       {error && (
         <div
           style={{
@@ -121,7 +121,7 @@ function LoginForm() {
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: 0 }}
       >
-        {/* Email */}
+        {}
         <div style={{ marginBottom: 16 }}>
           <label
             htmlFor="email"
@@ -168,7 +168,7 @@ function LoginForm() {
           />
         </div>
 
-        {/* Password */}
+        {}
         <div style={{ marginBottom: 24 }}>
           <div
             style={{
@@ -279,7 +279,7 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Submit */}
+        {}
         <button
           type="submit"
           disabled={isLoading}
@@ -332,7 +332,7 @@ export default function LoginPage() {
         display: "flex",
       }}
     >
-      {/* Left branding column */}
+      {}
       <div
         className="auth-brand-col"
         style={{
@@ -461,7 +461,7 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Right form column */}
+      {}
       <div
         style={{
           flex: 1,

@@ -23,7 +23,7 @@ import { useMailContext } from "./mail-context";
 import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 
-// ─── skeleton for message body ────────────────────────────────────────────────
+
 function MessageSkeleton() {
   return (
     <div className="message-skeleton">
@@ -43,7 +43,7 @@ function MessageSkeleton() {
   );
 }
 
-// ─── data hook ────────────────────────────────────────────────────────────────
+
 function useMessageDetail(id: string | null) {
   const [message, setMessage] = useState<MailItem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -239,7 +239,7 @@ export default function MailDetailPane() {
     }
   }
 
-  // Confirm dialog state
+  
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { primaryActions } = useMemo(
@@ -348,7 +348,7 @@ export default function MailDetailPane() {
     }
   }
 
-  // ── empty state ───────────────────────────────────────────────────────────
+  
   if (!openId) {
     return (
       <section className="detail-pane">
@@ -363,7 +363,7 @@ export default function MailDetailPane() {
     );
   }
 
-  // ── error state ───────────────────────────────────────────────────────────
+  
   if (error) {
     return (
       <section className="detail-pane detail-visible">
@@ -387,7 +387,7 @@ export default function MailDetailPane() {
   return (
     <>
       <section className="detail-pane detail-visible">
-        {/* fixed toolbar */}
+        {}
         <div className="detail-toolbar">
           <button
             className="icon-button back-button"
@@ -518,10 +518,10 @@ export default function MailDetailPane() {
           </div>
         </div>
 
-        {/* scrollable body */}
+        {}
         <div className="detail-scroll-area">
           <div className="detail-content">
-            {/* subject + star */}
+            {}
             {message && (
               <div className="detail-heading">
                 <div className="detail-heading-left">
@@ -540,7 +540,7 @@ export default function MailDetailPane() {
                         </button>
                       </span>
                     ))}
-                    {/* + Label button */}
+                    {}
                     <div className="label-add-wrap" ref={labelDropRef}>
                       <button
                         className="add-label-btn"
@@ -637,13 +637,13 @@ export default function MailDetailPane() {
               </div>
             )}
 
-            {/* message bubble */}
+            {}
             <div className="message message-card">
               {loading ? (
                 <MessageSkeleton />
               ) : message ? (
                 <>
-                  {/* sender row */}
+                  {}
                   <div className="message-head">
                     <div
                       className="avatar large"
@@ -698,13 +698,13 @@ export default function MailDetailPane() {
                     </div>
                   </div>
 
-                  {/* body */}
+                  {}
                   <div
                     className="email-body-content"
                     dangerouslySetInnerHTML={{ __html: message.body }}
                   />
 
-                  {/* attachments */}
+                  {}
                   {message.attachments && message.attachments.length > 0 && (
                     <div className="attachments-section">
                       <strong className="attachments-label">
@@ -748,7 +748,7 @@ export default function MailDetailPane() {
               ) : null}
             </div>
 
-            {/* reply / draft actions at bottom */}
+            {}
             {message && !loading && (
               <div className="reply-actions">
                 {folder === "Drafts" || message.folder === "drafts" || message.status === "draft" ? (
@@ -805,7 +805,7 @@ export default function MailDetailPane() {
         </div>
       </section>
 
-      {/* Permanent deletion confirmation modal */}
+      {}
       <ConfirmDialog
         isOpen={confirmOpen}
         title="Delete Permanently?"
