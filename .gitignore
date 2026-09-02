@@ -57,3 +57,7 @@ emails.db-journal
 # editor swap files
 *.swp
 *~
+
+# project documentation
+AGENTS.md
+SECURITY.md
