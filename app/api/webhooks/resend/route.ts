@@ -106,7 +106,7 @@ export async function POST(request: Request) {
                   id: fetchedEmail.id,
                   to: Array.isArray(fetchedEmail.to)
                     ? fetchedEmail.to
-                    : [fetchedEmail.to].filter(Boolean),
+                    : fetchedEmail.to ? [fetchedEmail.to] : [],
                   from: fetchedEmail.from,
                   createdAt: fetchedEmail.created_at || new Date().toISOString(),
                   subject: fetchedEmail.subject || "No Subject",
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
                   cc: Array.isArray(fetchedEmail.cc) ? fetchedEmail.cc : [],
                   replyTo: Array.isArray(fetchedEmail.reply_to)
                     ? fetchedEmail.reply_to
-                    : [fetchedEmail.reply_to].filter(Boolean),
+                    : fetchedEmail.reply_to ? [fetchedEmail.reply_to] : [],
                   headers: fetchedEmail.headers || {},
                   attachments: fetchedEmail.attachments || [],
                   status: "received",
