@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { NotificationListener } from "@/components/NotificationListener";
 import { PwaRegistration } from "@/components/PwaRegistration";
 import { ThemeProvider } from "@/components/theme-provider";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -89,7 +91,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             enableSystem
             disableTransitionOnChange
           >
-            {children}
+            <TooltipProvider delay={200}>
+              {children}
+            </TooltipProvider>
             <Toaster position="bottom-right" richColors closeButton />
             <NotificationListener />
             <PwaRegistration />

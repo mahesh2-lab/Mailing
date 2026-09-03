@@ -303,6 +303,14 @@ button:disabled:not([data-loading="true"]) {
 .dropdown button:hover {
   background: var(--accent);
 }
+.dark .dropdown {
+  background: #141414;
+  border: 1px solid #282828;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.dark .dropdown button:hover {
+  background: #1f1f1f;
+}
 .profile-menu-identity {
   display: flex;
   align-items: center;
@@ -570,13 +578,30 @@ button:disabled:not([data-loading="true"]) {
 }
 .list-toolbar {
   flex: 0 0 auto;
-  height: 38px;
+  min-height: 40px;
+  height: 40px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 13px;
+  justify-content: space-between;
+  gap: 8px;
   padding: 0 16px;
   color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 .list-toolbar button {
   border: 0;
@@ -584,14 +609,18 @@ button:disabled:not([data-loading="true"]) {
   color: inherit;
 }
 .list-toolbar svg {
-  width: 15px;
+  width: 14px;
+  height: 14px;
 }
 .list-hint {
-  font-size: 10px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 .selection-count {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--foreground);
+  white-space: nowrap;
 }
 .check-wrap {
   display: inline-grid;
@@ -1235,30 +1264,6 @@ button:disabled:not([data-loading="true"]) {
   gap: 4px;
   border-right: 1px solid var(--border);
   padding-right: 12px;
-}
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  background: var(--foreground);
-  color: var(--primary-foreground);
-  padding: 10px 18px;
-  font-size: 13px;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.16);
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 100;
-}
-.toast span {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: #d2d0c7;
-  margin-right: 8px;
 }
 .mobile-only {
   display: none;
@@ -1962,23 +1967,34 @@ button:disabled:not([data-loading="true"]) {
 
 /* ── toolbar action buttons ──────────────────────────────────────── */
 .toolbar-action {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 11px;
+  font-weight: 500;
   color: var(--muted-foreground);
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
-  padding: 3px 6px;
-  border-radius: 3px;
-  transition: background 0.15s, color 0.15s;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
 }
 .toolbar-action:hover {
   background: var(--accent);
   color: var(--foreground);
+  border-color: var(--border);
 }
 .toolbar-action svg {
-  width: 13px;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.dark .toolbar-action:hover {
+  background: #1f1f1f;
+  border-color: #2a2a2a;
 }
 
 /* ── spinning refresh ────────────────────────────────────────────── */
@@ -2227,8 +2243,8 @@ button:disabled:not([data-loading="true"]) {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(23, 23, 21, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   z-index: 100;
@@ -2236,14 +2252,20 @@ button:disabled:not([data-loading="true"]) {
 }
 .modal-content {
   background: var(--card);
-  border: 1px solid var(--foreground);
-  box-shadow: 8px 8px 0 rgba(23, 23, 21, 0.2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
   width: 100%;
   max-width: 440px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.dark .modal-content {
+  background: #141414;
+  border: 1px solid #282828;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 .modal-header {
   display: flex;
@@ -2268,7 +2290,7 @@ button:disabled:not([data-loading="true"]) {
 .modal-body {
   margin: 0;
   font-size: 13px;
-  color: #41413e;
+  color: var(--muted-foreground);
   line-height: 1.5;
 }
 .modal-actions {
@@ -2278,14 +2300,14 @@ button:disabled:not([data-loading="true"]) {
   margin-top: 8px;
 }
 .button-destructive {
-  border: 1px solid var(--destructive);
+  border: 1px solid transparent;
   background: var(--destructive);
   color: #ffffff;
   padding: 8px 16px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: opacity 0.15s;
 }
 .button-destructive:hover {
@@ -2329,24 +2351,36 @@ button:disabled:not([data-loading="true"]) {
 /* ── empty trash button ────────────────────────────────────────────── */
 .empty-trash-btn {
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--card);
   color: var(--muted-foreground);
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 600;
-  display: flex;
+  border-radius: 6px;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 .empty-trash-btn:hover {
   border-color: var(--destructive);
   color: var(--destructive);
-  background: #fdf2f0;
+  background: rgba(239, 68, 68, 0.08);
+}
+.dark .empty-trash-btn {
+  background: #141414;
+  border-color: #282828;
+}
+.dark .empty-trash-btn:hover {
+  border-color: #f87171;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.12);
 }
 .empty-trash-btn svg {
   width: 13px;
+  height: 13px;
 }
 
 /* ── inbox count badge visual highlight ────────────────────────────── */
@@ -2907,4 +2941,96 @@ a.wordmark:hover .mark {
   .sidebar-backdrop {
     display: none !important;
   }
+}
+
+/* Sonner Toast Theme Integration */
+[data-sonner-toaster] {
+  font-family: inherit;
+}
+
+[data-sonner-toaster][data-theme="light"],
+:root:not(.dark) [data-sonner-toaster] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+}
+
+[data-sonner-toaster][data-theme="dark"],
+.dark [data-sonner-toaster] {
+  --normal-bg: var(--card);
+  --normal-border: var(--border);
+  --normal-text: var(--foreground);
+}
+
+[data-sonner-toast] {
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  font-size: 13px !important;
+}
+
+.dark [data-sonner-toast] {
+  background: #141414 !important;
+  color: #fafafa !important;
+  border: 1px solid #282828 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-sonner-toast] [data-title] {
+  color: var(--foreground) !important;
+  font-weight: 500 !important;
+}
+
+.dark [data-sonner-toast] [data-title] {
+  color: #fafafa !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: var(--muted-foreground) !important;
+}
+
+/* Toast action button (e.g., Undo) styling */
+[data-sonner-toast] [data-button] {
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+  padding: 6px 14px !important;
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border: 1px solid transparent !important;
+  transition: opacity 0.15s ease, transform 0.1s ease !important;
+  cursor: pointer !important;
+}
+
+.dark [data-sonner-toast] [data-button] {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+}
+
+[data-sonner-toast] [data-button]:hover {
+  opacity: 0.88 !important;
+  transform: scale(1.02);
+}
+
+[data-sonner-toast] [data-button]:active {
+  transform: scale(0.98);
+}
+
+/* Close button theme styling */
+[data-sonner-toast] [data-close-button] {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--muted-foreground) !important;
+}
+
+.dark [data-sonner-toast] [data-close-button] {
+  background: #1f1f1f !important;
+  border-color: #2a2a2a !important;
+  color: #a3a3a3 !important;
+}
+
+[data-sonner-toast] [data-close-button]:hover {
+  color: var(--foreground) !important;
 }

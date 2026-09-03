@@ -3,7 +3,8 @@ export async function register() {
     console.log("Starting Resend email sync...");
 
     try {
-      const { syncSentEmails, syncReceivedEmails } = await import("./src/lib/syncEmails");
+      const { syncSentEmails, syncReceivedEmails } =
+        await import("./src/lib/syncEmails");
 
       // 1. Sync sent emails
       await syncSentEmails();

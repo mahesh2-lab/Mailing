@@ -23,6 +23,32 @@ import {
 } from "lucide-react";
 import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AttachedFile {
   id: string;
@@ -60,7 +86,7 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function ComposePanel() {
-  const { setComposeOpen, composeDefaults, notify, refresh } = useMailContext();
+  const { setComposeOpen, composeDefaults, refresh } = useMailContext();
   const { sendMail, sending } = useSendMail();
 
   const [maximized, setMaximized] = useState(false);
@@ -68,7 +94,6 @@ export default function ComposePanel() {
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [menu, setMenu] = useState<string | null>(null);
   const [showCc, setShowCc] = useState(false);
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
@@ -176,10 +201,6 @@ export default function ComposePanel() {
     }
   }
 
-  function toggleMenu(name: string) {
-    setMenu((cur) => (cur === name ? null : name));
-  }
-
   function close() {
     setComposeOpen(false);
     setMaximized(false);
@@ -187,7 +208,6 @@ export default function ComposePanel() {
     setTo("");
     setSubject("");
     setBody("");
-    setMenu(null);
     setShowCc(false);
     setCc("");
     setBcc("");
@@ -261,11 +281,11 @@ export default function ComposePanel() {
           url: URL.createObjectURL(file),
         });
       } catch {
-        notify(`Failed to attach ${file.name}`);
+        toast.error(`Failed to attach ${file.name}`);
       }
     }
     setAttachments((prev) => [...prev, ...newItems]);
-    notify(`Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`);
+    toast.success(`Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`);
   }
 
   function removeAttachment(id: string) {
@@ -295,8 +315,7 @@ export default function ComposePanel() {
 
   async function handleSaveDraft(andClose = false) {
     if (!to.trim() && !subject.trim() && !body.trim()) {
-      notify("Cannot save an empty draft");
-      setMenu(null);
+      toast.error("Cannot save an empty draft");
       return;
     }
     setSavingDraft(true);
@@ -316,13 +335,13 @@ export default function ComposePanel() {
 
       if (draftId) {
         await axios.put(`/api/v1/drafts/${draftId}`, payload);
-        notify("Draft updated");
+        toast.success("Draft updated");
       } else {
         const res = await axios.post("/api/v1/drafts", payload);
         if (res.data?.id) {
           setDraftId(res.data.id);
         }
-        notify("Draft saved");
+        toast.success("Draft saved");
       }
       setLastSavedTime(
         new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -332,25 +351,23 @@ export default function ComposePanel() {
         close();
       }
     } catch {
-      notify("Failed to save draft");
+      toast.error("Failed to save draft");
     } finally {
       setSavingDraft(false);
-      setMenu(null);
     }
   }
 
   async function handleDiscardDraft() {
-    setMenu(null);
     if (draftId) {
       try {
         await axios.delete(`/api/v1/drafts/${draftId}`);
-        notify("Draft discarded");
+        toast.success("Draft discarded");
         refresh();
       } catch {
-        notify("Failed to discard draft");
+        toast.error("Failed to discard draft");
       }
     } else {
-      notify("Draft discarded");
+      toast.success("Draft discarded");
     }
     close();
   }
@@ -388,18 +405,17 @@ export default function ComposePanel() {
         }
       }
       close();
-      notify("Message sent successfully!");
+      toast.success("Message sent successfully!");
       refresh();
     } catch {
-      notify("Failed to send message.");
+      toast.error("Failed to send message.");
     }
   }
 
   function insertSignature() {
     const signature = "\n\n--\nBest regards,\nMahesh";
     setBody((prev) => prev + signature);
-    setMenu(null);
-    notify("Signature inserted");
+    toast.success("Signature inserted");
   }
 
   return (
@@ -446,95 +462,127 @@ export default function ComposePanel() {
 
         <div className="compose-head">
           <strong>{panelTitle}</strong>
-          <div>
-            <button
-              className="icon-button small"
-              onClick={() => setMaximized(!maximized)}
-              aria-label={maximized ? "Minimize compose" : "Maximize compose"}
-              title={maximized ? "Restore window" : "Maximize window"}
-            >
-              {maximized ? <Minimize2 /> : <Maximize2 />}
-            </button>
-            <button
-              className="icon-button small"
-              onClick={handleRequestClose}
-              aria-label="Close compose"
-              title="Close compose (Esc)"
-            >
-              <X />
-            </button>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="icon-button small"
+                    onClick={() => setMaximized(!maximized)}
+                    aria-label={maximized ? "Minimize compose" : "Maximize compose"}
+                  />
+                }
+              >
+                {maximized ? (
+                  <Minimize2 className="size-3.5" />
+                ) : (
+                  <Maximize2 className="size-3.5" />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {maximized ? "Restore window" : "Maximize window"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="icon-button small"
+                    onClick={handleRequestClose}
+                    aria-label="Close compose"
+                  />
+                }
+              >
+                <X className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>Close compose (Esc)</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
         <div className="compose-fields">
           <div className="to-row">
-            <input
+            <Input
+              className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent"
               placeholder="Recipients (comma separated)"
               value={to}
               onChange={(e) => setTo(e.target.value)}
               autoFocus
             />
             {!showCc && (
-              <button
-                className="cc-bcc-toggle"
+              <Button
+                variant="ghost"
+                size="xs"
+                className="cc-bcc-toggle text-xs text-muted-foreground hover:text-foreground h-6 px-2 mr-2"
                 onClick={() => setShowCc(true)}
                 type="button"
               >
                 Cc/Bcc
-              </button>
+              </Button>
             )}
           </div>
           {showCc && (
             <>
-              <input
+              <Input
+                className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
                 placeholder="Cc (comma separated)"
                 value={cc}
                 onChange={(e) => setCc(e.target.value)}
               />
-              <input
+              <Input
+                className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
                 placeholder="Bcc (comma separated)"
                 value={bcc}
                 onChange={(e) => setBcc(e.target.value)}
               />
             </>
           )}
-          <input
+          <Input
+            className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
             placeholder="Subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
           />
         </div>
 
-        <textarea
+        <Textarea
           ref={textareaRef}
+          className="border-none shadow-none focus-visible:ring-0 p-3 text-sm rounded-none bg-transparent flex-1 resize-none"
           placeholder="Write your message... (Ctrl+Enter to send, Ctrl+B for bold)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
         />
 
-        {}
         {attachments.length > 0 && (
-          <div className="compose-attachments-list">
+          <div className="compose-attachments-list flex flex-wrap gap-1.5 p-2.5 border-t border-border/40 bg-muted/20">
             {attachments.map((att) => {
               const Icon = getFileIcon(att.type);
               return (
-                <div key={att.id} className="compose-attachment-chip">
-                  <Icon className="compose-att-icon" />
-                  <span className="compose-att-name" title={att.name}>
+                <Badge
+                  key={att.id}
+                  variant="secondary"
+                  className="compose-attachment-chip gap-1.5 py-1 px-2 text-xs font-normal"
+                >
+                  <Icon className="compose-att-icon size-3.5 text-muted-foreground" />
+                  <span className="compose-att-name truncate max-w-40" title={att.name}>
                     {att.name}
                   </span>
-                  <span className="compose-att-size">
+                  <span className="compose-att-size text-muted-foreground text-[11px]">
                     ({formatBytes(att.size)})
                   </span>
                   <button
                     type="button"
-                    className="compose-att-remove"
+                    className="compose-att-remove hover:bg-muted/80 rounded p-0.5 cursor-pointer ml-0.5"
                     onClick={() => removeAttachment(att.id)}
                     aria-label={`Remove ${att.name}`}
                   >
-                    <X />
+                    <X className="size-3 text-muted-foreground hover:text-foreground" />
                   </button>
-                </div>
+                </Badge>
               );
             })}
           </div>
@@ -542,190 +590,224 @@ export default function ComposePanel() {
 
         <div className="compose-foot">
           <div className="compose-foot-left">
-            <button
-              className="send-button"
+            <Button
+              className="send-button gap-1.5"
               disabled={sending || !to.trim()}
               data-loading={sending ? "true" : undefined}
               onClick={handleSend}
               title="Send email (Ctrl + Enter)"
             >
               {sending ? (
-                <span className="spinner sm" aria-hidden="true" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <Send />
+                <Send className="size-4" />
               )}
-              {sending ? "Sending…" : "Send"}
-            </button>
+              <span>{sending ? "Sending…" : "Send"}</span>
+            </Button>
 
-            {}
             <div className="compose-save-status">
               {autoSaving ? (
-                <span className="saving-indicator">
-                  <Loader2 className="spinning" style={{ width: 12, height: 12 }} />
+                <span className="saving-indicator flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
                   Saving...
                 </span>
               ) : lastSavedTime ? (
-                <span className="saved-indicator">
-                  <CheckCircle2 style={{ width: 12, height: 12, color: "#10b981" }} />
+                <span className="saved-indicator flex items-center gap-1 text-xs text-muted-foreground">
+                  <CheckCircle2 className="size-3 text-emerald-500" />
                   Saved {lastSavedTime}
                 </span>
               ) : null}
             </div>
           </div>
 
-          <div className="compose-foot-actions">
-            {}
-            <div className="formatting-toolbar">
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Bold (Ctrl+B)"
-                title="Bold (Ctrl+B)"
-                onClick={() => applyFormatting("bold")}
-              >
-                <Bold />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Italic (Ctrl+I)"
-                title="Italic (Ctrl+I)"
-                onClick={() => applyFormatting("italic")}
-              >
-                <Italic />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Link (Ctrl+K)"
-                title="Insert link (Ctrl+K)"
-                onClick={() => applyFormatting("link")}
-              >
-                <Link2 />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Bulleted list"
-                title="Bulleted list"
-                onClick={() => applyFormatting("list")}
-              >
-                <List />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Quote block"
-                title="Quote block"
-                onClick={() => applyFormatting("quote")}
-              >
-                <Quote />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Code snippet"
-                title="Code snippet"
-                onClick={() => applyFormatting("code")}
-              >
-                <Code />
-              </button>
-              <button
-                type="button"
-                className="icon-button small"
-                aria-label="Attach files"
-                title="Attach files"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Paperclip />
-              </button>
+          <div className="compose-foot-actions flex items-center gap-1">
+            <div className="formatting-toolbar flex items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Bold (Ctrl+B)"
+                      onClick={() => applyFormatting("bold")}
+                    />
+                  }
+                >
+                  <Bold className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Bold (Ctrl+B)</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Italic (Ctrl+I)"
+                      onClick={() => applyFormatting("italic")}
+                    />
+                  }
+                >
+                  <Italic className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Italic (Ctrl+I)</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Link (Ctrl+K)"
+                      onClick={() => applyFormatting("link")}
+                    />
+                  }
+                >
+                  <Link2 className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Insert link (Ctrl+K)</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Bulleted list"
+                      onClick={() => applyFormatting("list")}
+                    />
+                  }
+                >
+                  <List className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Bulleted list</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Quote block"
+                      onClick={() => applyFormatting("quote")}
+                    />
+                  }
+                >
+                  <Quote className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Quote block</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Code snippet"
+                      onClick={() => applyFormatting("code")}
+                    />
+                  }
+                >
+                  <Code className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Code snippet</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="icon-button small"
+                      aria-label="Attach files"
+                      onClick={() => fileInputRef.current?.click()}
+                    />
+                  }
+                >
+                  <Paperclip className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>Attach files</TooltipContent>
+              </Tooltip>
             </div>
 
-            <div className="menu-wrap">
-              <button
-                className="icon-button small"
-                aria-label="Compose options"
-                title="More options"
-                onClick={() => toggleMenu("compose-more")}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="icon-button small"
+                    aria-label="Compose options"
+                  />
+                }
               >
-                <MoreHorizontal />
-              </button>
-              {menu === "compose-more" && (
-                <div className="dropdown">
-                  <button
-                    onClick={() => handleSaveDraft(false)}
-                    disabled={savingDraft}
-                  >
-                    {savingDraft
-                      ? "Saving..."
-                      : draftId
-                      ? "Update draft"
-                      : "Save as draft"}
-                  </button>
-                  <button onClick={insertSignature}>
-                    Insert signature
-                  </button>
-                  <button
-                    onClick={handleDiscardDraft}
-                    style={{ color: "var(--destructive)" }}
-                  >
-                    Discard draft
-                  </button>
-                </div>
-              )}
-            </div>
+                <MoreHorizontal className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44 p-1">
+                <DropdownMenuItem
+                  onClick={() => handleSaveDraft(false)}
+                  disabled={savingDraft}
+                >
+                  {savingDraft
+                    ? "Saving..."
+                    : draftId
+                    ? "Update draft"
+                    : "Save as draft"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={insertSignature}>
+                  Insert signature
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={handleDiscardDraft}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Discard draft
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
 
-      {}
-      {showClosePrompt && (
-        <div className="modal-backdrop" onClick={() => setShowClosePrompt(false)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="modal-header">
-              <div className="modal-header-title">
-                <h3>Save draft or discard?</h3>
-              </div>
-              <button
-                className="icon-button small"
-                onClick={() => setShowClosePrompt(false)}
-                aria-label="Cancel close"
-              >
-                <X />
-              </button>
-            </div>
-            <p className="modal-body">
+      <AlertDialog open={showClosePrompt} onOpenChange={setShowClosePrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save draft or discard?</AlertDialogTitle>
+            <AlertDialogDescription>
               You have unsaved changes in this message. Do you want to save it as a draft or discard it?
-            </p>
-            <div className="modal-actions" style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button
-                className="button-secondary"
-                onClick={() => setShowClosePrompt(false)}
-              >
-                Keep editing
-              </button>
-              <button
-                className="button-destructive"
-                onClick={handleDiscardDraft}
-              >
-                Discard
-              </button>
-              <button
-                className="button-primary"
-                onClick={() => handleSaveDraft(true)}
-                disabled={savingDraft}
-              >
-                {savingDraft ? "Saving..." : draftId ? "Update draft" : "Save as draft"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowClosePrompt(false)}>
+              Keep editing
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleDiscardDraft}
+            >
+              Discard
+            </Button>
+            <AlertDialogAction
+              onClick={() => handleSaveDraft(true)}
+              disabled={savingDraft}
+            >
+              {savingDraft ? "Saving..." : draftId ? "Update draft" : "Save as draft"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

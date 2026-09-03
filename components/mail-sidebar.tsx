@@ -20,6 +20,15 @@ import axios from "axios";
 import { Folder, MailItem } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import ConfirmDialog from "./confirm-dialog";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const folderIcons: Record<Folder, typeof Inbox> = {
   Inbox,
@@ -99,21 +108,27 @@ function useMailSummary(refreshTick: number) {
   const counts = useMemo<Record<string, number>>(() => {
     const res: Record<string, number> = {
       Inbox: allMail.filter(
-        (m) => m.folder?.toLowerCase() === "inbox" || !m.folder
+        (m) => (m.folder?.toLowerCase() === "inbox" || !m.folder) && m.unread,
       ).length,
       Starred: allMail.filter(
-        (m) => m.starred && m.folder?.toLowerCase() !== "trash"
+        (m) => m.starred && m.folder?.toLowerCase() !== "trash" && m.unread,
       ).length,
-      Sent: allMail.filter((m) => m.folder?.toLowerCase() === "sent").length,
+      Sent: allMail.filter(
+        (m) => m.folder?.toLowerCase() === "sent" && m.unread,
+      ).length,
       Drafts: allMail.filter(
         (m) =>
-          m.folder?.toLowerCase() === "drafts" ||
-          m.status?.toLowerCase() === "draft" ||
-          m.labels?.includes("Draft")
+          (m.folder?.toLowerCase() === "drafts" ||
+            m.status?.toLowerCase() === "draft" ||
+            m.labels?.includes("Draft")) &&
+          m.unread,
       ).length,
-      Archive: allMail.filter((m) => m.folder?.toLowerCase() === "archive")
-        .length,
-      Trash: allMail.filter((m) => m.folder?.toLowerCase() === "trash").length,
+      Archive: allMail.filter(
+        (m) => m.folder?.toLowerCase() === "archive" && m.unread,
+      ).length,
+      Trash: allMail.filter(
+        (m) => m.folder?.toLowerCase() === "trash" && m.unread,
+      ).length,
     };
 
     for (const lbl of labels) {
@@ -121,7 +136,8 @@ function useMailSummary(refreshTick: number) {
         (m) =>
           Array.isArray(m.labels) &&
           m.labels.includes(lbl.name) &&
-          m.folder?.toLowerCase() !== "trash"
+          m.folder?.toLowerCase() !== "trash" &&
+          m.unread,
       ).length;
     }
 
@@ -132,7 +148,7 @@ function useMailSummary(refreshTick: number) {
     return allMail.reduce((acc, m) => {
       const attSize = (m.attachments || []).reduce(
         (sum, a) => sum + (a.sizeBytes || 0),
-        0
+        0,
       );
       return acc + attSize;
     }, 0);
@@ -155,18 +171,18 @@ export default function MailSidebar() {
     setMobileNavOpen,
     refreshTick,
     refresh,
-    notify,
   } = useMailContext();
 
   const { counts, storageBytes, labels } = useMailSummary(refreshTick);
 
-  
   const [creatingLabel, setCreatingLabel] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
   const [creatingLoading, setCreatingLoading] = useState(false);
 
   // Deleting label state
-  const [deleteLabelTarget, setDeleteLabelTarget] = useState<string | null>(null);
+  const [deleteLabelTarget, setDeleteLabelTarget] = useState<string | null>(
+    null,
+  );
 
   function selectFolder(name: Folder) {
     startTransition(() => {
@@ -196,12 +212,12 @@ export default function MailSidebar() {
     setCreatingLoading(true);
     try {
       await axios.post("/api/v1/labels", { name: trimmed });
-      notify(`Label "${trimmed}" created`);
+      toast.success(`Label "${trimmed}" created`);
       setNewLabelName("");
       setCreatingLabel(false);
       refresh();
     } catch (err: any) {
-      notify(err.response?.data?.error || "Failed to create label");
+      toast.error(err.response?.data?.error || "Failed to create label");
     } finally {
       setCreatingLoading(false);
     }
@@ -213,7 +229,7 @@ export default function MailSidebar() {
     setDeleteLabelTarget(null);
     try {
       await axios.delete(`/api/v1/labels/${encodeURIComponent(target)}`);
-      notify(`Label "${target}" deleted`);
+      toast.success(`Label "${target}" deleted`);
       if (label === target) {
         setLabel(undefined);
         setFolder("Inbox");
@@ -221,7 +237,7 @@ export default function MailSidebar() {
       }
       refresh();
     } catch {
-      notify("Failed to delete label");
+      toast.error("Failed to delete label");
     }
   }
 
@@ -235,18 +251,30 @@ export default function MailSidebar() {
 
   const storagePercent = Math.min(
     100,
-    Math.max(2, (storageBytes / (1024 * 1024 * 1024)) * 100)
+    Math.max(2, (storageBytes / (1024 * 1024 * 1024)) * 100),
   );
 
   return (
     <>
       <aside className={`sidebar ${mobileNavOpen ? "nav-open" : ""}`}>
-        <button className="compose-button" onClick={() => openCompose()}>
-          <Pencil /> Compose <span>⌘ N</span>
-        </button>
+        <Button
+          className="compose-button w-full justify-start h-9 gap-2.5 font-medium shadow-sm"
+          onClick={() => openCompose()}
+        >
+          <Pencil className="size-4" />
+          <span>Compose</span>
+          <span className="ml-auto text-[10px] opacity-60 font-mono">⌘ N</span>
+        </Button>
         <nav aria-label="Mail folders">
           {(
-            ["Inbox", "Starred", "Sent", "Drafts", "Archive", "Trash"] as Folder[]
+            [
+              "Inbox",
+              "Starred",
+              "Sent",
+              "Drafts",
+              "Archive",
+              "Trash",
+            ] as Folder[]
           ).map((name) => {
             const Icon = folderIcons[name];
             const isInbox = name === "Inbox";
@@ -259,55 +287,77 @@ export default function MailSidebar() {
                 }`}
                 onClick={() => selectFolder(name)}
               >
-                <Icon />
+                <Icon className="size-4" />
                 <span>{name}</span>
-                {counts[name] > 0 && <b>{counts[name]}</b>}
+                {counts[name] > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="ml-auto text-[11px] h-4.5 px-1.5 font-normal"
+                  >
+                    {counts[name]}
+                  </Badge>
+                )}
               </button>
             );
           })}
         </nav>
         <div className="sidebar-spacer" />
-        
-        <div className="sidebar-heading-row">
+
+        <div className="sidebar-heading-row flex items-center justify-between">
           <strong className="sidebar-heading">Labels</strong>
-          <button
-            className="icon-button small create-label-btn"
-            title="Create new label"
-            aria-label="Create new label"
-            onClick={() => setCreatingLabel((prev) => !prev)}
-          >
-            <Plus />
-          </button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="icon-button small create-label-btn"
+                  aria-label="Create new label"
+                  onClick={() => setCreatingLabel((prev) => !prev)}
+                />
+              }
+            >
+              <Plus className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>Create new label</TooltipContent>
+          </Tooltip>
         </div>
 
         {creatingLabel && (
-          <form className="create-label-inline-form" onSubmit={handleCreateLabel}>
-            <input
+          <form
+            className="create-label-inline-form"
+            onSubmit={handleCreateLabel}
+          >
+            <Input
               placeholder="Label name..."
               value={newLabelName}
               onChange={(e) => setNewLabelName(e.target.value)}
+              className="h-7 text-xs px-2"
               autoFocus
             />
-            <button
+            <Button
               type="submit"
-              className="button-primary small"
+              size="xs"
               disabled={creatingLoading || !newLabelName.trim()}
               data-loading={creatingLoading ? "true" : undefined}
-              style={{ display: "flex", alignItems: "center", gap: 4 }}
+              className="h-7 px-2 text-xs gap-1"
             >
-              {creatingLoading ? <span className="spinner sm" aria-hidden="true" /> : null}
+              {creatingLoading ? (
+                <span className="spinner sm" aria-hidden="true" />
+              ) : null}
               {creatingLoading ? "Adding…" : "Add"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="icon-button small"
+              variant="ghost"
+              size="icon-xs"
               onClick={() => {
                 setCreatingLabel(false);
                 setNewLabelName("");
               }}
             >
-              <X />
-            </button>
+              <X className="size-3.5" />
+            </Button>
           </form>
         )}
 
@@ -324,21 +374,34 @@ export default function MailSidebar() {
                   className="nav-label-btn"
                   onClick={() => selectLabel(lbl.name)}
                 >
-                  <Tag />
+                  <Tag className="size-4" />
                   <span>{lbl.name}</span>
-                  {count > 0 && <b>{count}</b>}
+                  {count > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className="ml-auto text-[11px] h-4.5 px-1.5 font-normal"
+                    >
+                      {count}
+                    </Badge>
+                  )}
                 </button>
-                <button
-                  className="icon-button small label-delete-icon"
-                  title={`Delete label "${lbl.name}"`}
-                  aria-label={`Delete label "${lbl.name}"`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteLabelTarget(lbl.name);
-                  }}
-                >
-                  <Trash2 />
-                </button>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        className="icon-button small label-delete-icon"
+                        aria-label={`Delete label "${lbl.name}"`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteLabelTarget(lbl.name);
+                        }}
+                      />
+                    }
+                  >
+                    <Trash2 className="size-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>Delete label &quot;{lbl.name}&quot;</TooltipContent>
+                </Tooltip>
               </div>
             );
           })}
@@ -346,11 +409,11 @@ export default function MailSidebar() {
 
         <div className="sidebar-spacer" />
         <button className="nav-item" onClick={() => router.push("/automation")}>
-          <Zap />
+          <Zap className="size-4" />
           <span>Automation</span>
         </button>
         <button className="nav-item" onClick={() => router.push("/settings")}>
-          <Settings />
+          <Settings className="size-4" />
           <span>Settings</span>
         </button>
         <div className="storage">

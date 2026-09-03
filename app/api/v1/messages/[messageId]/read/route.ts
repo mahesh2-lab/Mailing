@@ -12,15 +12,26 @@ export async function PATCH(
   try {
     const email = await db.select().from(emails).where(eq(emails.id, messageId));
     
-    if (!email) {
-      return NextResponse.json({ error: "Email not found" }, { status: 400 });
+    if (!email || email.length === 0) {
+      return NextResponse.json({ error: "Email not found" }, { status: 404 });
+    }
+
+    let unread = false;
+    try {
+      const body = await request.json();
+      if (typeof body.unread === 'boolean') {
+        unread = body.unread;
+      } else if (typeof body.read === 'boolean') {
+        unread = !body.read;
+      }
+    } catch {
+      // No or empty body; defaults to unread = false (marked as read)
     }
     
-    await db.update(emails).set({ unread: false }).where(eq(emails.id, messageId));
+    await db.update(emails).set({ unread }).where(eq(emails.id, messageId));
 
-
-    return NextResponse.json({ id: messageId, read: true });
+    return NextResponse.json({ id: messageId, unread, read: !unread });
   } catch (error) {
-    return NextResponse.json({ error: "Error updating message" });
+    return NextResponse.json({ error: "Error updating message" }, { status: 500 });
   }
 }

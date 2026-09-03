@@ -25,8 +25,6 @@ interface MailContextValue {
   openCompose: (defaults?: ComposeDefaults) => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (open: boolean) => void;
-  toast: string;
-  notify: (message: string) => void;
   refreshTick: number;
   refresh: () => void;
 }
@@ -103,7 +101,6 @@ export function MailProvider({
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<ComposeDefaults | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [toast, setToast] = useState("");
   const [refreshTick, setRefreshTick] = useState(0);
 
   function openCompose(defaults?: ComposeDefaults) {
@@ -126,10 +123,29 @@ export function MailProvider({
     }
   }, [pathname]);
 
-  function notify(message: string) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 2400);
-  }
+  // Initialize openId from URL search param if present
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const initialId = params.get("id") || params.get("messageId");
+      if (initialId) {
+        setOpenId(initialId);
+      }
+    }
+  }, []);
+
+  // Keep URL query param in sync with active openId
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (openId) {
+      url.searchParams.set("id", openId);
+    } else {
+      url.searchParams.delete("id");
+      url.searchParams.delete("messageId");
+    }
+    window.history.replaceState(null, "", url.toString());
+  }, [openId]);
 
   function refresh() {
     setRefreshTick((t) => t + 1);
@@ -163,8 +179,6 @@ export function MailProvider({
         openCompose,
         mobileNavOpen,
         setMobileNavOpen,
-        toast,
-        notify,
         refreshTick,
         refresh,
       }}

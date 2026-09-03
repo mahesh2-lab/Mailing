@@ -10,25 +10,40 @@ import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { getInitials, avatarColor } from "@/lib/utils";
 import { useTheme } from "next-themes";
-
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="email-row skeleton-row">
-          <span className="skel skel-avatar" />
-          <div className="skel-body">
-            <span className="skel skel-line skel-name" />
-            <span className="skel skel-line skel-subject" />
-            <span className="skel skel-line skel-preview" />
+        <div key={i} className="email-row skeleton-row items-center gap-3 p-3.5">
+          <Skeleton className="size-8 rounded-full shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3.5 w-1/4" />
+            <Skeleton className="h-3.5 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
           </div>
         </div>
       ))}
     </>
   );
 }
-
 
 interface EmailRowProps {
   item: MailItem;
@@ -66,53 +81,66 @@ const EmailRow = memo(function EmailRow({
         </div>
       )}
 
-      {}
+      {/* Quick hover actions */}
       <div className="row-actions" onClick={(e) => e.stopPropagation()}>
         {primaryActions.map((action) => {
           const Icon = action.icon;
           return (
-            <button
-              key={action.id}
-              className="row-action-btn"
-              title={action.tooltip}
-              onClick={() => onSingleAction(action, item.id)}
-            >
-              <Icon />
-            </button>
+            <Tooltip key={action.id}>
+              <TooltipTrigger
+                render={
+                  <button
+                    className="row-action-btn"
+                    aria-label={action.label}
+                    onClick={() => onSingleAction(action, item.id)}
+                  />
+                }
+              >
+                <Icon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>{action.tooltip}</TooltipContent>
+            </Tooltip>
           );
         })}
       </div>
 
-      <label className="check-wrap" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
+      <div onClick={(e) => e.stopPropagation()} className="pt-0.5 flex items-center">
+        <Checkbox
           checked={isSelected}
-          onChange={() => onToggleSelect(item.id)}
+          onCheckedChange={() => onToggleSelect(item.id)}
+          aria-label={`Select ${item.sender.name}`}
         />
-        <span />
-      </label>
-
-      <button
-        className={`icon-button star-btn ${item.starred ? "is-starred" : ""}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onStarToggle(item.id, !!item.starred);
-        }}
-        aria-label="Star conversation"
-      >
-        <Star className={item.starred ? "fill-star" : ""} />
-      </button>
-
-      <div
-        className="avatar list-avatar"
-        style={{ background: avatarColor(item.sender.name) }}
-      >
-        {item.sender.avatarUrl ? (
-          <img src={item.sender.avatarUrl} alt={item.sender.name} />
-        ) : (
-          getInitials(item.sender.name)
-        )}
       </div>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <button
+              className={`icon-button star-btn ${item.starred ? "is-starred" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStarToggle(item.id, !!item.starred);
+              }}
+              aria-label={item.starred ? "Unstar conversation" : "Star conversation"}
+            />
+          }
+        >
+          <Star className={`size-4 ${item.starred ? "fill-star" : ""}`} />
+        </TooltipTrigger>
+        <TooltipContent>{item.starred ? "Unstar" : "Star"}</TooltipContent>
+      </Tooltip>
+
+      <Avatar className="size-8 shrink-0">
+        {item.sender.avatarUrl && (
+          <AvatarImage src={item.sender.avatarUrl} alt={item.sender.name} />
+        )}
+        <AvatarFallback
+          style={{ background: avatarColor(item.sender.name), color: "#ffffff" }}
+          className="text-xs font-semibold"
+        >
+          {getInitials(item.sender.name)}
+        </AvatarFallback>
+      </Avatar>
 
       <div className="email-copy">
         <div className="email-meta">
@@ -129,7 +157,13 @@ const EmailRow = memo(function EmailRow({
           {item.labels && item.labels.length > 0 && (
             <div className="inline-labels">
               {item.labels.map((lbl) => (
-                <em key={lbl}>{lbl}</em>
+                <Badge
+                  key={lbl}
+                  variant="secondary"
+                  className="text-[10px] h-4.5 px-1.5 font-medium rounded"
+                >
+                  {lbl}
+                </Badge>
               ))}
             </div>
           )}
@@ -140,7 +174,6 @@ const EmailRow = memo(function EmailRow({
     </article>
   );
 });
-
 
 function useListData(
   folder: string | undefined,
@@ -213,7 +246,6 @@ function useListData(
   return { mail, setMail, initialLoading, isFetching, error };
 }
 
-
 export default function MailListPane() {
   const {
     folder,
@@ -221,7 +253,6 @@ export default function MailListPane() {
     query,
     openId,
     setOpenId,
-    notify,
     refresh,
     refreshTick,
     openCompose,
@@ -241,35 +272,16 @@ export default function MailListPane() {
   const [selected, setSelected] = useState<string[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
 
-  
   const [allLabels, setAllLabels] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  const [labelBulkOpen, setLabelBulkOpen] = useState(false);
-  const labelBulkRef = useRef<HTMLDivElement>(null);
 
-  
   useEffect(() => {
     axios
       .get("/api/v1/labels")
       .then((res) => setAllLabels(res.data || []))
       .catch(() => {});
   }, [refreshTick]);
-
-  
-  useEffect(() => {
-    if (!labelBulkOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (
-        labelBulkRef.current &&
-        !labelBulkRef.current.contains(e.target as Node)
-      ) {
-        setLabelBulkOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [labelBulkOpen]);
 
   async function handleBulkLabel(lbl: string) {
     if (selected.length === 0) return;
@@ -279,18 +291,16 @@ export default function MailListPane() {
         label: lbl,
         action: "add",
       });
-      notify(
+      toast.success(
         `Label "${lbl}" added to ${selected.length} message${selected.length > 1 ? "s" : ""}`,
       );
-      setLabelBulkOpen(false);
       setSelected([]);
       refresh();
     } catch {
-      notify("Failed to apply label");
+      toast.error("Failed to apply label");
     }
   }
 
-  
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -356,7 +366,7 @@ export default function MailListPane() {
         const res = await axios.post(`/api/v1/messages/${id}/star`, {
           starred: !currentStarred,
         });
-        notify(res.data.starred ? "Message starred" : "Message unstarred");
+        toast.success(res.data.starred ? "Message starred" : "Message unstarred");
         refresh();
       } catch {
         setMail((prev) =>
@@ -364,10 +374,10 @@ export default function MailListPane() {
             m.id === id ? { ...m, starred: currentStarred } : m,
           ),
         );
-        notify("Failed to update star");
+        toast.error("Failed to update star");
       }
     },
-    [setMail, notify, refresh],
+    [setMail, refresh],
   );
 
   const executeRestore = useCallback(
@@ -377,15 +387,15 @@ export default function MailListPane() {
         await axios.post(`/api/v1/messages/${id}/restore`);
         setMail((prev) => prev.filter((m) => m.id !== id));
         if (openId === id) setOpenId(null);
-        notify(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
+        toast.success(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
         refresh();
       } catch {
-        notify("Failed to restore message");
+        toast.error("Failed to restore message");
       } finally {
         setActioning(null);
       }
     },
-    [folder, openId, setOpenId, setMail, notify, refresh],
+    [folder, openId, setOpenId, setMail, refresh],
   );
 
   const executeArchive = useCallback(
@@ -395,33 +405,120 @@ export default function MailListPane() {
         await axios.post(`/api/v1/messages/${id}/archive`);
         setMail((prev) => prev.filter((m) => m.id !== id));
         if (openId === id) setOpenId(null);
-        notify("Message archived");
+        toast.success("Message archived");
         refresh();
       } catch {
-        notify("Failed to archive message");
+        toast.error("Failed to archive message");
       } finally {
         setActioning(null);
       }
     },
-    [openId, setOpenId, setMail, notify, refresh],
+    [openId, setOpenId, setMail, refresh],
   );
 
   const executeTrash = useCallback(
     async (id: string) => {
+      const itemToTrash = mail.find((m) => m.id === id);
+      const originalFolder = folder ?? (label ? "inbox" : "inbox");
+
       setActioning(id);
       try {
         await axios.post(`/api/v1/messages/${id}/trash`);
         setMail((prev) => prev.filter((m) => m.id !== id));
         if (openId === id) setOpenId(null);
-        notify(folder === "Sent" ? "Removed from Sent" : "Moved to trash");
         refresh();
+
+        const toastMsg = folder === "Sent" ? "Removed from Sent" : "Moved to trash";
+
+        toast(toastMsg, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await axios.post(`/api/v1/messages/${id}/restore`, {
+                  folder: originalFolder.toLowerCase(),
+                });
+                if (itemToTrash) {
+                  setMail((prev) => {
+                    if (prev.some((m) => m.id === id)) return prev;
+                    return [itemToTrash, ...prev];
+                  });
+                }
+                refresh();
+                toast.success("Action undone");
+              } catch (err) {
+                console.error("Failed to undo deletion:", err);
+                toast.error("Failed to undo deletion");
+              }
+            },
+          },
+          duration: 6000,
+        });
       } catch {
-        notify("Failed to move to trash");
+        toast.error("Failed to move to trash");
       } finally {
         setActioning(null);
       }
     },
-    [folder, openId, setOpenId, setMail, notify, refresh],
+    [folder, label, mail, openId, setOpenId, setMail, refresh],
+  );
+
+  const executeBulkTrash = useCallback(
+    async (ids: string[]) => {
+      const itemsToTrash = mail.filter((m) => ids.includes(m.id));
+      const originalFolder = folder ?? "inbox";
+      const count = ids.length;
+
+      try {
+        await Promise.all(
+          ids.map((id) => axios.post(`/api/v1/messages/${id}/trash`))
+        );
+        setMail((prev) => prev.filter((m) => !ids.includes(m.id)));
+        if (openId && ids.includes(openId)) setOpenId(null);
+        setSelected([]);
+        refresh();
+
+        const toastMsg =
+          count === 1
+            ? folder === "Sent"
+              ? "Removed from Sent"
+              : "Moved to trash"
+            : `${count} conversations moved to trash`;
+
+        toast(toastMsg, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                await Promise.all(
+                  ids.map((id) =>
+                    axios.post(`/api/v1/messages/${id}/restore`, {
+                      folder: originalFolder.toLowerCase(),
+                    })
+                  )
+                );
+                setMail((prev) => {
+                  const existingIds = new Set(prev.map((m) => m.id));
+                  const toRestore = itemsToTrash.filter(
+                    (m) => !existingIds.has(m.id)
+                  );
+                  return [...toRestore, ...prev];
+                });
+                refresh();
+                toast.success("Action undone");
+              } catch (err) {
+                console.error("Failed to undo deletion:", err);
+                toast.error("Failed to undo deletion");
+              }
+            },
+          },
+          duration: 6000,
+        });
+      } catch {
+        toast.error("Failed to move to trash");
+      }
+    },
+    [folder, mail, openId, setOpenId, setMail, refresh],
   );
 
   const executeDeletePermanent = useCallback(
@@ -431,15 +528,15 @@ export default function MailListPane() {
         await axios.delete(`/api/v1/messages/${id}`);
         setMail((prev) => prev.filter((m) => m.id !== id));
         if (openId === id) setOpenId(null);
-        notify("Permanently deleted message");
+        toast.success("Permanently deleted message");
         refresh();
       } catch {
-        notify("Failed to delete message");
+        toast.error("Failed to delete message");
       } finally {
         setActioning(null);
       }
     },
-    [openId, setOpenId, setMail, notify, refresh],
+    [openId, setOpenId, setMail, refresh],
   );
 
   const handleSingleAction = useCallback(
@@ -500,8 +597,7 @@ export default function MailListPane() {
       for (const id of selected) await executeArchive(id);
       setSelected([]);
     } else if (action.id === "trash") {
-      for (const id of selected) await executeTrash(id);
-      setSelected([]);
+      await executeBulkTrash(selected);
     }
   }
 
@@ -519,10 +615,10 @@ export default function MailListPane() {
           setMail([]);
           setOpenId(null);
           setSelected([]);
-          notify("Trash emptied");
+          toast.success("Trash emptied");
           refresh();
         } catch {
-          notify("Failed to empty trash");
+          toast.error("Failed to empty trash");
         }
       },
     });
@@ -530,108 +626,142 @@ export default function MailListPane() {
 
   return (
     <>
-      <section className={`list-pane ${openId ? "has-open mobile-hidden" : ""}`}>
+      <section
+        className={`list-pane ${openId ? "has-open mobile-hidden" : ""}`}
+      >
         {/* Header */}
         <div className="pane-heading">
           <div className="pane-heading-title">
             <h1>{label ? `#${label}` : folder || "Mail"}</h1>
             {!initialLoading && <span>{visible.length} conversations</span>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {canEmptyFolder && visible.length > 0 && !initialLoading && (
-              <button
-                className="empty-trash-btn"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="empty-trash-btn h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10"
                 onClick={handleEmptyTrash}
                 title="Permanently remove all trashed messages"
               >
-                <Trash2 />
+                <Trash2 className="size-3.5" />
                 <span>Empty Trash</span>
-              </button>
+              </Button>
             )}
-            <button
-              className={`icon-button refresh-btn ${
-                isFetching ? "spinning" : ""
-              }`}
-              onClick={() => {
-                refresh();
-                notify("Refreshed");
-              }}
-              aria-label="Refresh"
-            >
-              <RefreshCw />
-            </button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className={`icon-button refresh-btn ${
+                      isFetching ? "spinning" : ""
+                    }`}
+                    onClick={() => {
+                      refresh();
+                      toast.success("Refreshed");
+                    }}
+                    aria-label="Refresh"
+                  />
+                }
+              >
+                <RefreshCw className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent>Refresh conversations</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
-        {}
+        {/* Bulk Actions / Search Toolbar */}
         <div className="list-toolbar">
-          <label className="check-wrap">
-            <input
-              type="checkbox"
+          <div className="toolbar-left flex items-center gap-2.5">
+            <Checkbox
               checked={selected.length === visible.length && visible.length > 0}
-              onChange={selectAll}
+              onCheckedChange={selectAll}
+              aria-label="Select all conversations"
             />
-            <span />
-          </label>
-          {selected.length > 0 ? (
-            <>
+            {selected.length > 0 ? (
               <span className="selection-count">
                 {selected.length} selected
               </span>
+            ) : (
+              <span className="list-hint">Select conversations to manage</span>
+            )}
+          </div>
+
+          {selected.length > 0 && (
+            <div className="toolbar-actions flex items-center gap-1">
               {primaryActions.map((action) => {
                 const Icon = action.icon;
+                const shortLabel =
+                  action.id === "restore"
+                    ? "Restore"
+                    : action.id === "delete_permanent" || action.id === "trash"
+                    ? "Delete"
+                    : action.id === "archive"
+                    ? "Archive"
+                    : action.label;
+
                 return (
-                  <button
-                    key={action.id}
-                    className="toolbar-action"
-                    onClick={() => handleBulkAction(action)}
-                    title={action.tooltip}
-                  >
-                    <Icon />
-                    <span>{action.label}</span>
-                  </button>
+                  <Tooltip key={action.id}>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                          onClick={() => handleBulkAction(action)}
+                          aria-label={action.label}
+                        />
+                      }
+                    >
+                      <Icon className="size-3.5" />
+                      <span>{shortLabel}</span>
+                    </TooltipTrigger>
+                    <TooltipContent>{action.tooltip}</TooltipContent>
+                  </Tooltip>
                 );
               })}
-              {}
-              <div className="label-bulk-wrap" ref={labelBulkRef}>
-                <button
-                  className="toolbar-action"
-                  onClick={() => setLabelBulkOpen((v) => !v)}
-                  title="Label selected conversations"
+
+              {/* Labels dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                      aria-label="Label as"
+                    />
+                  }
                 >
-                  <Tag />
-                  <span>Label as</span>
-                </button>
-                {labelBulkOpen && (
-                  <div className="label-dropdown bulk-label-dropdown">
-                    {allLabels.length === 0 ? (
-                      <p className="label-dropdown-empty">
-                        No labels yet. Create one in the sidebar.
-                      </p>
-                    ) : (
-                      <div className="label-dropdown-list">
-                        {allLabels.map((lbl) => (
-                          <button
-                            key={lbl.id}
-                            className="label-dropdown-item"
-                            onClick={() => handleBulkLabel(lbl.name)}
-                          >
-                            <Tag />
-                            {lbl.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : (
-            <span className="list-hint">Select conversations to manage</span>
+                  <Tag className="size-3.5" />
+                  <span>Label</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 p-1">
+                  {allLabels.length === 0 ? (
+                    <div className="px-2 py-2 text-xs text-muted-foreground">
+                      No labels yet. Create one in the sidebar.
+                    </div>
+                  ) : (
+                    allLabels.map((lbl) => (
+                      <DropdownMenuItem
+                        key={lbl.id}
+                        onClick={() => handleBulkLabel(lbl.name)}
+                        className="text-xs gap-2"
+                      >
+                        <Tag className="size-3.5 text-muted-foreground" />
+                        <span>{lbl.name}</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
 
-        {}
+        {/* Email list */}
         <div className={`email-list ${isFetching ? "fetching" : ""}`}>
           {initialLoading && <SkeletonRows />}
 
@@ -661,8 +791,18 @@ export default function MailListPane() {
 
           {!initialLoading && !isFetching && !error && visible.length === 0 && (
             <div className="empty">
-              <div style={{ width: "200px", margin: "0 auto", marginBottom: "16px" }}>
-                <DotLottieReact src={isDark ? "/empty.json" : "/No-Item-In-Box.lottie"} loop autoplay />
+              <div
+                style={{
+                  width: "300px",
+                  margin: "0 auto",
+                  marginBottom: "16px",
+                }}
+              >
+                <DotLottieReact
+                  src={isDark ? "/empty.json" : "/No-Item-In-Box.lottie"}
+                  loop
+                  autoplay
+                />
               </div>
               <strong>Nothing here</strong>
               <span>
@@ -674,13 +814,14 @@ export default function MailListPane() {
           )}
         </div>
 
-        <button 
-          className="fab-compose mobile-only" 
+        <Button
+          size="icon-lg"
+          className="fab-compose mobile-only rounded-full shadow-lg"
           aria-label="Compose"
           onClick={() => openCompose()}
         >
-          <Pencil />
-        </button>
+          <Pencil className="size-5" />
+        </Button>
       </section>
 
       {}

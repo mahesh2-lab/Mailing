@@ -1,6 +1,17 @@
 "use client";
 
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -23,40 +34,37 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  if (!isOpen) return null;
-
   return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="modal-header">
-          <div className="modal-header-title">
-            {isDestructive && <AlertTriangle className="destructive-icon" />}
-            <h3>{title}</h3>
-          </div>
-          <button className="icon-button small" onClick={onCancel} aria-label="Close dialog">
-            <X />
-          </button>
-        </div>
-        <p className="modal-body">{description}</p>
-        <div className="modal-actions">
-          <button className="button-secondary" onClick={onCancel}>
+    <AlertDialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onCancel();
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          {isDestructive && (
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangle className="size-5 text-destructive" />
+            </AlertDialogMedia>
+          )}
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            className={isDestructive ? "button-destructive" : "button-primary"}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant={isDestructive ? "destructive" : "default"}
             onClick={() => {
               onConfirm();
             }}
           >
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

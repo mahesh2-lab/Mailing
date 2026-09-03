@@ -12,6 +12,16 @@ import MailDetailPane from "./mail-detail-pane";
 import ComposePanel from "./compose-panel";
 import { authClient } from "@/src/lib/auth-client";
 import { ThemeToggle } from "./theme-toggle";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils";
 
 function AppShell() {
   const router = useRouter();
@@ -26,17 +36,10 @@ function AppShell() {
     openCompose,
     openId,
     setOpenId,
-    toast,
   } = useMailContext();
 
-  const [headerMenu, setHeaderMenu] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  function toggleHeaderMenu(name: string) {
-    setHeaderMenu((cur) => (cur === name ? null : name));
-  }
-
-  
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const isInputFocused =
@@ -44,21 +47,18 @@ function AppShell() {
         document.activeElement?.tagName === "TEXTAREA" ||
         (document.activeElement as HTMLElement)?.isContentEditable;
 
-      
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
 
-      
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         openCompose();
         return;
       }
 
-      
       if (
         !isInputFocused &&
         !e.metaKey &&
@@ -71,12 +71,7 @@ function AppShell() {
         return;
       }
 
-      
       if (e.key === "Escape") {
-        if (headerMenu) {
-          setHeaderMenu(null);
-          return;
-        }
         if (composeOpen) {
           setComposeOpen(false);
           return;
@@ -90,7 +85,7 @@ function AppShell() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [composeOpen, openId, headerMenu, setComposeOpen, setOpenId]);
+  }, [composeOpen, openId, setComposeOpen, setOpenId]);
 
   async function handleLogout() {
     await authClient.signOut({
@@ -108,16 +103,17 @@ function AppShell() {
   return (
     <main className="mail-app">
       <header className="topbar">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           className="icon-button mobile-only"
           aria-label="Open navigation"
           onClick={() => setMobileNavOpen(!mobileNavOpen)}
         >
-          <Menu />
-        </button>
+          <Menu className="size-4" />
+        </Button>
 
         <Link href="/inbox" className="wordmark" title="Go to Inbox">
-          {}
           <span className="mark" aria-hidden="true">
             <svg
               width="16"
@@ -140,7 +136,7 @@ function AppShell() {
           className="top-search"
           onClick={() => searchInputRef.current?.focus()}
         >
-          <Search />
+          <Search className="size-4 text-muted-foreground" />
           <input
             ref={searchInputRef}
             value={query}
@@ -153,44 +149,48 @@ function AppShell() {
 
         <div className="top-actions">
           <ThemeToggle />
-          <div className="menu-wrap">
-            <button
-              className="icon-button"
-              aria-label="Notifications"
-              onClick={() => toggleHeaderMenu("notifications")}
-            >
-              <Bell />
-            </button>
-            {headerMenu === "notifications" && (
-              <div className="dropdown">
-                <strong>Notifications</strong>
-                <span>You&apos;re all caught up.</span>
-                <button
-                  onClick={() => {
-                    setHeaderMenu(null);
-                    router.push("/settings");
-                  }}
-                >
-                  Notification settings
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="menu-wrap">
-            <button
-              className="topbar-avatar-btn profile-button"
-              aria-label="Open profile menu"
-              onClick={() => toggleHeaderMenu("profile")}
-            >
-              {session?.user?.image ? (
-                <img
-                  src={session.user.image}
-                  alt={session.user.name ?? "Profile"}
-                  className="topbar-avatar-img"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="icon-button text-muted-foreground hover:text-foreground"
+                  aria-label="Notifications"
                 />
-              ) : (
-                <span className="topbar-avatar-initials">
+              }
+            >
+              <Bell className="size-4.5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 p-2">
+              <div className="px-2 py-1.5 font-semibold text-sm">Notifications</div>
+              <div className="px-2 py-1 text-xs text-muted-foreground">
+                You&apos;re all caught up.
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/settings")}>
+                Notification settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  className="topbar-avatar-btn profile-button cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label="Open profile menu"
+                />
+              }
+            >
+              <Avatar className="size-8">
+                {session?.user?.image && (
+                  <AvatarImage
+                    src={session.user.image}
+                    alt={session.user.name ?? "Profile"}
+                  />
+                )}
+                <AvatarFallback className="bg-brand text-brand-fg text-xs font-semibold">
                   {session?.user?.name ? (
                     session.user.name
                       .trim()
@@ -201,68 +201,51 @@ function AppShell() {
                       .join("")
                       .toUpperCase()
                   ) : (
-                    <User className="w-3.5 h-3.5" />
+                    <User className="size-3.5" />
                   )}
-                </span>
-              )}
-            </button>
-            {headerMenu === "profile" && (
-              <div className="dropdown profile-menu">
-                <div className="profile-menu-identity">
-                  {session?.user?.image ? (
-                    <img
+                </AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-2">
+              <div className="flex items-center gap-2.5 p-2">
+                <Avatar className="size-9">
+                  {session?.user?.image && (
+                    <AvatarImage
                       src={session.user.image}
                       alt={session.user.name ?? "Avatar"}
-                      className="avatar profile-menu-avatar profile-menu-avatar-img"
                     />
-                  ) : (
-                    <div className="avatar profile-menu-avatar">
-                      {session?.user?.name
-                        ? session.user.name
-                            .trim()
-                            .split(" ")
-                            .filter(Boolean)
-                            .map((p) => p[0])
-                            .slice(0, 2)
-                            .join("")
-                            .toUpperCase()
-                        : "?"}
-                    </div>
                   )}
-                  <div className="profile-menu-info">
-                    <strong>{session?.user?.name ?? "Account"}</strong>
-                    <span>{session?.user?.email}</span>
-                  </div>
+                  <AvatarFallback className="bg-brand text-brand-fg text-xs font-semibold">
+                    {session?.user?.name ? getInitials(session.user.name) : "?"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-sm truncate">
+                    {session?.user?.name ?? "Account"}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {session?.user?.email}
+                  </span>
                 </div>
-                <hr className="profile-menu-divider" />
-                <button
-                  onClick={() => {
-                    setHeaderMenu(null);
-                    router.push("/profile");
-                  }}
-                >
-                  Profile
-                </button>
-                <button
-                  onClick={() => {
-                    setHeaderMenu(null);
-                    router.push("/settings");
-                  }}
-                >
-                  Preferences
-                </button>
-                <hr className="profile-menu-divider" />
-                <button
-                  className="signout-btn"
-                  onClick={() => {
-                    handleLogout();
-                  }}
-                >
-                  Sign out
-                </button>
               </div>
-            )}
-          </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push("/profile")}>
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/settings")}>
+                Preferences
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => {
+                  handleLogout();
+                }}
+              >
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 

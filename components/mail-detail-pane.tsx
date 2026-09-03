@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -22,21 +22,42 @@ import { MailItem } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
-
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 function MessageSkeleton() {
   return (
-    <div className="message-skeleton">
-      <div className="mskel-head">
-        <span className="skel skel-avatar" />
-        <div className="mskel-info">
-          <span className="skel skel-line" style={{ width: "40%" }} />
-          <span className="skel skel-line" style={{ width: "60%" }} />
+    <div className="message-skeleton p-6 space-y-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-10 rounded-full shrink-0" />
+        <div className="space-y-2 flex-1">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-3 w-1/2" />
         </div>
       </div>
-      <div className="mskel-body">
+      <div className="space-y-3 pt-4">
         {[100, 85, 90, 60, 75, 50].map((w, i) => (
-          <span key={i} className="skel skel-line" style={{ width: `${w}%` }} />
+          <Skeleton key={i} className="h-3.5" style={{ width: `${w}%` }} />
         ))}
       </div>
     </div>
@@ -165,47 +186,31 @@ export default function MailDetailPane() {
     openId,
     setOpenId,
     openCompose,
-    notify,
     refresh,
     refreshTick,
   } = useMailContext();
   const { message, setMessage, loading, error } = useMessageDetail(openId);
-  const [menu, setMenu] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   // Label management state
   const [allLabels, setAllLabels] = useState<Array<{ id: string; name: string }>>([]);
   const [labelDropOpen, setLabelDropOpen] = useState(false);
   const [labelSearch, setLabelSearch] = useState("");
-  const labelDropRef = useRef<HTMLDivElement>(null);
 
   // Load available labels
   useEffect(() => {
     axios.get("/api/v1/labels").then((res) => setAllLabels(res.data || [])).catch(() => {});
   }, [refreshTick]);
 
-  // Close label dropdown on outside click
-  useEffect(() => {
-    if (!labelDropOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (labelDropRef.current && !labelDropRef.current.contains(e.target as Node)) {
-        setLabelDropOpen(false);
-        setLabelSearch("");
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [labelDropOpen]);
-
   async function removeLabel(lbl: string) {
     if (!message) return;
     try {
       await axios.delete(`/api/v1/messages/${message.id}/labels?label=${encodeURIComponent(lbl)}`);
       setMessage({ ...message, labels: (message.labels || []).filter((l) => l !== lbl) });
-      notify(`Removed label "${lbl}"`);
+      toast.success(`Removed label "${lbl}"`);
       refresh();
     } catch {
-      notify("Failed to remove label");
+      toast.error("Failed to remove label");
     }
   }
 
@@ -219,12 +224,12 @@ export default function MailDetailPane() {
     try {
       await axios.post(`/api/v1/messages/${message.id}/labels`, { label: lbl });
       setMessage({ ...message, labels: [...(message.labels || []), lbl] });
-      notify(`Added label "${lbl}"`);
+      toast.success(`Added label "${lbl}"`);
       setLabelDropOpen(false);
       setLabelSearch("");
       refresh();
     } catch {
-      notify("Failed to add label");
+      toast.error("Failed to add label");
     }
   }
 
@@ -235,7 +240,7 @@ export default function MailDetailPane() {
       await addLabel(name.trim());
       refresh();
     } catch (err: any) {
-      notify(err.response?.data?.error || "Failed to create label");
+      toast.error(err.response?.data?.error || "Failed to create label");
     }
   }
 
@@ -247,13 +252,163 @@ export default function MailDetailPane() {
     [folder, label]
   );
 
-  function toggleMenu(name: string) {
-    setMenu((cur) => (cur === name ? null : name));
+  async function handleMarkAsUnread() {
+    if (!message) return;
+    try {
+      await axios.patch(`/api/v1/messages/${message.id}/read`, { unread: true });
+      setMessage((prev) => (prev ? { ...prev, unread: true } : prev));
+      toast.success("Marked as unread");
+      setOpenId(null);
+      refresh();
+    } catch {
+      toast.error("Failed to mark as unread");
+    }
   }
 
-  function menuAction(msg: string) {
-    setMenu(null);
-    notify(msg);
+  async function handleCopyLink() {
+    if (!message) return;
+    try {
+      const url = `${window.location.origin}${window.location.pathname}?id=${message.id}`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      toast.success("Link copied to clipboard");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }
+
+  function handlePrint() {
+    if (!message) return;
+
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "fixed";
+    printFrame.style.right = "0";
+    printFrame.style.bottom = "0";
+    printFrame.style.width = "0";
+    printFrame.style.height = "0";
+    printFrame.style.border = "0";
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow?.document;
+    if (!frameDoc) {
+      window.print();
+      return;
+    }
+
+    const formattedDate = new Date(message.timestamp).toLocaleString(undefined, {
+      dateStyle: "full",
+      timeStyle: "short",
+    });
+
+    const toList = (message.to || []).join(", ");
+    const ccList = message.cc?.length
+      ? `<div class="meta-row"><strong>Cc:</strong> ${message.cc.join(", ")}</div>`
+      : "";
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${message.subject || "Print Email"}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #111;
+              background: #fff;
+              padding: 32px;
+              margin: 0;
+              line-height: 1.6;
+              font-size: 14px;
+            }
+            h1 {
+              font-size: 20px;
+              font-weight: 700;
+              margin: 0 0 16px 0;
+              padding-bottom: 12px;
+              border-bottom: 2px solid #eaeaea;
+              color: #111;
+            }
+            .meta {
+              font-size: 13px;
+              color: #444;
+              margin-bottom: 24px;
+              padding-bottom: 16px;
+              border-bottom: 1px solid #eee;
+            }
+            .meta-row {
+              margin-bottom: 6px;
+            }
+            .meta strong {
+              color: #111;
+              display: inline-block;
+              width: 55px;
+            }
+            .content {
+              font-size: 14px;
+              color: #222;
+              word-break: break-word;
+            }
+            .content img {
+              max-width: 100%;
+              height: auto;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${message.subject || "(No Subject)"}</h1>
+          <div class="meta">
+            <div class="meta-row"><strong>From:</strong> ${message.sender.name} &lt;${message.sender.email}&gt;</div>
+            <div class="meta-row"><strong>To:</strong> ${toList || "Undisclosed recipients"}</div>
+            ${ccList}
+            <div class="meta-row"><strong>Date:</strong> ${formattedDate}</div>
+          </div>
+          <div class="content">
+            ${message.body || message.rawText || ""}
+          </div>
+        </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow?.focus();
+      printFrame.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 1000);
+    }, 250);
+  }
+
+  function handleDownload() {
+    if (!message) return;
+    const content = `From: ${message.sender.name} <${message.sender.email}>
+To: ${(message.to || []).join(", ")}
+Subject: ${message.subject}
+Date: ${new Date(message.timestamp).toUTCString()}
+
+${message.rawText || htmlToPlainText(message.body)}`;
+
+    const blob = new Blob([content], { type: "message/rfc822;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(message.subject || "email").replace(/[^a-z0-9]/gi, "_")}.eml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Message downloaded");
   }
 
   async function starToggle() {
@@ -263,10 +418,10 @@ export default function MailDetailPane() {
         starred: !message.starred,
       });
       setMessage({ ...message, starred: res.data.starred });
-      notify(res.data.starred ? "Message starred" : "Message unstarred");
+      toast.success(res.data.starred ? "Message starred" : "Message unstarred");
       refresh();
     } catch {
-      notify("Failed to update star");
+      toast.error("Failed to update star");
     }
   }
 
@@ -292,11 +447,11 @@ export default function MailDetailPane() {
     setActionInProgress("restore");
     try {
       await axios.post(`/api/v1/messages/${message.id}/restore`);
-      notify(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
+      toast.success(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
       setOpenId(null);
       refresh();
     } catch {
-      notify("Failed to restore message");
+      toast.error("Failed to restore message");
     } finally {
       setActionInProgress(null);
     }
@@ -307,11 +462,11 @@ export default function MailDetailPane() {
     setActionInProgress("archive");
     try {
       await axios.post(`/api/v1/messages/${message.id}/archive`);
-      notify("Message archived");
+      toast.success("Message archived");
       setOpenId(null);
       refresh();
     } catch {
-      notify("Failed to archive message");
+      toast.error("Failed to archive message");
     } finally {
       setActionInProgress(null);
     }
@@ -319,14 +474,38 @@ export default function MailDetailPane() {
 
   async function executeTrash() {
     if (!message) return;
+    const id = message.id;
+    const originalFolder = folder ?? "inbox";
+
     setActionInProgress("trash");
     try {
-      await axios.post(`/api/v1/messages/${message.id}/trash`);
-      notify(folder === "Sent" ? "Removed from Sent" : "Moved to trash");
+      await axios.post(`/api/v1/messages/${id}/trash`);
       setOpenId(null);
       refresh();
+
+      const toastMsg = folder === "Sent" ? "Removed from Sent" : "Moved to trash";
+
+      toast(toastMsg, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            try {
+              await axios.post(`/api/v1/messages/${id}/restore`, {
+                folder: originalFolder.toLowerCase(),
+              });
+              setOpenId(id);
+              refresh();
+              toast.success("Action undone");
+            } catch (err) {
+              console.error("Failed to undo deletion:", err);
+              toast.error("Failed to undo deletion");
+            }
+          },
+        },
+        duration: 6000,
+      });
     } catch {
-      notify("Failed to move to trash");
+      toast.error("Failed to move to trash");
     } finally {
       setActionInProgress(null);
     }
@@ -338,11 +517,11 @@ export default function MailDetailPane() {
     setActionInProgress("delete_permanent");
     try {
       await axios.delete(`/api/v1/messages/${message.id}`);
-      notify("Permanently deleted message");
+      toast.success("Permanently deleted message");
       setOpenId(null);
       refresh();
     } catch {
-      notify("Failed to delete message");
+      toast.error("Failed to delete message");
     } finally {
       setActionInProgress(null);
     }
@@ -387,22 +566,31 @@ export default function MailDetailPane() {
   return (
     <>
       <section className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}>
-        {}
+        {/* Toolbar */}
         <div className="detail-toolbar">
-          <button
-            className="icon-button back-button"
-            onClick={() => setOpenId(null)}
-            aria-label="Back"
-          >
-            <ArrowLeft />
-          </button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="icon-button back-button"
+                  onClick={() => setOpenId(null)}
+                  aria-label="Back"
+                />
+              }
+            >
+              <ArrowLeft className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Back to list</TooltipContent>
+          </Tooltip>
 
           {message && (
             <>
               {folder === "Drafts" || message.folder === "drafts" || message.status === "draft" ? (
-                <button
-                  className="button-primary"
-                  style={{ padding: "6px 14px", fontSize: "12px", borderRadius: "6px", gap: "6px" }}
+                <Button
+                  size="sm"
+                  className="button-primary h-7 px-3 text-xs gap-1.5"
                   onClick={() =>
                     openCompose({
                       draftId: message.id,
@@ -414,56 +602,80 @@ export default function MailDetailPane() {
                     })
                   }
                 >
-                  <Pencil style={{ width: 14, height: 14 }} /> Edit draft
-                </button>
+                  <Pencil className="size-3.5" /> Edit draft
+                </Button>
               ) : (
-                <div className="toolbar-reply-group">
-                  <button
-                    className="icon-button toolbar-btn"
-                    title="Reply"
-                    aria-label="Reply"
-                    onClick={() =>
-                      openCompose({
-                        to: [message.sender.email],
-                        subject: message.subject.startsWith("Re:")
-                          ? message.subject
-                          : `Re: ${message.subject}`,
-                      })
-                    }
-                  >
-                    <Reply />
-                  </button>
-                  <button
-                    className="icon-button toolbar-btn"
-                    title="Reply All"
-                    aria-label="Reply All"
-                    onClick={() =>
-                      openCompose({
-                        to: [message.sender.email],
-                        subject: message.subject.startsWith("Re:")
-                          ? message.subject
-                          : `Re: ${message.subject}`,
-                      })
-                    }
-                  >
-                    <ReplyAll />
-                  </button>
-                  <button
-                    className="icon-button toolbar-btn"
-                    title="Forward"
-                    aria-label="Forward"
-                    onClick={() =>
-                      openCompose({
-                        to: [],
-                        subject: message.subject.startsWith("Fwd:")
-                          ? message.subject
-                          : `Fwd: ${message.subject}`,
-                        body: buildForwardBody(message),
-                      })
-                    }
-                  >
-                    <Forward />
-                  </button>
+                <div className="toolbar-reply-group flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="icon-button toolbar-btn"
+                          aria-label="Reply"
+                          onClick={() =>
+                            openCompose({
+                              to: [message.sender.email],
+                              subject: message.subject.startsWith("Re:")
+                                ? message.subject
+                                : `Re: ${message.subject}`,
+                            })
+                          }
+                        />
+                      }
+                    >
+                      <Reply className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Reply</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="icon-button toolbar-btn"
+                          aria-label="Reply All"
+                          onClick={() =>
+                            openCompose({
+                              to: [message.sender.email],
+                              subject: message.subject.startsWith("Re:")
+                                ? message.subject
+                                : `Re: ${message.subject}`,
+                            })
+                          }
+                        />
+                      }
+                    >
+                      <ReplyAll className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Reply All</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="icon-button toolbar-btn"
+                          aria-label="Forward"
+                          onClick={() =>
+                            openCompose({
+                              to: [],
+                              subject: message.subject.startsWith("Fwd:")
+                                ? message.subject
+                                : `Fwd: ${message.subject}`,
+                              body: buildForwardBody(message),
+                            })
+                          }
+                        />
+                      }
+                    >
+                      <Forward className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>Forward</TooltipContent>
+                  </Tooltip>
                 </div>
               )}
             </>
@@ -472,192 +684,237 @@ export default function MailDetailPane() {
           <div className="toolbar-spacer" />
 
           {message && (
-            <>
+            <div className="flex items-center gap-1">
               {primaryActions.map((action) => {
                 const Icon = action.icon;
                 const inProgress = actionInProgress === action.id;
                 return (
-                  <button
-                    key={action.id}
-                    className={`icon-button toolbar-btn ${
-                      inProgress ? "loading-btn" : ""
-                    }`}
-                    onClick={() => handleToolbarAction(action)}
-                    aria-label={action.label}
-                    title={action.tooltip}
-                    disabled={!!actionInProgress}
-                  >
-                    <Icon />
-                  </button>
+                  <Tooltip key={action.id}>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className={`icon-button toolbar-btn ${
+                            inProgress ? "loading-btn" : ""
+                          }`}
+                          onClick={() => handleToolbarAction(action)}
+                          aria-label={action.label}
+                          disabled={!!actionInProgress}
+                        />
+                      }
+                    >
+                      <Icon className="size-4" />
+                    </TooltipTrigger>
+                    <TooltipContent>{action.tooltip}</TooltipContent>
+                  </Tooltip>
                 );
               })}
-            </>
+            </div>
           )}
 
-          <div className="menu-wrap">
-            <button
-              className="icon-button"
-              onClick={() => toggleMenu("detail-more")}
-              aria-label="More conversation actions"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="icon-button"
+                  aria-label="More conversation actions"
+                />
+              }
             >
-              <MoreHorizontal />
-            </button>
-            {menu === "detail-more" && (
-              <div className="dropdown">
-                <button onClick={() => menuAction("Marked as unread")}>
-                  Mark as unread
-                </button>
-                <button onClick={() => menuAction("Conversation copied")}>
-                  Copy link
-                </button>
-                <button onClick={() => menuAction("Conversation printed")}>
-                  Print
-                </button>
-              </div>
-            )}
-          </div>
+              <MoreHorizontal className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 p-1">
+              <DropdownMenuItem onClick={handleMarkAsUnread}>
+                Mark as unread
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyLink}>
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint}>
+                Print
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {}
+        {/* Message body / scroll area */}
         <div className="detail-scroll-area">
           <div className="detail-content">
-            {}
             {message && (
               <div className="detail-heading">
                 <div className="detail-heading-left">
-                  <div className="label-row">
+                  <div className="label-row flex flex-wrap items-center gap-1.5 mb-2">
                     {message.labels?.map((lbl) => (
-                      <span key={lbl} className="detail-label-chip">
-                        <Tag />
-                        {lbl}
+                      <Badge
+                        key={lbl}
+                        variant="secondary"
+                        className="gap-1 pr-1 pl-2 text-xs font-normal h-6 rounded-md"
+                      >
+                        <Tag className="size-3 text-muted-foreground" />
+                        <span>{lbl}</span>
                         <button
-                          className="chip-remove-btn"
+                          className="chip-remove-btn hover:bg-muted/80 rounded p-0.5 cursor-pointer"
                           onClick={() => removeLabel(lbl)}
                           aria-label={`Remove label ${lbl}`}
                           title={`Remove label ${lbl}`}
                         >
-                          <X />
+                          <X className="size-3 text-muted-foreground hover:text-foreground" />
                         </button>
-                      </span>
+                      </Badge>
                     ))}
-                    {}
-                    <div className="label-add-wrap" ref={labelDropRef}>
-                      <button
-                        className="add-label-btn"
-                        onClick={() => setLabelDropOpen((v) => !v)}
-                        title="Add label"
-                        aria-label="Add label"
-                      >
-                        <Plus /> Label
-                      </button>
-                      {labelDropOpen && (
-                        <div className="label-dropdown">
-                          <input
-                            className="label-dropdown-search"
-                            placeholder="Search or create..."
-                            value={labelSearch}
-                            onChange={(e) => setLabelSearch(e.target.value)}
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && labelSearch.trim()) {
-                                const exact = allLabels.find(
-                                  (l) => l.name.toLowerCase() === labelSearch.trim().toLowerCase()
-                                );
-                                if (exact) addLabel(exact.name);
-                                else createAndAddLabel(labelSearch.trim());
-                              }
-                            }}
+
+                    {/* Add label popover */}
+                    <Popover open={labelDropOpen} onOpenChange={setLabelDropOpen}>
+                      <PopoverTrigger
+                        render={
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            className="h-6 gap-1 px-2 text-xs font-normal"
+                            aria-label="Add label"
                           />
-                          <div className="label-dropdown-list">
-                            {allLabels
-                              .filter((l) =>
-                                l.name.toLowerCase().includes(labelSearch.toLowerCase())
-                              )
-                              .map((l) => (
-                                <button
-                                  key={l.id}
-                                  className={`label-dropdown-item ${
-                                    (message.labels || []).includes(l.name) ? "already-applied" : ""
-                                  }`}
-                                  onClick={() => addLabel(l.name)}
-                                >
-                                  <Tag />
+                        }
+                      >
+                        <Plus className="size-3" /> Label
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-52 p-2">
+                        <Input
+                          className="h-7 text-xs mb-2"
+                          placeholder="Search or create..."
+                          value={labelSearch}
+                          onChange={(e) => setLabelSearch(e.target.value)}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && labelSearch.trim()) {
+                              const exact = allLabels.find(
+                                (l) =>
+                                  l.name.toLowerCase() ===
+                                  labelSearch.trim().toLowerCase()
+                              );
+                              if (exact) addLabel(exact.name);
+                              else createAndAddLabel(labelSearch.trim());
+                            }
+                          }}
+                        />
+                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                          {allLabels
+                            .filter((l) =>
+                              l.name
+                                .toLowerCase()
+                                .includes(labelSearch.toLowerCase())
+                            )
+                            .map((l) => (
+                              <button
+                                key={l.id}
+                                className="flex items-center justify-between text-xs px-2 py-1.5 rounded hover:bg-accent text-left"
+                                onClick={() => addLabel(l.name)}
+                              >
+                                <span className="flex items-center gap-1.5 truncate">
+                                  <Tag className="size-3 text-muted-foreground" />
                                   {l.name}
-                                  {(message.labels || []).includes(l.name) && (
-                                    <span className="check-mark">✓</span>
-                                  )}
-                                </button>
-                              ))}
-                            {labelSearch.trim() &&
-                              !allLabels.some(
-                                (l) => l.name.toLowerCase() === labelSearch.trim().toLowerCase()
-                              ) && (
-                                <button
-                                  className="label-dropdown-item create-new"
-                                  onClick={() => createAndAddLabel(labelSearch.trim())}
-                                >
-                                  <Plus /> Create &quot;{labelSearch.trim()}&quot;
-                                </button>
-                              )}
-                            {allLabels.length === 0 && !labelSearch.trim() && (
-                              <p className="label-dropdown-empty">No labels yet. Type to create one.</p>
+                                </span>
+                                {(message.labels || []).includes(l.name) && (
+                                  <span className="text-primary text-xs font-bold">
+                                    ✓
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          {labelSearch.trim() &&
+                            !allLabels.some(
+                              (l) =>
+                                l.name.toLowerCase() ===
+                                labelSearch.trim().toLowerCase()
+                            ) && (
+                              <button
+                                className="flex items-center gap-1 text-xs px-2 py-1.5 rounded hover:bg-accent text-primary font-medium text-left"
+                                onClick={() =>
+                                  createAndAddLabel(labelSearch.trim())
+                                }
+                              >
+                                <Plus className="size-3" /> Create &quot;
+                                {labelSearch.trim()}&quot;
+                              </button>
                             )}
-                          </div>
+                          {allLabels.length === 0 && !labelSearch.trim() && (
+                            <p className="text-xs text-muted-foreground p-2 text-center">
+                              No labels yet. Type to create one.
+                            </p>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <h2>{message.subject}</h2>
                 </div>
-                <button
-                  className={`icon-button star-btn ${
-                    message.starred ? "is-starred" : ""
-                  }`}
-                  onClick={starToggle}
-                  aria-label="Star conversation"
-                >
-                  <Star className={message.starred ? "fill-star" : ""} />
-                </button>
+
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className={`icon-button star-btn ${
+                          message.starred ? "is-starred" : ""
+                        }`}
+                        onClick={starToggle}
+                        aria-label={
+                          message.starred
+                            ? "Unstar conversation"
+                            : "Star conversation"
+                        }
+                      />
+                    }
+                  >
+                    <Star
+                      className={`size-4 ${
+                        message.starred ? "fill-star" : ""
+                      }`}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {message.starred ? "Unstar" : "Star"}
+                  </TooltipContent>
+                </Tooltip>
               </div>
             )}
 
             {/* skeleton heading while loading */}
             {loading && !message && (
               <div className="detail-heading">
-                <div style={{ flex: 1 }}>
-                  <span
-                    className="skel skel-line"
-                    style={{ width: "30%", marginBottom: 12 }}
-                  />
-                  <span
-                    className="skel skel-line"
-                    style={{ width: "70%", height: 28 }}
-                  />
+                <div style={{ flex: 1 }} className="space-y-2">
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-7 w-2/3" />
                 </div>
               </div>
             )}
 
-            {}
             <div className="message message-card">
               {loading ? (
                 <MessageSkeleton />
               ) : message ? (
                 <>
-                  {}
                   <div className="message-head">
-                    <div
-                      className="avatar large"
-                      style={{ background: avatarColor(message.sender.name) }}
-                    >
-                      {message.sender.avatarUrl ? (
-                        <img
+                    <Avatar className="size-9 shrink-0">
+                      {message.sender.avatarUrl && (
+                        <AvatarImage
                           src={message.sender.avatarUrl}
                           alt={message.sender.name}
                         />
-                      ) : (
-                        getInitials(message.sender.name)
                       )}
-                    </div>
+                      <AvatarFallback
+                        style={{
+                          background: avatarColor(message.sender.name),
+                          color: "#ffffff",
+                        }}
+                        className="text-xs font-semibold"
+                      >
+                        {getInitials(message.sender.name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="sender-info">
                       <strong>{message.sender.name}</strong>
                       <span className="sender-email">
@@ -673,29 +930,28 @@ export default function MailDetailPane() {
                         minute: "2-digit",
                       })}
                     </time>
-                    <div className="menu-wrap">
-                      <button
-                        className="icon-button small"
-                        aria-label="Message options"
-                        onClick={() => toggleMenu("message-options")}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            className="icon-button small"
+                            aria-label="Message options"
+                          />
+                        }
                       >
-                        <ChevronDown />
-                      </button>
-                      {menu === "message-options" && (
-                        <div className="dropdown">
-                          <button
-                            onClick={() => menuAction("Message expanded")}
-                          >
-                            Expand message
-                          </button>
-                          <button
-                            onClick={() => menuAction("Message downloaded")}
-                          >
-                            Download message
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        <ChevronDown className="size-3.5" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44 p-1">
+                        <DropdownMenuItem onClick={handlePrint}>
+                          Expand message
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDownload}>
+                          Download message
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   {}
@@ -752,11 +1008,11 @@ export default function MailDetailPane() {
 
             {}
             {message && !loading && (
-              <div className="reply-actions">
+              <div className="reply-actions flex items-center gap-2 pt-2">
                 {folder === "Drafts" || message.folder === "drafts" || message.status === "draft" ? (
-                  <button
-                    className="button-primary"
-                    style={{ padding: "9px 18px", borderRadius: "6px", gap: "8px" }}
+                  <Button
+                    size="sm"
+                    className="button-primary h-8 px-4 text-xs gap-2"
                     onClick={() =>
                       openCompose({
                         draftId: message.id,
@@ -768,12 +1024,14 @@ export default function MailDetailPane() {
                       })
                     }
                   >
-                    <Pencil style={{ width: 14, height: 14 }} /> Continue editing draft
-                  </button>
+                    <Pencil className="size-3.5" /> Continue editing draft
+                  </Button>
                 ) : (
                   <>
-                    <button
-                      className="reply-btn"
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="reply-btn h-8 gap-1.5 px-3.5 text-xs font-medium"
                       onClick={() =>
                         openCompose({
                           to: [message.sender.email],
@@ -783,10 +1041,12 @@ export default function MailDetailPane() {
                         })
                       }
                     >
-                      <Reply /> Reply
-                    </button>
-                    <button
-                      className="reply-btn"
+                      <Reply className="size-3.5" /> Reply
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="reply-btn h-8 gap-1.5 px-3.5 text-xs font-medium"
                       onClick={() =>
                         openCompose({
                           to: [],
@@ -797,8 +1057,8 @@ export default function MailDetailPane() {
                         })
                       }
                     >
-                      <Forward /> Forward
-                    </button>
+                      <Forward className="size-3.5" /> Forward
+                    </Button>
                   </>
                 )}
               </div>

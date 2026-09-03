@@ -9,54 +9,37 @@ function normalizeEmails(
 ): string[] {
   if (!value) return [];
 
-  return Array.isArray(value)
-    ? value
-    : [value];
+  return Array.isArray(value) ? value : [value];
 }
 
 export async function syncSentEmails() {
   console.log("Fetching sent emails from Resend...");
 
-  const { data: response, error } =
-    await resend.emails.list();
+  const { data: response, error } = await resend.emails.list();
 
   if (error) {
-    console.error(
-      "Failed to fetch sent emails:",
-      error,
-    );
+    console.error("Failed to fetch sent emails:", error);
 
     return;
   }
 
   const sentEmails = response?.data ?? [];
 
-  console.log(
-    `Found ${sentEmails.length} sent emails`,
-  );
+  console.log(`Found ${sentEmails.length} sent emails`);
 
   for (const email of sentEmails) {
     try {
-      
-      const {
-        data: fullEmail,
-        error: emailError,
-      } = await resend.emails.get(email.id);
+      const { data: fullEmail, error: emailError } = await resend.emails.get(
+        email.id,
+      );
 
       if (emailError || !fullEmail) {
-        console.error(
-          `Failed to fetch sent email ${email.id}:`,
-          emailError,
-        );
+        console.error(`Failed to fetch sent email ${email.id}:`, emailError);
 
         continue;
       }
 
-      
-      const {
-        data: attachmentsResponse,
-        error: attachmentsError,
-      } =
+      const { data: attachmentsResponse, error: attachmentsError } =
         await resend.emails.attachments.list({
           emailId: email.id,
         });
@@ -69,9 +52,7 @@ export async function syncSentEmails() {
       }
 
       const attachments =
-        attachmentsResponse?.data ??
-        attachmentsResponse ??
-        [];
+        attachmentsResponse?.data ?? attachmentsResponse ?? [];
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
@@ -87,7 +68,7 @@ export async function syncSentEmails() {
         headers: (fullEmail as any).headers ?? {},
         attachments: Array.isArray(attachments)
           ? attachments
-          : (attachments as any)?.data ?? [],
+          : ((attachments as any)?.data ?? []),
         status: (fullEmail as any).status ?? "sent",
         folder: "sent",
         unread: false,
@@ -95,60 +76,34 @@ export async function syncSentEmails() {
         labels: [],
       };
 
-      await db
-        .insert(emails)
-        .values(emailData)
-        .onConflictDoNothing();
+      await db.insert(emails).values(emailData).onConflictDoNothing();
 
-      console.log(
-        `Synced sent email: ${email.id}`,
-      );
+      console.log(`Synced sent email: ${email.id}`);
     } catch (error) {
-      console.error(
-        `Error syncing sent email ${email.id}:`,
-        error,
-      );
+      console.error(`Error syncing sent email ${email.id}:`, error);
     }
   }
 }
 
 export async function syncReceivedEmails() {
-  console.log(
-    "Fetching received emails from Resend...",
-  );
+  console.log("Fetching received emails from Resend...");
 
-  
-  const {
-    data: response,
-    error,
-  } = await resend.emails.receiving.list();
+  const { data: response, error } = await resend.emails.receiving.list();
 
   if (error) {
-    console.error(
-      "Failed to fetch received emails:",
-      error,
-    );
+    console.error("Failed to fetch received emails:", error);
 
     return;
   }
 
-  const receivedEmails =
-    response?.data ?? [];
+  const receivedEmails = response?.data ?? [];
 
-  console.log(
-    `Found ${receivedEmails.length} received emails`,
-  );
+  console.log(`Found ${receivedEmails.length} received emails`);
 
   for (const email of receivedEmails) {
     try {
-      
-      const {
-        data: fullEmail,
-        error: emailError,
-      } =
-        await resend.emails.receiving.get(
-          email.id,
-        );
+      const { data: fullEmail, error: emailError } =
+        await resend.emails.receiving.get(email.id);
 
       if (emailError || !fullEmail) {
         console.error(
@@ -159,11 +114,7 @@ export async function syncReceivedEmails() {
         continue;
       }
 
-      
-      const {
-        data: attachmentsResponse,
-        error: attachmentsError,
-      } =
+      const { data: attachmentsResponse, error: attachmentsError } =
         await resend.emails.receiving.attachments.list({
           emailId: email.id,
         });
@@ -176,9 +127,7 @@ export async function syncReceivedEmails() {
       }
 
       const attachments =
-        attachmentsResponse?.data ??
-        attachmentsResponse ??
-        [];
+        attachmentsResponse?.data ?? attachmentsResponse ?? [];
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
@@ -194,7 +143,7 @@ export async function syncReceivedEmails() {
         headers: fullEmail.headers ?? {},
         attachments: Array.isArray(attachments)
           ? attachments
-          : (attachments as any)?.data ?? [],
+          : ((attachments as any)?.data ?? []),
         status: "received",
         folder: "inbox",
         unread: true,
@@ -202,19 +151,11 @@ export async function syncReceivedEmails() {
         labels: [],
       };
 
-      await db
-        .insert(emails)
-        .values(emailData)
-        .onConflictDoNothing();
+      await db.insert(emails).values(emailData).onConflictDoNothing();
 
-      console.log(
-        `Synced received email: ${email.id}`,
-      );
+      console.log(`Synced received email: ${email.id}`);
     } catch (error) {
-      console.error(
-        `Error syncing received email ${email.id}:`,
-        error,
-      );
+      console.error(`Error syncing received email ${email.id}:`, error);
     }
   }
 }
