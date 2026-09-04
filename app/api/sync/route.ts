@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { syncSentEmails, syncReceivedEmails } from "@/src/lib/syncEmails";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST() {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     // Run both sync functions
     await syncSentEmails();
     await syncReceivedEmails();

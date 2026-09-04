@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { emails } from "@/src/db/schema";
 import { db } from "@/src";
 import { eq } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ messageId: string }> | { messageId: string } },
 ) {
+  const session = await getAuthSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { messageId } = await Promise.resolve(params);
 
   try {
@@ -29,6 +33,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ messageId: string }> | { messageId: string } },
 ) {
+  const session = await getAuthSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { messageId } = await Promise.resolve(params);
 
   try {

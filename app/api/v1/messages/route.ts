@@ -4,8 +4,12 @@ import { emails } from "@/src/db/schema";
 import { db } from "@/src";
 import { sql, eq, and, or, desc, ne } from "drizzle-orm";
 import { pusherServer } from "@/src/lib/pusher";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(request: Request) {
+  const session = await getAuthSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
 
   const folder = searchParams.get("folder")?.toLowerCase();
@@ -85,6 +89,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { to, cc, bcc, subject, html, text, attachments } = await request.json();
     const recipients = Array.isArray(to) ? to : (to ? [to] : []);
     const ccList = cc ? (Array.isArray(cc) ? cc : [cc]) : [];

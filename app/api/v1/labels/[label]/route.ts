@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails, customLabels } from "@/src/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ label: string }> | { label: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { label } = await Promise.resolve(params);
     const decodedLabel = decodeURIComponent(label);
 

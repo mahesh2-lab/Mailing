@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
 import { eq, or, desc } from 'drizzle-orm';
+import { getAuthSession } from '@/src/lib/require-auth';
 
 export async function GET() {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const data = await db
       .select()
       .from(emails)
@@ -20,6 +24,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { to, cc, bcc, subject, html, text } = await request.json();
     const draftId = `draft_${crypto.randomUUID()}`;
     const recipients = Array.isArray(to) ? to : (to ? [to] : []);

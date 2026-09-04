@@ -29,6 +29,13 @@
       "when": 1788277192272,
       "tag": "0003_new_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788534262322,
+      "tag": "0004_high_amazoness",
+      "breakpoints": true
     }
   ]
 }

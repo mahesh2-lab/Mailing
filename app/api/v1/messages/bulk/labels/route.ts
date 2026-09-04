@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
 import { inArray } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { messageIds, label, action } = await request.json();
 
     if (!Array.isArray(messageIds) || messageIds.length === 0 || !label) {

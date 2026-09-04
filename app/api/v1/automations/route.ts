@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
-import { automations, automationRuns, customTools } from "@/src/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { automations } from "@/src/db/schema";
+import { desc } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET() {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const list = await db.select().from(automations).orderBy(desc(automations.createdAt));
     return NextResponse.json({ data: list });
   } catch (error: any) {
@@ -15,6 +19,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await request.json();
     const id = body.id || `auto-${Date.now()}`;
     const now = new Date().toISOString();

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { getAuthSession } from '@/src/lib/require-auth';
 
 const SettingsSchema = z.object({
   theme: z.enum(['light', 'dark', 'system']).optional(),
@@ -7,11 +8,17 @@ const SettingsSchema = z.object({
 });
 
 export async function GET() {
+  const session = await getAuthSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   return NextResponse.json({ theme: 'light', notifications: true });
 }
 
 export async function PATCH(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await request.json();
     
     const parseResult = SettingsSchema.safeParse(body);

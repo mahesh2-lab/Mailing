@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
-import { automations, automationRuns } from "@/src/db/schema";
+import { automations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
 import { executeAutomation } from "@/lib/automation-engine";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { automationId } = await Promise.resolve(params);
     const item = await db.query.automations.findFirst({
       where: eq(automations.id, automationId),
@@ -29,6 +33,9 @@ export async function PUT(
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { automationId } = await Promise.resolve(params);
     const body = await request.json();
     const now = new Date().toISOString();
@@ -60,6 +67,9 @@ export async function DELETE(
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { automationId } = await Promise.resolve(params);
     await db.delete(automations).where(eq(automations.id, automationId));
     return NextResponse.json({ success: true, deletedId: automationId });
@@ -74,6 +84,9 @@ export async function POST(
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { automationId } = await Promise.resolve(params);
     const body = await request.json().catch(() => ({}));
     

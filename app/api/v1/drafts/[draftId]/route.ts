@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server';
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
 import { eq } from 'drizzle-orm';
+import { getAuthSession } from '@/src/lib/require-auth';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { draftId } = await Promise.resolve(params);
 
     const [draft] = await db
@@ -32,6 +36,9 @@ export async function PUT(
   { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { draftId } = await Promise.resolve(params);
     const { to, cc, bcc, subject, html, text } = await request.json();
     const recipients = Array.isArray(to) ? to : (to ? [to] : []);
@@ -62,6 +69,9 @@ export async function DELETE(
   { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { draftId } = await Promise.resolve(params);
 
     await db.delete(emails).where(eq(emails.id, draftId));

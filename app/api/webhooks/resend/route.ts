@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { Webhook } from "svix";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/src/index";
@@ -11,7 +11,13 @@ import {
 import { getResendClient } from "@/lib/resend";
 // import { pusherServer } from "@/src/lib/pusher";
 import { decrypt } from "@/src/lib/crypto";
-import { executeAutomation } from "@/lib/automation-engine";
+import { executeAutomation, matchesTrigger } from "@/lib/automation-engine";
+
+function ownSendingDomain(): string {
+  const raw = process.env.MAIL_FROM || "Mahesh <mahesh@heymahesh.in>";
+  const addr = raw.match(/<([^>]+)>/)?.[1] || raw;
+  return addr.split("@")[1]?.toLowerCase() || "heymahesh.in";
+}
 
 interface WebhookHeaders {
   id: string;
@@ -222,32 +228,55 @@ async function handleEmailReceived(
     console.error("Failed to trigger Pusher real-time event:", err);
   }
 
-  // Trigger active automations asynchronously in background
+  // Trigger active automations. Runs inside the request's `after()` scope so it
+  // reliably completes on serverless instead of being frozen post-response.
   try {
+    const fromAddr = (emailData.from || "").toLowerCase();
+    if (fromAddr.includes("@" + ownSendingDomain())) {
+      console.log(
+        `[Webhook:Resend] Inbound email is from our own domain (${fromAddr}); skipping automations to avoid mail loops.`,
+      );
+      return;
+    }
+
     const activeAutomations = await db.query.automations.findMany({
       where: eq(automations.enabled, true),
     });
 
-    for (const auto of activeAutomations) {
-      executeAutomation(auto.id, {
-        email: {
-          id: emailData.id,
-          from: emailData.from,
-          to: toArray(emailData.to),
-          subject: emailData.subject || "",
-          text: emailData.text || "",
-          html: emailData.html || "",
-          labels: [],
-        },
-        triggerSource: "Resend Inbound Email Webhook",
-        simulated: false,
-      }).catch((autoErr) => {
-        console.error(
-          `Automation ${auto.id} background execution error:`,
-          autoErr,
-        );
-      });
-    }
+    const emailCtx = {
+      id: emailData.id,
+      from: emailData.from,
+      to: toArray(emailData.to),
+      subject: emailData.subject || "",
+      text: emailData.text || "",
+      html: emailData.html || "",
+      labels: [] as string[],
+    };
+
+    // Only run automations whose trigger filters actually match this email,
+    // so a subject/sender filter genuinely gates the workflow.
+    const matching = activeAutomations.filter((auto) =>
+      matchesTrigger(auto, { from: emailCtx.from, subject: emailCtx.subject }),
+    );
+
+    console.log(
+      `[Webhook:Resend] ${matching.length}/${activeAutomations.length} enabled automations matched this email.`,
+    );
+
+    await Promise.allSettled(
+      matching.map((auto) =>
+        executeAutomation(auto.id, {
+          email: emailCtx,
+          triggerSource: "Resend Inbound Email Webhook",
+          simulated: false,
+        }).catch((autoErr) => {
+          console.error(
+            `Automation ${auto.id} background execution error:`,
+            autoErr,
+          );
+        }),
+      ),
+    );
   } catch (autoQueryErr) {
     console.error(
       "Failed to query active automations for inbound email:",
@@ -355,7 +384,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Ensure idempotency
+    // 4. Idempotency: if this delivery was already durably processed, just ack.
     const existing = await db.query.webhookEvents.findFirst({
       where: eq(webhookEvents.id, svixHeaders.id),
     });
@@ -367,48 +396,50 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Store audit log of webhook event
     const emailId = event.data?.email_id;
-    try {
-      await db.insert(webhookEvents).values({
-        id: svixHeaders.id,
-        type: event.type,
-        createdAt: event.created_at || new Date().toISOString(),
-        emailId: emailId || null,
-        data: event.data,
-      });
-    } catch (insertErr) {
-      console.warn(
-        "[Webhook] Failed to insert webhook audit event:",
-        insertErr,
-      );
-    }
-
     console.log(
       `[Webhook:Resend] Received event: ${event.type} for email: ${emailId || "none"}`,
     );
 
-    // 6. Dispatch event processing asynchronously so Resend does not time out!
+    // 5. Process after responding so Resend gets a fast 200, while `after()`
+    //    guarantees the work still runs to completion (serverless-safe). The
+    //    dedupe/audit row is written only AFTER processing succeeds, so a
+    //    transient failure (e.g. Resend fetch error) is retried on redelivery
+    //    instead of being permanently swallowed.
+    //    Note: the pre-check above is not concurrency-safe against simultaneous
+    //    identical deliveries; email persistence is idempotent, so the worst
+    //    case is a rare duplicate automation run rather than a lost email.
+    const recordEvent = () =>
+      db
+        .insert(webhookEvents)
+        .values({
+          id: svixHeaders.id,
+          type: event.type,
+          createdAt: event.created_at || new Date().toISOString(),
+          emailId: emailId || null,
+          data: event.data,
+        })
+        .onConflictDoNothing();
+
     if (emailId) {
-      const processPromise = (async () => {
+      after(async () => {
         try {
           if (event.type === "email.received") {
             await handleEmailReceived(emailId, resolvedUserId, event.data);
           } else {
             await handleStatusChange(emailId, event.type, event.data);
           }
+          await recordEvent();
         } catch (procErr) {
           console.error(
-            `[Webhook:Resend] Background processing error for ${emailId}:`,
+            `[Webhook:Resend] Background processing error for ${emailId} (will retry on redelivery):`,
             procErr,
           );
         }
-      })();
-
-      // Prevent unhandled rejection while responding immediately with HTTP 200 OK
-      processPromise.catch((e) =>
-        console.error("[Webhook:Resend] Unhandled background error:", e),
-      );
+      });
+    } else {
+      // No email to process; record the event so redeliveries no-op.
+      await recordEvent();
     }
 
     return NextResponse.json(

@@ -23,7 +23,6 @@ import {
   Zap,
 } from "lucide-react";
 import { authClient } from "@/src/lib/auth-client";
-import { toast } from "sonner";
 import ConfirmDialog from "./confirm-dialog";
 
 

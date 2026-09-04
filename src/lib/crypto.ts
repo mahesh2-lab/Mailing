@@ -1,12 +1,30 @@
 const ALGORITHM = 'AES-GCM';
-const key = process.env.ENCRYPTION_KEY || "";
-const KEY = Buffer.from(key, 'hex'); // 32 bytes
+
+function getKeyBytes(): Uint8Array<ArrayBuffer> {
+  const key = process.env.ENCRYPTION_KEY || "";
+  if (!key) {
+    throw new Error(
+      "ENCRYPTION_KEY is not set. Provide a 64-character hex string (32 bytes, AES-256) in your environment."
+    );
+  }
+  if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new Error(
+      `ENCRYPTION_KEY must be a 64-character hex string (32 bytes / AES-256), but received ${key.length} character(s). ` +
+        "Generate one with: openssl rand -hex 32"
+    );
+  }
+  // Copy into a fresh ArrayBuffer-backed view so the type satisfies WebCrypto's
+  // BufferSource (which requires ArrayBuffer, not the wider ArrayBufferLike).
+  const bytes = new Uint8Array(32);
+  bytes.set(Buffer.from(key, 'hex'));
+  return bytes;
+}
 
 async function getCryptoKey() {
   return await crypto.subtle.importKey(
     "raw",
-    KEY,
-    { name: "AES-GCM" },
+    getKeyBytes(),
+    { name: ALGORITHM },
     false,
     ["encrypt", "decrypt"]
   );

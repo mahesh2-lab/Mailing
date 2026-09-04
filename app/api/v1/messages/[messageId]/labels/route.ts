@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ messageId: string }> | { messageId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { messageId } = await Promise.resolve(params);
     const { label } = await request.json();
     const trimmedLabel = (label || "").trim();
@@ -47,6 +51,9 @@ export async function DELETE(
   { params }: { params: Promise<{ messageId: string }> | { messageId: string } }
 ) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { messageId } = await Promise.resolve(params);
     const { searchParams } = new URL(request.url);
     const labelToDelete = searchParams.get("label");

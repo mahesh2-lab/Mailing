@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails, customLabels } from "@/src/db/schema";
 import { sql, ne } from "drizzle-orm";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 const DEFAULT_LABELS = ["Important", "Work", "Personal"];
 
@@ -37,6 +38,9 @@ async function ensureLabelsInitialized() {
 
 export async function GET() {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     await ensureLabelsInitialized();
 
     const allLabels = await db.select().from(customLabels);
@@ -72,6 +76,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     await ensureLabelsInitialized();
 
     const { name, color } = await request.json();

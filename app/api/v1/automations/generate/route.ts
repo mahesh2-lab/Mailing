@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { getAuthSession } from "@/src/lib/require-auth";
 
 const SYSTEM_INSTRUCTION = `
 You are an expert Workflow Architect for an email automation SaaS platform called Mailing.
@@ -57,6 +58,9 @@ Respond ONLY with valid JSON matching:
 
 export async function POST(request: Request) {
   try {
+    const session = await getAuthSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { prompt } = await request.json();
 
     if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
