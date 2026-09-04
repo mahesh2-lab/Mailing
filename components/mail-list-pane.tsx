@@ -32,7 +32,10 @@ function SkeletonRows() {
   return (
     <>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="email-row skeleton-row items-center gap-3 p-3.5">
+        <div
+          key={i}
+          className="email-row skeleton-row items-center gap-3 p-3.5"
+        >
           <Skeleton className="size-8 rounded-full shrink-0" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-3.5 w-1/4" />
@@ -75,101 +78,111 @@ const EmailRow = memo(function EmailRow({
       } ${isActioning ? "actioning" : ""}`}
       onClick={() => onOpen(item)}
     >
-      {item.unread && (
-        <div className="unread-indicator">
-          <div className="unread-dot" />
-        </div>
-      )}
-
-      {/* Quick hover actions */}
-      <div className="row-actions" onClick={(e) => e.stopPropagation()}>
-        {primaryActions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <Tooltip key={action.id}>
-              <TooltipTrigger
-                render={
-                  <button
-                    className="row-action-btn"
-                    aria-label={action.label}
-                    onClick={() => onSingleAction(action, item.id)}
-                  />
-                }
-              >
-                <Icon className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>{action.tooltip}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-
-      <div onClick={(e) => e.stopPropagation()} className="pt-0.5 flex items-center">
+      {/* Selection & star controls */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex items-center gap-1.5 pt-0.5 shrink-0"
+      >
         <Checkbox
           checked={isSelected}
           onCheckedChange={() => onToggleSelect(item.id)}
           aria-label={`Select ${item.sender.name}`}
+          className="size-3.5"
         />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                className={`icon-button star-btn p-0.5 ${item.starred ? "is-starred" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStarToggle(item.id, !!item.starred);
+                }}
+                aria-label={
+                  item.starred ? "Unstar conversation" : "Star conversation"
+                }
+              />
+            }
+          >
+            <Star
+              className={`size-3.5 ${
+                item.starred
+                  ? "fill-star text-amber-400 fill-amber-400"
+                  : "text-muted-foreground/50 hover:text-muted-foreground"
+              }`}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{item.starred ? "Unstar" : "Star"}</TooltipContent>
+        </Tooltip>
       </div>
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              className={`icon-button star-btn ${item.starred ? "is-starred" : ""}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onStarToggle(item.id, !!item.starred);
-              }}
-              aria-label={item.starred ? "Unstar conversation" : "Star conversation"}
-            />
-          }
-        >
-          <Star className={`size-4 ${item.starred ? "fill-star" : ""}`} />
-        </TooltipTrigger>
-        <TooltipContent>{item.starred ? "Unstar" : "Star"}</TooltipContent>
-      </Tooltip>
-
-      <Avatar className="size-8 shrink-0">
+      <Avatar className="size-7 shrink-0 mt-0.5">
         {item.sender.avatarUrl && (
           <AvatarImage src={item.sender.avatarUrl} alt={item.sender.name} />
         )}
         <AvatarFallback
-          style={{ background: avatarColor(item.sender.name), color: "#ffffff" }}
-          className="text-xs font-semibold"
+          style={{
+            background: avatarColor(item.sender.name),
+            color: "#ffffff",
+          }}
+          className="text-[10px] font-semibold"
         >
           {getInitials(item.sender.name)}
         </AvatarFallback>
       </Avatar>
 
-      <div className="email-copy">
-        <div className="email-meta">
-          <strong>{item.sender.name}</strong>
-          <time dateTime={item.timestamp}>
+      <div className="email-copy min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-1 mb-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {item.unread && (
+              <span className="size-1.5 rounded-full bg-blue-500 shrink-0" />
+            )}
+            <span
+              className={`text-xs truncate ${item.unread ? "font-bold text-foreground" : "font-medium text-foreground/85"}`}
+            >
+              {item.sender.name}
+            </span>
+          </div>
+          <time
+            dateTime={item.timestamp}
+            className="text-[11px] text-muted-foreground shrink-0 font-normal"
+          >
             {new Date(item.timestamp).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
             })}
           </time>
         </div>
-        <div className="subject-line">
-          <span>{item.subject}</span>
-          {item.labels && item.labels.length > 0 && (
-            <div className="inline-labels">
-              {item.labels.map((lbl) => (
-                <Badge
-                  key={lbl}
-                  variant="secondary"
-                  className="text-[10px] h-4.5 px-1.5 font-medium rounded"
-                >
-                  {lbl}
-                </Badge>
-              ))}
-            </div>
-          )}
-          {item.attachments && item.attachments.length > 0 && <Paperclip />}
+
+        <div className="text-xs truncate mb-0.5">
+          <span
+            className={
+              item.unread
+                ? "font-semibold text-foreground"
+                : "text-muted-foreground font-normal"
+            }
+          >
+            {item.subject}
+          </span>
         </div>
-        <p>{item.preview}</p>
+
+        <p className="text-[11px] text-muted-foreground/80 truncate leading-snug">
+          {item.preview}
+        </p>
+
+        {item.labels && item.labels.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {item.labels.map((lbl) => (
+              <Badge
+                key={lbl}
+                variant="secondary"
+                className="text-[9px] h-4 px-1 py-0 font-normal rounded bg-muted text-muted-foreground border-none"
+              >
+                {lbl}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -366,7 +379,9 @@ export default function MailListPane() {
         const res = await axios.post(`/api/v1/messages/${id}/star`, {
           starred: !currentStarred,
         });
-        toast.success(res.data.starred ? "Message starred" : "Message unstarred");
+        toast.success(
+          res.data.starred ? "Message starred" : "Message unstarred",
+        );
         refresh();
       } catch {
         setMail((prev) =>
@@ -387,7 +402,9 @@ export default function MailListPane() {
         await axios.post(`/api/v1/messages/${id}/restore`);
         setMail((prev) => prev.filter((m) => m.id !== id));
         if (openId === id) setOpenId(null);
-        toast.success(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
+        toast.success(
+          folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox",
+        );
         refresh();
       } catch {
         toast.error("Failed to restore message");
@@ -428,7 +445,8 @@ export default function MailListPane() {
         if (openId === id) setOpenId(null);
         refresh();
 
-        const toastMsg = folder === "Sent" ? "Removed from Sent" : "Moved to trash";
+        const toastMsg =
+          folder === "Sent" ? "Removed from Sent" : "Moved to trash";
 
         toast(toastMsg, {
           action: {
@@ -471,7 +489,7 @@ export default function MailListPane() {
 
       try {
         await Promise.all(
-          ids.map((id) => axios.post(`/api/v1/messages/${id}/trash`))
+          ids.map((id) => axios.post(`/api/v1/messages/${id}/trash`)),
         );
         setMail((prev) => prev.filter((m) => !ids.includes(m.id)));
         if (openId && ids.includes(openId)) setOpenId(null);
@@ -494,13 +512,13 @@ export default function MailListPane() {
                   ids.map((id) =>
                     axios.post(`/api/v1/messages/${id}/restore`, {
                       folder: originalFolder.toLowerCase(),
-                    })
-                  )
+                    }),
+                  ),
                 );
                 setMail((prev) => {
                   const existingIds = new Set(prev.map((m) => m.id));
                   const toRestore = itemsToTrash.filter(
-                    (m) => !existingIds.has(m.id)
+                    (m) => !existingIds.has(m.id),
                   );
                   return [...toRestore, ...prev];
                 });
@@ -624,140 +642,157 @@ export default function MailListPane() {
     });
   }
 
+  // On desktop, auto-select first message if none selected so 3-pane is populated
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      if (!openId && visible.length > 0 && !initialLoading) {
+        setOpenId(visible[0].id);
+      }
+    }
+  }, [visible, openId, setOpenId, initialLoading]);
+
   return (
     <>
       <section
         className={`list-pane ${openId ? "has-open mobile-hidden" : ""}`}
       >
-        {/* Header */}
-        <div className="pane-heading">
-          <div className="pane-heading-title">
-            <h1>{label ? `#${label}` : folder || "Mail"}</h1>
-            {!initialLoading && <span>{visible.length} conversations</span>}
-          </div>
-          <div className="flex items-center gap-1.5">
-            {canEmptyFolder && visible.length > 0 && !initialLoading && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="empty-trash-btn h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10"
-                onClick={handleEmptyTrash}
-                title="Permanently remove all trashed messages"
-              >
-                <Trash2 className="size-3.5" />
-                <span>Empty Trash</span>
-              </Button>
-            )}
-            <Tooltip>
-              <TooltipTrigger
-                render={
+        {/* Unified Top Toolbar */}
+        <div className="list-pane-toolbar">
+          {selected.length > 0 ? (
+            <>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={
+                    selected.length === visible.length && visible.length > 0
+                  }
+                  onCheckedChange={selectAll}
+                  aria-label="Select all conversations"
+                  className="size-3.5"
+                />
+                <span className="text-xs font-medium text-foreground">
+                  {selected.length} selected
+                </span>
+              </div>
+
+              <div className="toolbar-actions flex items-center gap-1">
+                {primaryActions.map((action) => {
+                  const Icon = action.icon;
+                  const shortLabel =
+                    action.id === "restore"
+                      ? "Restore"
+                      : action.id === "delete_permanent" ||
+                          action.id === "trash"
+                        ? "Delete"
+                        : action.id === "archive"
+                          ? "Archive"
+                          : action.label;
+
+                  return (
+                    <Tooltip key={action.id}>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleBulkAction(action)}
+                            aria-label={action.label}
+                          />
+                        }
+                      >
+                        <Icon className="size-3.5" />
+                        <span>{shortLabel}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{action.tooltip}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                        aria-label="Label as"
+                      />
+                    }
+                  >
+                    <Tag className="size-3.5" />
+                    <span>Label</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 p-1">
+                    {allLabels.length === 0 ? (
+                      <div className="px-2 py-2 text-xs text-muted-foreground">
+                        No labels yet. Create one in the sidebar.
+                      </div>
+                    ) : (
+                      allLabels.map((lbl) => (
+                        <DropdownMenuItem
+                          key={lbl.id}
+                          onClick={() => handleBulkLabel(lbl.name)}
+                          className="text-xs gap-2"
+                        >
+                          <Tag className="size-3.5 text-muted-foreground" />
+                          <span>{lbl.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-2">
+                <h1 className="text-sm font-semibold text-foreground">
+                  {label ? `#${label}` : folder || "Inbox"}
+                </h1>
+                {!initialLoading && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    {visible.length} conversation
+                    {visible.length === 1 ? "" : "s"}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1">
+                {canEmptyFolder && visible.length > 0 && !initialLoading && (
                   <Button
                     variant="ghost"
-                    size="icon-sm"
-                    className={`icon-button refresh-btn ${
-                      isFetching ? "spinning" : ""
-                    }`}
-                    onClick={() => {
-                      refresh();
-                      toast.success("Refreshed");
-                    }}
-                    aria-label="Refresh"
-                  />
-                }
-              >
-                <RefreshCw className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>Refresh conversations</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Bulk Actions / Search Toolbar */}
-        <div className="list-toolbar">
-          <div className="toolbar-left flex items-center gap-2.5">
-            <Checkbox
-              checked={selected.length === visible.length && visible.length > 0}
-              onCheckedChange={selectAll}
-              aria-label="Select all conversations"
-            />
-            {selected.length > 0 ? (
-              <span className="selection-count">
-                {selected.length} selected
-              </span>
-            ) : (
-              <span className="list-hint">Select conversations to manage</span>
-            )}
-          </div>
-
-          {selected.length > 0 && (
-            <div className="toolbar-actions flex items-center gap-1">
-              {primaryActions.map((action) => {
-                const Icon = action.icon;
-                const shortLabel =
-                  action.id === "restore"
-                    ? "Restore"
-                    : action.id === "delete_permanent" || action.id === "trash"
-                    ? "Delete"
-                    : action.id === "archive"
-                    ? "Archive"
-                    : action.label;
-
-                return (
-                  <Tooltip key={action.id}>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                          onClick={() => handleBulkAction(action)}
-                          aria-label={action.label}
-                        />
-                      }
-                    >
-                      <Icon className="size-3.5" />
-                      <span>{shortLabel}</span>
-                    </TooltipTrigger>
-                    <TooltipContent>{action.tooltip}</TooltipContent>
-                  </Tooltip>
-                );
-              })}
-
-              {/* Labels dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="toolbar-action h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                      aria-label="Label as"
-                    />
-                  }
-                >
-                  <Tag className="size-3.5" />
-                  <span>Label</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 p-1">
-                  {allLabels.length === 0 ? (
-                    <div className="px-2 py-2 text-xs text-muted-foreground">
-                      No labels yet. Create one in the sidebar.
-                    </div>
-                  ) : (
-                    allLabels.map((lbl) => (
-                      <DropdownMenuItem
-                        key={lbl.id}
-                        onClick={() => handleBulkLabel(lbl.name)}
-                        className="text-xs gap-2"
-                      >
-                        <Tag className="size-3.5 text-muted-foreground" />
-                        <span>{lbl.name}</span>
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    size="sm"
+                    className="empty-trash-btn h-7 px-2 text-xs gap-1 text-destructive hover:bg-destructive/10"
+                    onClick={handleEmptyTrash}
+                    title="Permanently remove all trashed messages"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>Empty Trash</span>
+                  </Button>
+                )}
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={`h-7 w-7 text-muted-foreground hover:text-foreground ${
+                          isFetching ? "animate-spin" : ""
+                        }`}
+                        onClick={() => {
+                          refresh();
+                          toast.success("Refreshed");
+                        }}
+                        aria-label="Refresh"
+                      />
+                    }
+                  >
+                    <RefreshCw className="size-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent>Refresh conversations</TooltipContent>
+                </Tooltip>
+              </div>
+            </>
           )}
         </div>
 

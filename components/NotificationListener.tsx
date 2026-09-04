@@ -7,17 +7,23 @@ import Pusher from "pusher-js";
 export function NotificationListener() {
   useEffect(() => {
     const pusherKey =
-      process.env.NEXT_PUBLIC_PUSHER_KEY || "5080052518da30ff9d53";
+      process.env.NEXT_PUBLIC_PUSHER_KEY || "";
     const pusherCluster =
-      process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap2";
+      process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "";
 
     console.log("[NotificationListener] Connecting to Pusher...", {
       key: pusherKey,
       cluster: pusherCluster,
     });
 
+    if (!pusherKey || !pusherCluster) {
+      console.warn("[NotificationListener] Pusher key or cluster is missing. Real-time notifications will be disabled.");
+      return;
+    }
+
     const pusher = new Pusher(pusherKey, {
       cluster: pusherCluster,
+      forceTLS: true,
     });
 
     pusher.connection.bind("connected", () => {

@@ -1,0 +1,38 @@
+import { NextResponse } from "next/server";
+import { db } from "@/src";
+import { customTools } from "@/src/db/schema";
+import { desc } from "drizzle-orm";
+
+export async function GET() {
+  try {
+    const list = await db.select().from(customTools).orderBy(desc(customTools.createdAt));
+    return NextResponse.json({ data: list });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const id = body.id || `tool-${Date.now()}`;
+    const record = {
+      id,
+      name: body.name || "Custom Webhook Tool",
+      description: body.description || "",
+      method: body.method || "POST",
+      url: body.url || "",
+      authType: body.authType || "none",
+      authValue: body.authValue || null,
+      headers: body.headers || [],
+      bodyTemplate: body.bodyTemplate || null,
+      inputSchema: body.inputSchema || null,
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.insert(customTools).values(record);
+    return NextResponse.json({ data: record }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+}

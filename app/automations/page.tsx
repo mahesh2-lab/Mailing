@@ -7,6 +7,6 @@ export const metadata: Metadata = {
     "Set up rules and workflows to automate repetitive tasks in your Mailing inbox — powered by Resend.",
 };
 
-export default function AutomationRoute() {
+export default function AutomationsRoute() {
   return <AutomationPage />;
 }

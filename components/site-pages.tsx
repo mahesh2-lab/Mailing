@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   Camera,
   Check,
@@ -791,7 +792,7 @@ export function SitePage({ type }: { type: PageKey }) {
         <div className="site-links">
           <a href="/inbox">Inbox</a>
           <a href="/contacts">Contacts</a>
-          <a href="/automation">Automation</a>
+          <a href="/automations">Automations</a>
           <a href="/help">Help</a>
           <a href="/profile">Profile</a>
         </div>
@@ -913,6 +914,36 @@ export function SitePage({ type }: { type: PageKey }) {
                 </div>
               ),
             )}
+          </section>
+          <section className="panel">
+            <div className="panel-title">
+              <div>
+                <h2>Data Sync</h2>
+                <p>Manually sync emails with the server.</p>
+              </div>
+              <Mail />
+            </div>
+            <div className="setting-row">
+              <div>
+                <strong>Sync Emails</strong>
+                <span>Fetch the latest sent and received emails</span>
+              </div>
+              <button
+                className="button-secondary"
+                onClick={async () => {
+                  toast.loading("Syncing emails...", { id: "sync" });
+                  try {
+                    const res = await fetch("/api/sync", { method: "POST" });
+                    if (!res.ok) throw new Error("Sync failed");
+                    toast.success("Emails synced successfully", { id: "sync" });
+                  } catch (e) {
+                    toast.error("Failed to sync emails", { id: "sync" });
+                  }
+                }}
+              >
+                Sync Now
+              </button>
+            </div>
           </section>
           <ApiKeysPanel />
         </div>

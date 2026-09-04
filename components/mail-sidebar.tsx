@@ -55,6 +55,8 @@ export interface LabelData {
   count: number;
 }
 
+const DEFAULT_LABEL_NAMES = ["Important", "Work", "Personal"];
+
 function useMailSummary(refreshTick: number) {
   const [allMail, setAllMail] = useState<MailItem[]>([]);
   const [labels, setLabels] = useState<LabelData[]>([]);
@@ -254,17 +256,31 @@ export default function MailSidebar() {
     Math.max(2, (storageBytes / (1024 * 1024 * 1024)) * 100),
   );
 
+  const mergedLabels = useMemo(() => {
+    const existingNames = new Set(labels.map((l) => l.name.toLowerCase()));
+    const list = [...labels];
+    for (const name of DEFAULT_LABEL_NAMES) {
+      if (!existingNames.has(name.toLowerCase())) {
+        list.push({ id: name.toLowerCase(), name, count: counts[name] || 0 });
+      }
+    }
+    return list;
+  }, [labels, counts]);
+
   return (
     <>
       <aside className={`sidebar ${mobileNavOpen ? "nav-open" : ""}`}>
-        <Button
-          className="compose-button w-full justify-start h-9 gap-2.5 font-medium shadow-sm"
+        <button
+          className="sidebar-compose-btn w-full cursor-pointer"
           onClick={() => openCompose()}
         >
-          <Pencil className="size-4" />
+          <Pencil className="size-3.5" />
           <span>Compose</span>
-          <span className="ml-auto text-[10px] opacity-60 font-mono">⌘ N</span>
-        </Button>
+          <span className="ml-auto text-[10px] text-muted-foreground font-mono">
+            ⌘ N
+          </span>
+        </button>
+
         <nav aria-label="Mail folders">
           {(
             [
@@ -287,12 +303,12 @@ export default function MailSidebar() {
                 }`}
                 onClick={() => selectFolder(name)}
               >
-                <Icon className="size-4" />
+                <Icon className="size-3.5" />
                 <span>{name}</span>
                 {counts[name] > 0 && (
                   <Badge
                     variant="secondary"
-                    className="ml-auto text-[11px] h-4.5 px-1.5 font-normal"
+                    className={`sidebar-count-badge ${counts[name] < 10 ? "is-single" : ""}`}
                   >
                     {counts[name]}
                   </Badge>
@@ -301,23 +317,24 @@ export default function MailSidebar() {
             );
           })}
         </nav>
+
         <div className="sidebar-spacer" />
 
-        <div className="sidebar-heading-row flex items-center justify-between">
-          <strong className="sidebar-heading">Labels</strong>
+        <div className="sidebar-heading-row flex items-center justify-between px-1">
+          <strong className="sidebar-heading p-0">LABELS</strong>
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  className="icon-button small create-label-btn"
+                  className="icon-button small create-label-btn h-5 w-5 text-muted-foreground hover:text-foreground"
                   aria-label="Create new label"
                   onClick={() => setCreatingLabel((prev) => !prev)}
                 />
               }
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-3" />
             </TooltipTrigger>
             <TooltipContent>Create new label</TooltipContent>
           </Tooltip>
@@ -362,58 +379,65 @@ export default function MailSidebar() {
         )}
 
         <nav aria-label="Mail labels" className="sidebar-labels-nav">
-          {labels.map((lbl) => {
+          {mergedLabels.map((lbl) => {
             const isActive = label === lbl.name;
             const count = counts[lbl.name] || lbl.count || 0;
+            const isDefault = DEFAULT_LABEL_NAMES.some(
+              (n) => n.toLowerCase() === lbl.name.toLowerCase(),
+            );
             return (
               <div
                 key={lbl.name}
-                className={`nav-label-wrapper ${isActive ? "active" : ""}`}
+                className={`nav-label-wrapper flex items-center ${isActive ? "active" : ""}`}
               >
                 <button
-                  className="nav-label-btn"
+                  className="nav-label-btn flex items-center "
                   onClick={() => selectLabel(lbl.name)}
                 >
-                  <Tag className="size-4" />
-                  <span>{lbl.name}</span>
-                  {count > 0 && (
+                  <Tag className="size-3.5 shrink-0" />
+                  <span title={lbl.name}>{lbl.name}</span>
+                  {/* {count > 0 && (
                     <Badge
                       variant="secondary"
-                      className="ml-auto text-[11px] h-4.5 px-1.5 font-normal"
+                      className={`sidebar-count-badge nav-label-badge ${count < 10 ? "is-single" : ""}`}
                     >
                       {count}
                     </Badge>
-                  )}
+                  )} */}
                 </button>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        className="icon-button small label-delete-icon"
-                        aria-label={`Delete label "${lbl.name}"`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteLabelTarget(lbl.name);
-                        }}
-                      />
-                    }
-                  >
-                    <Trash2 className="size-3.5" />
-                  </TooltipTrigger>
-                  <TooltipContent>Delete label &quot;{lbl.name}&quot;</TooltipContent>
-                </Tooltip>
+                {!isDefault && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          className="icon-button small label-delete-icon"
+                          aria-label={`Delete label "${lbl.name}"`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteLabelTarget(lbl.name);
+                          }}
+                        />
+                      }
+                    >
+                      <Trash2 className="size-3" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Delete label &quot;{lbl.name}&quot;
+                    </TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             );
           })}
         </nav>
 
         <div className="sidebar-spacer" />
-        <button className="nav-item" onClick={() => router.push("/automation")}>
-          <Zap className="size-4" />
-          <span>Automation</span>
+        <button className="nav-item" onClick={() => router.push("/automations")}>
+          <Zap className="size-3.5" />
+          <span>Automations</span>
         </button>
         <button className="nav-item" onClick={() => router.push("/settings")}>
-          <Settings className="size-4" />
+          <Settings className="size-3.5" />
           <span>Settings</span>
         </button>
         <div className="storage">

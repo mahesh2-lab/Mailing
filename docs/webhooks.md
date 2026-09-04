@@ -11,12 +11,12 @@ Because multiple users might use the same deployment, the endpoint needs to know
 
 1. Go to your [Resend Dashboard](https://resend.com/webhooks).
 2. Click **Add Webhook**.
-3. In the **Endpoint URL** field, enter the URL of your deployed application, followed by the path and your user ID query parameter. 
+3. In the **Endpoint URL** field, enter the URL of your deployed application:
    
    Example:
-   `https://your-domain.com/api/webhooks/resend?userId=YOUR_USER_ID`
+   `https://your-domain.com/api/webhooks/resend`
    
-   *(You can find your User ID in the database or profile settings).*
+   *(Note: Query parameter `?userId=YOUR_USER_ID` is also optionally supported if you have multiple isolated users).*
 
 4. Select the events you want to track (e.g., `email.delivered`, `email.bounced`, `email.received`, etc.).
 5. Click **Add**.

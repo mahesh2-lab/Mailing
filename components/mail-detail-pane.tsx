@@ -1,24 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
+  Bold,
+  CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Download,
+  ExternalLink,
   FileText,
   Forward,
+  Italic,
+  Link2,
+  Loader2,
   Mail,
   MoreHorizontal,
+  Paperclip,
   Pencil,
   Plus,
   Reply,
   ReplyAll,
+  Send,
   Star,
   Tag,
   X,
 } from "lucide-react";
 import axios from "axios";
-import { MailItem } from "../hooks/use-mail";
+import { MailItem, useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
@@ -26,6 +35,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials, avatarColor } from "@/lib/utils";
+import { ThreadHierarchyViewer, parseSender } from "./mail-thread-hierarchy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
@@ -64,7 +75,6 @@ function MessageSkeleton() {
   );
 }
 
-
 function useMessageDetail(id: string | null) {
   const [message, setMessage] = useState<MailItem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,18 +94,20 @@ function useMessageDetail(id: string | null) {
         if (!mounted) return;
         const e = res.data;
         if (e?.id) {
+          const sender = parseSender(e.from);
           setMessage({
             id: e.id,
             sender: {
-              name: e.from?.split("<")[0].trim() || e.from || "Unknown",
-              email: e.from || "",
+              name: sender.name,
+              email: sender.email,
             },
-            to: Array.isArray(e.to) ? e.to : (e.to ? [e.to] : []),
-            cc: Array.isArray(e.cc) ? e.cc : (e.cc ? [e.cc] : []),
-            bcc: Array.isArray(e.bcc) ? e.bcc : (e.bcc ? [e.bcc] : []),
+            to: Array.isArray(e.to) ? e.to : e.to ? [e.to] : [],
+            cc: Array.isArray(e.cc) ? e.cc : e.cc ? [e.cc] : [],
+            bcc: Array.isArray(e.bcc) ? e.bcc : e.bcc ? [e.bcc] : [],
             subject: e.subject || "No Subject",
             preview: "",
             rawText: e.text || "",
+            rawHtml: e.html || "",
             body:
               e.html ||
               (e.text
@@ -130,8 +142,6 @@ function useMessageDetail(id: string | null) {
 
   return { message, setMessage, loading, error };
 }
-
-import { getInitials, avatarColor } from "@/lib/utils";
 
 function htmlToPlainText(html: string): string {
   if (!html) return "";
@@ -178,7 +188,273 @@ function buildForwardBody(message: {
   return `\n\n---------- Forwarded message ---------\nFrom: ${senderDisplay}\nDate: ${date}\nSubject: ${message.subject}\n\n${plain}`;
 }
 
-// ─── main component ───────────────────────────────────────────────────────────
+// ─── Inline Reply Composer ──────────────────────────────────────────────────
+function InlineReplyComposer({
+  message,
+  onSent,
+}: {
+  message: MailItem;
+  onSent: () => void;
+}) {
+  const { openCompose } = useMailContext();
+  const { sendMail, sending } = useSendMail();
+  const [replyText, setReplyText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+
+  const handleSend = async () => {
+    if (!replyText.trim() && attachments.length === 0) {
+      toast.error("Please enter a reply message");
+      return;
+    }
+
+    try {
+      const subject = message.subject.startsWith("Re:")
+        ? message.subject
+        : `Re: ${message.subject}`;
+
+      const formattedHtml = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #ededed;">
+        ${replyText
+          .split("\n")
+          .map((line) => `<p style="margin: 0 0 8px;">${line || "&nbsp;"}</p>`)
+          .join("")}
+      </div>`;
+
+      await sendMail({
+        to: [message.sender.email],
+        subject,
+        html: formattedHtml,
+        text: replyText,
+      });
+
+      toast.success("Reply sent successfully");
+      setReplyText("");
+      setAttachments([]);
+      onSent();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send reply");
+    }
+  };
+
+  const handlePopOut = () => {
+    openCompose({
+      to: [message.sender.email],
+      subject: message.subject.startsWith("Re:")
+        ? message.subject
+        : `Re: ${message.subject}`,
+      body: replyText,
+    });
+  };
+
+  const insertFormatting = (prefix: string, suffix: string = prefix) => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = replyText.substring(start, end);
+    const replacement = `${prefix}${selected || "text"}${suffix}`;
+    const newText =
+      replyText.substring(0, start) + replacement + replyText.substring(end);
+    setReplyText(newText);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(
+        start + prefix.length,
+        start + prefix.length + (selected ? selected.length : 4),
+      );
+    }, 0);
+  };
+
+  return (
+    <div className="inline-reply-composer mt-6 border border-border rounded-lg bg-(--composer-bg) overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 py-2 border-b border-border text-xs bg-(--composer-header-bg)">
+        <span className="text-muted-foreground truncate">
+          Replying to{" "}
+          <strong className="text-foreground font-medium">
+            {message.sender.name}
+          </strong>
+          {message.sender.name.toLowerCase() !==
+            message.sender.email.toLowerCase() && (
+            <span className="text-muted-foreground/80 font-normal">
+              {" "}
+              &lt;{message.sender.email}&gt;
+            </span>
+          )}
+        </span>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer px-1.5 py-0.5 rounded hover:bg-accent transition-colors"
+                onClick={handlePopOut}
+              >
+                <ExternalLink className="size-3" />
+                <span>Pop out</span>
+              </button>
+            }
+          >
+            Pop out to full composer
+          </TooltipTrigger>
+          <TooltipContent>Open in full compose window</TooltipContent>
+        </Tooltip>
+      </div>
+
+      {/* Body textarea */}
+      <div className="p-3">
+        <textarea
+          ref={textareaRef}
+          value={replyText}
+          onChange={(e) => setReplyText(e.target.value)}
+          placeholder="Write your reply or notes..."
+          rows={4}
+          className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 shadow-none resize-none font-sans leading-relaxed"
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+        />
+
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-2">
+            {attachments.map((file, idx) => (
+              <Badge
+                key={idx}
+                variant="secondary"
+                className="gap-1 text-[11px] h-5 font-normal bg-muted text-muted-foreground"
+              >
+                <Paperclip className="size-3" />
+                <span className="truncate max-w-37.5">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                >
+                  <X className="size-2.5" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom toolbar */}
+      <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-[var(--composer-header-bg)]">
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                  onClick={() => insertFormatting("**")}
+                  aria-label="Bold"
+                >
+                  <Bold className="size-3.5" />
+                </button>
+              }
+            >
+              Bold (⌘B)
+            </TooltipTrigger>
+            <TooltipContent>Bold</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                  onClick={() => insertFormatting("*")}
+                  aria-label="Italic"
+                >
+                  <Italic className="size-3.5" />
+                </button>
+              }
+            >
+              Italic (⌘I)
+            </TooltipTrigger>
+            <TooltipContent>Italic</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                  onClick={() => {
+                    const url = prompt("Enter link URL:");
+                    if (url) insertFormatting("[", `](${url})`);
+                  }}
+                  aria-label="Insert Link"
+                >
+                  <Link2 className="size-3.5" />
+                </button>
+              }
+            >
+              Link
+            </TooltipTrigger>
+            <TooltipContent>Insert Link</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach files"
+                >
+                  <Paperclip className="size-3.5" />
+                </button>
+              }
+            >
+              Attach files
+            </TooltipTrigger>
+            <TooltipContent>Attach files</TooltipContent>
+          </Tooltip>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.length) {
+                setAttachments((prev) => [
+                  ...prev,
+                  ...Array.from(e.target.files!),
+                ]);
+              }
+            }}
+          />
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleSend}
+          disabled={sending || (!replyText.trim() && attachments.length === 0)}
+          className="py-4 px-3 text-xs gap-1.5 font-medium cursor-pointer hover:bg-primary/90 transition-colors"
+          title="Send reply (Ctrl + Enter)"
+        >
+          {sending ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Send className="size-3.5" />
+          )}
+          <span>{sending ? "Sending..." : "Send"}</span>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function MailDetailPane() {
   const {
     folder,
@@ -193,20 +469,30 @@ export default function MailDetailPane() {
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   // Label management state
-  const [allLabels, setAllLabels] = useState<Array<{ id: string; name: string }>>([]);
+  const [allLabels, setAllLabels] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [labelDropOpen, setLabelDropOpen] = useState(false);
   const [labelSearch, setLabelSearch] = useState("");
 
   // Load available labels
   useEffect(() => {
-    axios.get("/api/v1/labels").then((res) => setAllLabels(res.data || [])).catch(() => {});
+    axios
+      .get("/api/v1/labels")
+      .then((res) => setAllLabels(res.data || []))
+      .catch(() => {});
   }, [refreshTick]);
 
   async function removeLabel(lbl: string) {
     if (!message) return;
     try {
-      await axios.delete(`/api/v1/messages/${message.id}/labels?label=${encodeURIComponent(lbl)}`);
-      setMessage({ ...message, labels: (message.labels || []).filter((l) => l !== lbl) });
+      await axios.delete(
+        `/api/v1/messages/${message.id}/labels?label=${encodeURIComponent(lbl)}`,
+      );
+      setMessage({
+        ...message,
+        labels: (message.labels || []).filter((l) => l !== lbl),
+      });
       toast.success(`Removed label "${lbl}"`);
       refresh();
     } catch {
@@ -244,18 +530,19 @@ export default function MailDetailPane() {
     }
   }
 
-  
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { primaryActions } = useMemo(
     () => getActionsForFolder(folder, !!label),
-    [folder, label]
+    [folder, label],
   );
 
   async function handleMarkAsUnread() {
     if (!message) return;
     try {
-      await axios.patch(`/api/v1/messages/${message.id}/read`, { unread: true });
+      await axios.patch(`/api/v1/messages/${message.id}/read`, {
+        unread: true,
+      });
       setMessage((prev) => (prev ? { ...prev, unread: true } : prev));
       toast.success("Marked as unread");
       setOpenId(null);
@@ -303,10 +590,13 @@ export default function MailDetailPane() {
       return;
     }
 
-    const formattedDate = new Date(message.timestamp).toLocaleString(undefined, {
-      dateStyle: "full",
-      timeStyle: "short",
-    });
+    const formattedDate = new Date(message.timestamp).toLocaleString(
+      undefined,
+      {
+        dateStyle: "full",
+        timeStyle: "short",
+      },
+    );
 
     const toList = (message.to || []).join(", ");
     const ccList = message.cc?.length
@@ -447,7 +737,9 @@ ${message.rawText || htmlToPlainText(message.body)}`;
     setActionInProgress("restore");
     try {
       await axios.post(`/api/v1/messages/${message.id}/restore`);
-      toast.success(folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox");
+      toast.success(
+        folder === "Archive" ? "Moved to Inbox" : "Restored to Inbox",
+      );
       setOpenId(null);
       refresh();
     } catch {
@@ -483,7 +775,8 @@ ${message.rawText || htmlToPlainText(message.body)}`;
       setOpenId(null);
       refresh();
 
-      const toastMsg = folder === "Sent" ? "Removed from Sent" : "Moved to trash";
+      const toastMsg =
+        folder === "Sent" ? "Removed from Sent" : "Moved to trash";
 
       toast(toastMsg, {
         action: {
@@ -527,7 +820,6 @@ ${message.rawText || htmlToPlainText(message.body)}`;
     }
   }
 
-  
   if (!openId) {
     return (
       <section className="detail-pane mobile-hidden">
@@ -542,10 +834,11 @@ ${message.rawText || htmlToPlainText(message.body)}`;
     );
   }
 
-  
   if (error) {
     return (
-      <section className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}>
+      <section
+        className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}
+      >
         <div className="detail-toolbar">
           <button
             className="icon-button back-button"
@@ -565,7 +858,9 @@ ${message.rawText || htmlToPlainText(message.body)}`;
 
   return (
     <>
-      <section className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}>
+      <section
+        className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}
+      >
         {/* Toolbar */}
         <div className="detail-toolbar">
           <Tooltip>
@@ -587,7 +882,9 @@ ${message.rawText || htmlToPlainText(message.body)}`;
 
           {message && (
             <>
-              {folder === "Drafts" || message.folder === "drafts" || message.status === "draft" ? (
+              {folder === "Drafts" ||
+              message.folder === "drafts" ||
+              message.status === "draft" ? (
                 <Button
                   size="sm"
                   className="button-primary h-7 px-3 text-xs gap-1.5"
@@ -733,9 +1030,7 @@ ${message.rawText || htmlToPlainText(message.body)}`;
               <DropdownMenuItem onClick={handleCopyLink}>
                 Copy link
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePrint}>
-                Print
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint}>Print</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -744,160 +1039,151 @@ ${message.rawText || htmlToPlainText(message.body)}`;
         <div className="detail-scroll-area">
           <div className="detail-content">
             {message && (
-              <div className="detail-heading">
-                <div className="detail-heading-left">
-                  <div className="label-row flex flex-wrap items-center gap-1.5 mb-2">
-                    {message.labels?.map((lbl) => (
-                      <Badge
-                        key={lbl}
-                        variant="secondary"
-                        className="gap-1 pr-1 pl-2 text-xs font-normal h-6 rounded-md"
+              <>
+                {/* Labels Row */}
+                <div className="label-row flex flex-wrap items-center gap-1.5 mb-3">
+                  {message.labels?.map((lbl) => (
+                    <Badge
+                      key={lbl}
+                      variant="secondary"
+                      className="gap-1 pr-1 pl-2 text-xs font-normal h-6 rounded bg-muted text-foreground border-none"
+                    >
+                      <Tag className="size-3 text-muted-foreground" />
+                      <span>{lbl}</span>
+                      <button
+                        className="chip-remove-btn hover:bg-accent rounded p-0.5 cursor-pointer"
+                        onClick={() => removeLabel(lbl)}
+                        aria-label={`Remove label ${lbl}`}
+                        title={`Remove label ${lbl}`}
                       >
-                        <Tag className="size-3 text-muted-foreground" />
-                        <span>{lbl}</span>
-                        <button
-                          className="chip-remove-btn hover:bg-muted/80 rounded p-0.5 cursor-pointer"
-                          onClick={() => removeLabel(lbl)}
-                          aria-label={`Remove label ${lbl}`}
-                          title={`Remove label ${lbl}`}
-                        >
-                          <X className="size-3 text-muted-foreground hover:text-foreground" />
-                        </button>
-                      </Badge>
-                    ))}
+                        <X className="size-3 text-muted-foreground hover:text-foreground" />
+                      </button>
+                    </Badge>
+                  ))}
 
-                    {/* Add label popover */}
-                    <Popover open={labelDropOpen} onOpenChange={setLabelDropOpen}>
-                      <PopoverTrigger
-                        render={
-                          <Button
-                            variant="outline"
-                            size="xs"
-                            className="h-6 gap-1 px-2 text-xs font-normal"
-                            aria-label="Add label"
-                          />
-                        }
-                      >
-                        <Plus className="size-3" /> Label
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="w-52 p-2">
-                        <Input
-                          className="h-7 text-xs mb-2"
-                          placeholder="Search or create..."
-                          value={labelSearch}
-                          onChange={(e) => setLabelSearch(e.target.value)}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && labelSearch.trim()) {
-                              const exact = allLabels.find(
-                                (l) =>
-                                  l.name.toLowerCase() ===
-                                  labelSearch.trim().toLowerCase()
-                              );
-                              if (exact) addLabel(exact.name);
-                              else createAndAddLabel(labelSearch.trim());
-                            }
-                          }}
+                  {/* Add label popover */}
+                  <Popover open={labelDropOpen} onOpenChange={setLabelDropOpen}>
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          className="h-6 gap-1 px-2 text-xs font-normal border-border/70 text-muted-foreground hover:text-foreground"
+                          aria-label="Add label"
                         />
-                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-                          {allLabels
-                            .filter((l) =>
-                              l.name
-                                .toLowerCase()
-                                .includes(labelSearch.toLowerCase())
-                            )
-                            .map((l) => (
-                              <button
-                                key={l.id}
-                                className="flex items-center justify-between text-xs px-2 py-1.5 rounded hover:bg-accent text-left"
-                                onClick={() => addLabel(l.name)}
-                              >
-                                <span className="flex items-center gap-1.5 truncate">
-                                  <Tag className="size-3 text-muted-foreground" />
-                                  {l.name}
-                                </span>
-                                {(message.labels || []).includes(l.name) && (
-                                  <span className="text-primary text-xs font-bold">
-                                    ✓
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          {labelSearch.trim() &&
-                            !allLabels.some(
+                      }
+                    >
+                      <Plus className="size-3" /> Label
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-52 p-2">
+                      <Input
+                        className="h-7 text-xs mb-2"
+                        placeholder="Search or create..."
+                        value={labelSearch}
+                        onChange={(e) => setLabelSearch(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && labelSearch.trim()) {
+                            const exact = allLabels.find(
                               (l) =>
                                 l.name.toLowerCase() ===
-                                labelSearch.trim().toLowerCase()
-                            ) && (
-                              <button
-                                className="flex items-center gap-1 text-xs px-2 py-1.5 rounded hover:bg-accent text-primary font-medium text-left"
-                                onClick={() =>
-                                  createAndAddLabel(labelSearch.trim())
-                                }
-                              >
-                                <Plus className="size-3" /> Create &quot;
-                                {labelSearch.trim()}&quot;
-                              </button>
-                            )}
-                          {allLabels.length === 0 && !labelSearch.trim() && (
-                            <p className="text-xs text-muted-foreground p-2 text-center">
-                              No labels yet. Type to create one.
-                            </p>
-                          )}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <h2>{message.subject}</h2>
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className={`icon-button star-btn ${
-                          message.starred ? "is-starred" : ""
-                        }`}
-                        onClick={starToggle}
-                        aria-label={
-                          message.starred
-                            ? "Unstar conversation"
-                            : "Star conversation"
-                        }
+                                labelSearch.trim().toLowerCase(),
+                            );
+                            if (exact) addLabel(exact.name);
+                            else createAndAddLabel(labelSearch.trim());
+                          }
+                        }}
                       />
-                    }
-                  >
-                    <Star
-                      className={`size-4 ${
-                        message.starred ? "fill-star" : ""
-                      }`}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {message.starred ? "Unstar" : "Star"}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            )}
-
-            {/* skeleton heading while loading */}
-            {loading && !message && (
-              <div className="detail-heading">
-                <div style={{ flex: 1 }} className="space-y-2">
-                  <Skeleton className="h-4 w-1/4" />
-                  <Skeleton className="h-7 w-2/3" />
+                      <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                        {allLabels
+                          .filter((l) =>
+                            l.name
+                              .toLowerCase()
+                              .includes(labelSearch.toLowerCase()),
+                          )
+                          .map((l) => (
+                            <button
+                              key={l.id}
+                              className="flex items-center justify-between text-xs px-2 py-1.5 rounded hover:bg-accent text-left"
+                              onClick={() => addLabel(l.name)}
+                            >
+                              <span className="flex items-center gap-1.5 truncate">
+                                <Tag className="size-3 text-muted-foreground" />
+                                {l.name}
+                              </span>
+                              {(message.labels || []).includes(l.name) && (
+                                <span className="text-primary text-xs font-bold">
+                                  ✓
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        {labelSearch.trim() &&
+                          !allLabels.some(
+                            (l) =>
+                              l.name.toLowerCase() ===
+                              labelSearch.trim().toLowerCase(),
+                          ) && (
+                            <button
+                              className="flex items-center gap-1 text-xs px-2 py-1.5 rounded hover:bg-accent text-primary font-medium text-left"
+                              onClick={() =>
+                                createAndAddLabel(labelSearch.trim())
+                              }
+                            >
+                              <Plus className="size-3" /> Create &quot;
+                              {labelSearch.trim()}&quot;
+                            </button>
+                          )}
+                        {allLabels.length === 0 && !labelSearch.trim() && (
+                          <p className="text-xs text-muted-foreground p-2 text-center">
+                            No labels yet. Type to create one.
+                          </p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </div>
-            )}
 
-            <div className="message message-card">
-              {loading ? (
-                <MessageSkeleton />
-              ) : message ? (
-                <>
-                  <div className="message-head">
+                {/* Email Subject Heading */}
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <h2 className="text-2xl md:text-[26px] font-semibold text-foreground tracking-tight leading-snug">
+                    {message.subject}
+                  </h2>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className={`icon-button star-btn ${
+                            message.starred ? "is-starred" : ""
+                          }`}
+                          onClick={starToggle}
+                          aria-label={
+                            message.starred
+                              ? "Unstar conversation"
+                              : "Star conversation"
+                          }
+                        />
+                      }
+                    >
+                      <Star
+                        className={`size-4 ${
+                          message.starred
+                            ? "fill-star text-amber-400 fill-amber-400"
+                            : ""
+                        }`}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {message.starred ? "Unstar" : "Star"}
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                {/* Single Polished Message Container */}
+                <div className="message-container border border-border rounded-lg p-5 bg-[var(--message-bg)]">
+                  <div className="flex items-center gap-3">
                     <Avatar className="size-9 shrink-0">
                       {message.sender.avatarUrl && (
                         <AvatarImage
@@ -915,14 +1201,23 @@ ${message.rawText || htmlToPlainText(message.body)}`;
                         {getInitials(message.sender.name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="sender-info">
-                      <strong>{message.sender.name}</strong>
-                      <span className="sender-email">
-                        {message.sender.email}
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-baseline gap-2 min-w-0 flex-wrap">
+                        <strong className="text-sm font-semibold text-foreground truncate">
+                          {message.sender.name}
+                        </strong>
+                        {message.sender.name.toLowerCase() !==
+                          message.sender.email.toLowerCase() && (
+                          <span className="text-xs text-muted-foreground truncate font-normal">
+                            &lt;{message.sender.email}&gt;
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        to me
                       </span>
-                      <span className="sender-to">to me</span>
                     </div>
-                    <time className="message-time">
+                    <time className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
                       {new Date(message.timestamp).toLocaleString(undefined, {
                         month: "short",
                         day: "numeric",
@@ -930,137 +1225,82 @@ ${message.rawText || htmlToPlainText(message.body)}`;
                         minute: "2-digit",
                       })}
                     </time>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            className="icon-button small"
-                            aria-label="Message options"
-                          />
-                        }
-                      >
-                        <ChevronDown className="size-3.5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44 p-1">
-                        <DropdownMenuItem onClick={handlePrint}>
-                          Expand message
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDownload}>
-                          Download message
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
 
-                  {}
-                  <div
-                    className="email-body-content"
-                    dangerouslySetInnerHTML={{ __html: message.body }}
-                  />
+                  <div className="my-4 border-t border-border" />
 
-                  {}
+                  {/* Email Body & Thread Hierarchy */}
+                  <ThreadHierarchyViewer message={message} />
+
+                  {/* Attachments */}
                   {message.attachments && message.attachments.length > 0 && (
-                    <div className="attachments-section">
-                      <strong className="attachments-label">
+                    <div className="attachments-section mt-5 pt-4 border-t border-border">
+                      <strong className="text-xs font-medium text-muted-foreground block mb-2">
                         {message.attachments.length} attachment
                         {message.attachments.length > 1 ? "s" : ""}
                       </strong>
-                      <div className="attachments-list">
+                      <div className="flex flex-wrap gap-2">
                         {message.attachments.map((att) => (
                           <a
                             key={att.id || att.filename}
-                            className="attachment"
-                            href={att.id ? `/api/v1/messages/${message.id}/attachments/${att.id}` : att.url}
+                            className="flex items-center gap-2 p-2 rounded-md border border-border hover:bg-accent/60 text-xs text-foreground transition-colors"
+                            href={
+                              att.id
+                                ? `/api/v1/messages/${message.id}/attachments/${att.id}`
+                                : att.url
+                            }
                             download={att.filename}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
-                            <div className="attachment-icon">
-                              <FileText />
-                            </div>
-                            <div className="attachment-info">
-                              <strong>{att.filename}</strong>
-                              <span>
-                                {att.type.split("/")[1]?.toUpperCase() ||
-                                  "FILE"}{" "}
-                                ·{" "}
-                                {att.sizeBytes < 1024
-                                  ? `${att.sizeBytes} B`
-                                  : att.sizeBytes < 1024 * 1024
+                            <FileText className="size-4 text-muted-foreground" />
+                            <div className="flex flex-col min-w-0">
+                              <span className="font-medium truncate max-w-[140px]">
+                                {att.filename}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {att.sizeBytes < 1024 * 1024
                                   ? `${Math.round(att.sizeBytes / 1024)} KB`
-                                  : `${(
-                                      att.sizeBytes /
-                                      (1024 * 1024)
-                                    ).toFixed(1)} MB`}
+                                  : `${(att.sizeBytes / (1024 * 1024)).toFixed(1)} MB`}
                               </span>
                             </div>
-                            <Download className="attachment-download" />
+                            <Download className="size-3 text-muted-foreground ml-1" />
                           </a>
                         ))}
                       </div>
                     </div>
                   )}
-                </>
-              ) : null}
-            </div>
 
-            {}
-            {message && !loading && (
-              <div className="reply-actions flex items-center gap-2 pt-2">
-                {folder === "Drafts" || message.folder === "drafts" || message.status === "draft" ? (
-                  <Button
-                    size="sm"
-                    className="button-primary h-8 px-4 text-xs gap-2"
-                    onClick={() =>
-                      openCompose({
-                        draftId: message.id,
-                        to: message.to,
-                        cc: message.cc,
-                        bcc: message.bcc,
-                        subject: message.subject,
-                        body: message.rawText || htmlToPlainText(message.body),
-                      })
-                    }
-                  >
-                    <Pencil className="size-3.5" /> Continue editing draft
-                  </Button>
-                ) : (
-                  <>
-                    <Button
+                  {/* Bottom Verification Footer */}
+                  <div className="mt-8 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground/60 font-mono">
+                        ID: {message.id}
+                      </p>
+                    </div>
+                    <Badge
                       variant="outline"
-                      size="sm"
-                      className="reply-btn h-8 gap-1.5 px-3.5 text-xs font-medium"
-                      onClick={() =>
-                        openCompose({
-                          to: [message.sender.email],
-                          subject: message.subject.startsWith("Re:")
-                            ? message.subject
-                            : `Re: ${message.subject}`,
-                        })
-                      }
+                      className="text-[11px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10 font-normal gap-1"
                     >
-                      <Reply className="size-3.5" /> Reply
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="reply-btn h-8 gap-1.5 px-3.5 text-xs font-medium"
-                      onClick={() =>
-                        openCompose({
-                          to: [],
-                          subject: message.subject.startsWith("Fwd:")
-                            ? message.subject
-                            : `Fwd: ${message.subject}`,
-                          body: buildForwardBody(message),
-                        })
-                      }
-                    >
-                      <Forward className="size-3.5" /> Forward
-                    </Button>
-                  </>
-                )}
+                      <CheckCircle2 className="size-3" />
+                      Verified Sender
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Integrated Reply Composer */}
+                <InlineReplyComposer message={message} onSent={refresh} />
+              </>
+            )}
+
+            {/* Skeleton while loading */}
+            {loading && !message && (
+              <div className="space-y-4">
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-8 w-3/4" />
+                <div className="border border-border rounded-lg p-5">
+                  <MessageSkeleton />
+                </div>
               </div>
             )}
           </div>

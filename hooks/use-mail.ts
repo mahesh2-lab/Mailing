@@ -17,6 +17,7 @@ export type MailItem = {
   preview: string;
   body: string;
   rawText?: string;
+  rawHtml?: string;
   timestamp: string;
   folder?: string;
   status?: string;

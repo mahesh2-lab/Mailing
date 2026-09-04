@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   Maximize2,
@@ -68,7 +68,12 @@ function formatBytes(bytes: number): string {
 
 function getFileIcon(type: string) {
   if (type.startsWith("image/")) return FileImage;
-  if (type.includes("zip") || type.includes("tar") || type.includes("compressed")) return FileArchive;
+  if (
+    type.includes("zip") ||
+    type.includes("tar") ||
+    type.includes("compressed")
+  )
+    return FileArchive;
   return FileText;
 }
 
@@ -90,7 +95,9 @@ export default function ComposePanel() {
   const { sendMail, sending } = useSendMail();
 
   const [maximized, setMaximized] = useState(false);
-  const [draftId, setDraftId] = useState<string | null>(composeDefaults?.draftId ?? null);
+  const [draftId, setDraftId] = useState<string | null>(
+    composeDefaults?.draftId ?? null,
+  );
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -103,6 +110,72 @@ export default function ComposePanel() {
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [showClosePrompt, setShowClosePrompt] = useState(false);
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelSize, setPanelSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResize = useCallback(
+    (direction: "top" | "left" | "corner", e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (maximized) return;
+
+      const el = panelRef.current;
+      if (!el) return;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = el.offsetWidth;
+      const startHeight = el.offsetHeight;
+
+      setIsResizing(true);
+      document.body.style.userSelect = "none";
+      if (direction === "top") document.body.style.cursor = "ns-resize";
+      else if (direction === "left") document.body.style.cursor = "ew-resize";
+      else document.body.style.cursor = "nwse-resize";
+
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+
+        if (direction === "left" || direction === "corner") {
+          const deltaX = startX - moveEvent.clientX;
+          newWidth = Math.min(
+            Math.max(startWidth + deltaX, 420),
+            window.innerWidth - 40,
+          );
+        }
+
+        if (direction === "top" || direction === "corner") {
+          const deltaY = startY - moveEvent.clientY;
+          newHeight = Math.min(
+            Math.max(startHeight + deltaY, 320),
+            window.innerHeight - 40,
+          );
+        }
+
+        setPanelSize({ width: newWidth, height: newHeight });
+      };
+
+      const onPointerUp = () => {
+        setIsResizing(false);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        window.removeEventListener("pointercancel", onPointerUp);
+      };
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      window.addEventListener("pointercancel", onPointerUp);
+    },
+    [maximized],
+  );
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -133,9 +206,18 @@ export default function ComposePanel() {
     const timer = setTimeout(async () => {
       setAutoSaving(true);
       try {
-        const recipients = to.split(",").map((e) => e.trim()).filter(Boolean);
-        const ccList = cc.split(",").map((e) => e.trim()).filter(Boolean);
-        const bccList = bcc.split(",").map((e) => e.trim()).filter(Boolean);
+        const recipients = to
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
+        const ccList = cc
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
+        const bccList = bcc
+          .split(",")
+          .map((e) => e.trim())
+          .filter(Boolean);
 
         const payload = {
           to: recipients,
@@ -153,10 +235,12 @@ export default function ComposePanel() {
           if (res.data?.id) setDraftId(res.data.id);
         }
         setLastSavedTime(
-          new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+          new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         );
       } catch {
-        
       } finally {
         setAutoSaving(false);
       }
@@ -177,10 +261,10 @@ export default function ComposePanel() {
   const panelTitle = isEditingDraft
     ? "Edit draft"
     : isForwarding
-    ? "Forward message"
-    : isReplying
-    ? "Reply"
-    : "New message";
+      ? "Forward message"
+      : isReplying
+        ? "Reply"
+        : "New message";
 
   function hasUnsavedChanges(): boolean {
     return !!(
@@ -216,7 +300,9 @@ export default function ComposePanel() {
   }
 
   // Formatting actions
-  function applyFormatting(format: "bold" | "italic" | "link" | "list" | "quote" | "code") {
+  function applyFormatting(
+    format: "bold" | "italic" | "link" | "list" | "quote" | "code",
+  ) {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -235,7 +321,9 @@ export default function ComposePanel() {
     } else if (format === "link") {
       const url = prompt("Enter link URL:", "https://");
       if (url === null) return;
-      replacement = selectedText ? `[${selectedText}](${url})` : `[Link text](${url})`;
+      replacement = selectedText
+        ? `[${selectedText}](${url})`
+        : `[Link text](${url})`;
       newCursorPos = start + replacement.length;
     } else if (format === "list") {
       if (selectedText) {
@@ -248,7 +336,9 @@ export default function ComposePanel() {
       }
       newCursorPos = start + replacement.length;
     } else if (format === "quote") {
-      replacement = selectedText ? `> ${selectedText.replace(/\n/g, "\n> ")}` : "> Quoted text";
+      replacement = selectedText
+        ? `> ${selectedText.replace(/\n/g, "\n> ")}`
+        : "> Quoted text";
       newCursorPos = start + replacement.length;
     } else if (format === "code") {
       replacement = selectedText.includes("\n")
@@ -257,7 +347,8 @@ export default function ComposePanel() {
       newCursorPos = start + replacement.length;
     }
 
-    const newBody = body.substring(0, start) + replacement + body.substring(end);
+    const newBody =
+      body.substring(0, start) + replacement + body.substring(end);
     setBody(newBody);
 
     setTimeout(() => {
@@ -266,7 +357,6 @@ export default function ComposePanel() {
     }, 0);
   }
 
-  
   async function handleFiles(files: File[]) {
     const newItems: AttachedFile[] = [];
     for (const file of files) {
@@ -285,14 +375,15 @@ export default function ComposePanel() {
       }
     }
     setAttachments((prev) => [...prev, ...newItems]);
-    toast.success(`Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`);
+    toast.success(
+      `Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`,
+    );
   }
 
   function removeAttachment(id: string) {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
-  
   function handleKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       e.preventDefault();
@@ -320,9 +411,18 @@ export default function ComposePanel() {
     }
     setSavingDraft(true);
     try {
-      const recipients = to.split(",").map((e) => e.trim()).filter(Boolean);
-      const ccList = cc.split(",").map((e) => e.trim()).filter(Boolean);
-      const bccList = bcc.split(",").map((e) => e.trim()).filter(Boolean);
+      const recipients = to
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      const ccList = cc
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      const bccList = bcc
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
 
       const payload = {
         to: recipients,
@@ -344,7 +444,10 @@ export default function ComposePanel() {
         toast.success("Draft saved");
       }
       setLastSavedTime(
-        new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       );
       refresh();
       if (andClose) {
@@ -373,9 +476,18 @@ export default function ComposePanel() {
   }
 
   async function handleSend() {
-    const recipients = to.split(",").map((e) => e.trim()).filter(Boolean);
-    const ccList = cc.split(",").map((e) => e.trim()).filter(Boolean);
-    const bccList = bcc.split(",").map((e) => e.trim()).filter(Boolean);
+    const recipients = to
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const ccList = cc
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
+    const bccList = bcc
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
 
     try {
       const emailPayload = {
@@ -400,9 +512,7 @@ export default function ComposePanel() {
       if (draftId) {
         try {
           await axios.delete(`/api/v1/drafts/${draftId}`);
-        } catch {
-          
-        }
+        } catch {}
       }
       close();
       toast.success("Message sent successfully!");
@@ -421,9 +531,18 @@ export default function ComposePanel() {
   return (
     <>
       <div
+        ref={panelRef}
+        style={
+          !maximized && panelSize
+            ? {
+                width: `${panelSize.width}px`,
+                height: `${panelSize.height}px`,
+              }
+            : undefined
+        }
         className={`compose-panel ${maximized ? "compose-maximized" : ""} ${
           isDraggingOver ? "drag-over" : ""
-        }`}
+        } ${isResizing ? "resizing" : ""}`}
         onKeyDown={handleKeyDown}
         onDragOver={(e) => {
           e.preventDefault();
@@ -438,6 +557,28 @@ export default function ComposePanel() {
           }
         }}
       >
+        {!maximized && (
+          <>
+            <div
+              className="compose-resize-handle compose-resize-top"
+              onPointerDown={(e) => startResize("top", e)}
+              title="Drag to resize height"
+            />
+            <div
+              className="compose-resize-handle compose-resize-left"
+              onPointerDown={(e) => startResize("left", e)}
+              title="Drag to resize width"
+            />
+            <div
+              className="compose-resize-handle compose-resize-corner"
+              onPointerDown={(e) => startResize("corner", e)}
+              title="Drag to resize"
+            >
+              <div className="corner-grip" />
+            </div>
+          </>
+        )}
+
         {}
         <input
           type="file"
@@ -460,7 +601,11 @@ export default function ComposePanel() {
           </div>
         )}
 
-        <div className="compose-head">
+        <div
+          className="compose-head cursor-pointer select-none"
+          onDoubleClick={() => setMaximized((prev) => !prev)}
+          title="Double-click to toggle maximize"
+        >
           <strong>{panelTitle}</strong>
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -471,7 +616,9 @@ export default function ComposePanel() {
                     size="icon-xs"
                     className="icon-button small"
                     onClick={() => setMaximized(!maximized)}
-                    aria-label={maximized ? "Minimize compose" : "Maximize compose"}
+                    aria-label={
+                      maximized ? "Minimize compose" : "Maximize compose"
+                    }
                   />
                 }
               >
@@ -568,7 +715,10 @@ export default function ComposePanel() {
                   className="compose-attachment-chip gap-1.5 py-1 px-2 text-xs font-normal"
                 >
                   <Icon className="compose-att-icon size-3.5 text-muted-foreground" />
-                  <span className="compose-att-name truncate max-w-40" title={att.name}>
+                  <span
+                    className="compose-att-name truncate max-w-40"
+                    title={att.name}
+                  >
                     {att.name}
                   </span>
                   <span className="compose-att-size text-muted-foreground text-[11px]">
@@ -763,8 +913,8 @@ export default function ComposePanel() {
                   {savingDraft
                     ? "Saving..."
                     : draftId
-                    ? "Update draft"
-                    : "Save as draft"}
+                      ? "Update draft"
+                      : "Save as draft"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={insertSignature}>
                   Insert signature
@@ -786,24 +936,26 @@ export default function ComposePanel() {
           <AlertDialogHeader>
             <AlertDialogTitle>Save draft or discard?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes in this message. Do you want to save it as a draft or discard it?
+              You have unsaved changes in this message. Do you want to save it
+              as a draft or discard it?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowClosePrompt(false)}>
               Keep editing
             </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleDiscardDraft}
-            >
+            <Button variant="destructive" onClick={handleDiscardDraft}>
               Discard
             </Button>
             <AlertDialogAction
               onClick={() => handleSaveDraft(true)}
               disabled={savingDraft}
             >
-              {savingDraft ? "Saving..." : draftId ? "Update draft" : "Save as draft"}
+              {savingDraft
+                ? "Saving..."
+                : draftId
+                  ? "Update draft"
+                  : "Save as draft"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -811,4 +963,3 @@ export default function ComposePanel() {
     </>
   );
 }
-

@@ -1,11 +1,27 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
+import { db } from "@/src";
+import { automations, automationRuns } from "@/src/db/schema";
+import { eq } from "drizzle-orm";
+import { executeAutomation } from "@/lib/automation-engine";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
-  const { automationId } = await Promise.resolve(params);
-  return NextResponse.json({ id: automationId, name: 'Auto-reply', active: true });
+  try {
+    const { automationId } = await Promise.resolve(params);
+    const item = await db.query.automations.findFirst({
+      where: eq(automations.id, automationId),
+    });
+
+    if (!item) {
+      return NextResponse.json({ error: "Automation not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: item });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function PUT(
@@ -15,9 +31,27 @@ export async function PUT(
   try {
     const { automationId } = await Promise.resolve(params);
     const body = await request.json();
-    return NextResponse.json({ id: automationId, ...body });
-  } catch (error) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    const now = new Date().toISOString();
+
+    await db
+      .update(automations)
+      .set({
+        name: body.name,
+        description: body.description,
+        enabled: body.enabled !== undefined ? Boolean(body.enabled) : undefined,
+        nodes: body.nodes !== undefined ? body.nodes : undefined,
+        edges: body.edges !== undefined ? body.edges : undefined,
+        updatedAt: now,
+      })
+      .where(eq(automations.id, automationId));
+
+    const updated = await db.query.automations.findFirst({
+      where: eq(automations.id, automationId),
+    });
+
+    return NextResponse.json({ data: updated });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 }
 
@@ -25,6 +59,38 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
 ) {
-  const { automationId } = await Promise.resolve(params);
-  return NextResponse.json({ success: true, deletedAutomationId: automationId });
+  try {
+    const { automationId } = await Promise.resolve(params);
+    await db.delete(automations).where(eq(automations.id, automationId));
+    return NextResponse.json({ success: true, deletedId: automationId });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// POST to trigger a live or simulated test execution
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
+) {
+  try {
+    const { automationId } = await Promise.resolve(params);
+    const body = await request.json().catch(() => ({}));
+    
+    const runResult = await executeAutomation(automationId, {
+      email: body.email || {
+        id: "sim-email-1",
+        from: "Acme Client <client@acme.corp>",
+        to: ["mahesh@heymahesh.in"],
+        subject: "Invoice #1042 for September services",
+        text: "Please find attached our invoice #1042 for billing.",
+      },
+      triggerSource: body.triggerSource || "Manual Builder Test",
+      simulated: body.simulated !== false,
+    });
+
+    return NextResponse.json({ data: runResult });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

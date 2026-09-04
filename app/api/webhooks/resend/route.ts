@@ -1,191 +1,425 @@
 import { NextResponse } from "next/server";
-import { db } from "@/src/index";
-import { emails, webhookEvents, userApiKeys } from "@/src/db/schema";
-import { eq, and } from "drizzle-orm";
-import { getResendClient } from "@/lib/resend";
-import { pusherServer } from "@/src/lib/pusher";
 import { Webhook } from "svix";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/src/index";
+import {
+  emails,
+  webhookEvents,
+  userApiKeys,
+  automations,
+} from "@/src/db/schema";
+import { getResendClient } from "@/lib/resend";
+// import { pusherServer } from "@/src/lib/pusher";
 import { decrypt } from "@/src/lib/crypto";
+import { executeAutomation } from "@/lib/automation-engine";
 
-export async function POST(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const userId = url.searchParams.get("userId");
+interface WebhookHeaders {
+  id: string;
+  timestamp: string;
+  signature: string;
+}
 
-    if (!userId) {
-      return NextResponse.json(
-        { error: "Missing userId query parameter" },
-        { status: 400 }
-      );
-    }
+interface SecretCandidate {
+  secret: string;
+  userId?: string;
+}
 
-    
-    const apiKeyRecord = await db.query.userApiKeys.findFirst({
+interface ResendEventData {
+  email_id?: string;
+  from?: string;
+  to?: string | string[];
+  subject?: string;
+  [key: string]: unknown;
+}
+
+interface ResendWebhookEvent {
+  type: string;
+  created_at: string;
+  data: ResendEventData;
+}
+
+function toArray<T>(value: T | T[] | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function cleanSecret(secret: string): string {
+  return secret.trim().replace(/^["']|["']$/g, "");
+}
+
+function extractSvixHeaders(headers: Headers): WebhookHeaders | null {
+  const id = headers.get("svix-id");
+  const timestamp = headers.get("svix-timestamp");
+  const signature = headers.get("svix-signature");
+
+  if (!id || !timestamp || !signature) {
+    return null;
+  }
+
+  return { id, timestamp, signature };
+}
+
+async function resolveSecretCandidates(
+  queryUserId: string | null,
+): Promise<SecretCandidate[]> {
+  const candidates: SecretCandidate[] = [];
+
+  if (queryUserId) {
+    const userKey = await db.query.userApiKeys.findFirst({
       where: and(
-        eq(userApiKeys.userId, userId),
-        eq(userApiKeys.provider, "Resend")
+        eq(userApiKeys.userId, queryUserId),
+        eq(userApiKeys.provider, "Resend"),
       ),
     });
 
-    if (!apiKeyRecord || !apiKeyRecord.encryptedWebhookKey) {
-      return NextResponse.json(
-        { error: "Webhook secret not configured for this user" },
-        { status: 400 }
-      );
-    }
-
-    let webhookSecret: string;
-    try {
-      webhookSecret = await decrypt(apiKeyRecord.encryptedWebhookKey);
-    } catch (err) {
-      return NextResponse.json(
-        { error: "Failed to decrypt webhook secret" },
-        { status: 500 }
-      );
-    }
-
-    
-    const payload = await request.text();
-    const headersList = request.headers;
-    const svix_id = headersList.get("svix-id");
-    const svix_timestamp = headersList.get("svix-timestamp");
-    const svix_signature = headersList.get("svix-signature");
-
-    if (!svix_id || !svix_timestamp || !svix_signature) {
-      return NextResponse.json(
-        { error: "Missing svix headers" },
-        { status: 400 }
-      );
-    }
-
-    const wh = new Webhook(webhookSecret);
-    let event: any;
-    try {
-      event = wh.verify(payload, {
-        "svix-id": svix_id,
-        "svix-timestamp": svix_timestamp,
-        "svix-signature": svix_signature,
-      });
-    } catch (err) {
-      console.error("Invalid webhook signature:", err);
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
-    }
-
-    
-    const existingEvent = await db.query.webhookEvents.findFirst({
-      where: eq(webhookEvents.id, svix_id),
-    });
-
-    if (existingEvent) {
-      return NextResponse.json({ success: true, message: "Already processed" }, { status: 200 });
-    }
-
-    if (event.type && typeof event.type === "string") {
-      const emailId = event.data?.email_id;
-
-      await db.insert(webhookEvents).values({
-        id: svix_id,
-        type: event.type,
-        createdAt: event.created_at,
-        emailId: emailId,
-        data: event.data,
-      });
-
-      if (emailId) {
-        if (event.type === "email.received") {
-          const resend = await getResendClient(userId);
-          if (resend) {
-            const { data: fetchedEmail, error } = await resend.emails.receiving.get(emailId);
-            if (fetchedEmail) {
-              await db
-                .insert(emails)
-                .values({
-                  id: fetchedEmail.id,
-                  to: Array.isArray(fetchedEmail.to)
-                    ? fetchedEmail.to
-                    : fetchedEmail.to ? [fetchedEmail.to] : [],
-                  from: fetchedEmail.from,
-                  createdAt: fetchedEmail.created_at || new Date().toISOString(),
-                  subject: fetchedEmail.subject || "No Subject",
-                  html: fetchedEmail.html || "",
-                  text: fetchedEmail.text || "",
-                  bcc: Array.isArray(fetchedEmail.bcc) ? fetchedEmail.bcc : [],
-                  cc: Array.isArray(fetchedEmail.cc) ? fetchedEmail.cc : [],
-                  replyTo: Array.isArray(fetchedEmail.reply_to)
-                    ? fetchedEmail.reply_to
-                    : fetchedEmail.reply_to ? [fetchedEmail.reply_to] : [],
-                  headers: fetchedEmail.headers || {},
-                  attachments: fetchedEmail.attachments || [],
-                  status: "received",
-                  folder: "inbox",
-                  unread: true,
-                  starred: false,
-                  labels: [],
-                })
-                .onConflictDoNothing();
-
-              try {
-                await pusherServer.trigger("emails", "new-email", {
-                  emailId: fetchedEmail.id,
-                  from: fetchedEmail.from,
-                  to: fetchedEmail.to,
-                  subject: fetchedEmail.subject || "No Subject",
-                  preview: (fetchedEmail.text || fetchedEmail.html || "")
-                    .replace(/<[^>]+>/g, "")
-                    .slice(0, 130),
-                  createdAt: fetchedEmail.created_at || new Date().toISOString(),
-                });
-              } catch (pushErr) {
-                console.error("Pusher trigger new-email error:", pushErr);
-              }
-            } else {
-              console.error("Failed to fetch received email from Resend API:", error);
-              // Fallback
-              try {
-                await pusherServer.trigger("emails", "new-email", {
-                  emailId,
-                  from: event.data?.from || "Unknown",
-                  subject: event.data?.subject || "New Email",
-                });
-              } catch (pushErr) {}
-            }
-          }
-        } else if (event.type === "email.clicked" || event.type === "email.opened") {
-          await db.update(emails).set({ status: "read" }).where(eq(emails.id, emailId));
-          try {
-            await pusherServer.trigger("emails", "read", { emailId });
-          } catch (pushErr) {}
-        } else if (event.type === "email.delivered") {
-          await db.update(emails).set({ status: "delivered" }).where(eq(emails.id, emailId));
-          try {
-            await pusherServer.trigger("emails", "delivered", {
-              emailId,
-              to: event.data?.to,
-              subject: event.data?.subject,
-            });
-          } catch (pushErr) {}
-        } else if (event.type === "email.bounced") {
-          await db.update(emails).set({ status: "bounced" }).where(eq(emails.id, emailId));
-          try {
-            await pusherServer.trigger("emails", "bounced", {
-              emailId,
-              to: event.data?.to,
-              subject: event.data?.subject,
-            });
-          } catch (pushErr) {}
-        }
+    if (userKey?.encryptedWebhookKey) {
+      try {
+        const decrypted = await decrypt(userKey.encryptedWebhookKey);
+        candidates.push({
+          secret: cleanSecret(decrypted),
+          userId: queryUserId,
+        });
+      } catch (err) {
+        console.error(
+          "Failed to decrypt webhook secret for user:",
+          queryUserId,
+          err,
+        );
       }
     }
+  }
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error("Webhook processing error:", error);
+  if (process.env.RESEND_WEBHOOK_SECRET) {
+    candidates.push({ secret: cleanSecret(process.env.RESEND_WEBHOOK_SECRET) });
+  }
+  try {
+    const records = await db.query.userApiKeys.findMany({
+      where: eq(userApiKeys.provider, "Resend"),
+    });
+
+    for (const record of records) {
+      if (record.encryptedWebhookKey && record.userId !== queryUserId) {
+        try {
+          const decrypted = await decrypt(record.encryptedWebhookKey);
+          candidates.push({
+            secret: cleanSecret(decrypted),
+            userId: record.userId,
+          });
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.error("Failed to query userApiKeys for webhook secrets:", err);
+  }
+
+  return candidates;
+}
+
+function verifyWebhookSignature(
+  payload: string,
+  svix: WebhookHeaders,
+  candidates: SecretCandidate[],
+): { isVerified: boolean; resolvedUserId: string | null } {
+  let resolvedUserId: string | null = null;
+  let isVerified = false;
+
+  for (const candidate of candidates) {
+    try {
+      const wh = new Webhook(candidate.secret);
+      wh.verify(payload, {
+        "svix-id": svix.id,
+        "svix-timestamp": svix.timestamp,
+        "svix-signature": svix.signature,
+      });
+
+      isVerified = true;
+      if (candidate.userId) {
+        resolvedUserId = candidate.userId;
+      }
+      console.log(
+        `[Webhook:Resend] Signature verified successfully with secret starting with: ${candidate.secret.slice(0, 8)}...`,
+      );
+      break;
+    } catch (err: any) {
+      console.log(
+        `[Webhook:Resend] Signature mismatch with secret candidate starting with: ${candidate.secret.slice(0, 8)}...`,
+      );
+    }
+  }
+
+  if (!isVerified) {
+    console.warn(
+      `[Webhook:Resend] Signature verification failed across all ${candidates.length} secret candidates! Check RESEND_WEBHOOK_SECRET.`,
+    );
+  }
+
+  return { isVerified, resolvedUserId };
+}
+
+async function handleEmailReceived(
+  emailId: string,
+  resolvedUserId: string | null,
+  eventData: ResendEventData,
+) {
+  const resendClient = await getResendClient(resolvedUserId);
+  if (!resendClient) {
+    console.error("No Resend client available to fetch email:", emailId);
+    return;
+  }
+
+  const { data: emailData, error } =
+    await resendClient.emails.receiving.get(emailId);
+
+  if (error || !emailData) {
+    console.error("Failed to fetch received email from Resend API:", error);
+    try {
+      // await pusherServer.trigger("emails", "new-email", {
+      //   emailId,
+      //   from: eventData.from || "Unknown",
+      //   subject: eventData.subject || "New Email",
+      // });
+    } catch {}
+    return;
+  }
+
+  // Persist email to database
+  await db
+    .insert(emails)
+    .values({
+      id: emailData.id,
+      to: toArray(emailData.to),
+      from: emailData.from,
+      createdAt: emailData.created_at || new Date().toISOString(),
+      subject: emailData.subject || "No Subject",
+      html: emailData.html || "",
+      text: emailData.text || "",
+      bcc: toArray(emailData.bcc),
+      cc: toArray(emailData.cc),
+      replyTo: toArray(emailData.reply_to),
+      headers: (emailData.headers as Record<string, string>) || {},
+      attachments: emailData.attachments || [],
+      status: "received",
+      folder: "inbox",
+      unread: true,
+      starred: false,
+      labels: [],
+    })
+    .onConflictDoNothing();
+
+  try {
+    const rawPreview = emailData.text || emailData.html || "";
+    const cleanPreview = rawPreview.replace(/<[^>]+>/g, "").slice(0, 130);
+
+    // await pusherServer.trigger("emails", "new-email", {
+    //   emailId: emailData.id,
+    //   from: emailData.from,
+    //   to: emailData.to,
+    //   subject: emailData.subject || "No Subject",
+    //   preview: cleanPreview,
+    //   createdAt: emailData.created_at || new Date().toISOString(),
+    // });
+  } catch (err) {
+    console.error("Failed to trigger Pusher real-time event:", err);
+  }
+
+  // Trigger active automations asynchronously in background
+  try {
+    const activeAutomations = await db.query.automations.findMany({
+      where: eq(automations.enabled, true),
+    });
+
+    for (const auto of activeAutomations) {
+      executeAutomation(auto.id, {
+        email: {
+          id: emailData.id,
+          from: emailData.from,
+          to: toArray(emailData.to),
+          subject: emailData.subject || "",
+          text: emailData.text || "",
+          html: emailData.html || "",
+          labels: [],
+        },
+        triggerSource: "Resend Inbound Email Webhook",
+        simulated: false,
+      }).catch((autoErr) => {
+        console.error(
+          `Automation ${auto.id} background execution error:`,
+          autoErr,
+        );
+      });
+    }
+  } catch (autoQueryErr) {
+    console.error(
+      "Failed to query active automations for inbound email:",
+      autoQueryErr,
+    );
+  }
+}
+
+async function handleStatusChange(
+  emailId: string,
+  type: string,
+  eventData: ResendEventData,
+) {
+  switch (type) {
+    case "email.clicked":
+    case "email.opened": {
+      await db
+        .update(emails)
+        .set({ status: "read" })
+        .where(eq(emails.id, emailId));
+      try {
+        // await pusherServer.trigger("emails", "read", { emailId });
+      } catch {}
+      break;
+    }
+    case "email.delivered": {
+      await db
+        .update(emails)
+        .set({ status: "delivered" })
+        .where(eq(emails.id, emailId));
+      try {
+        // await pusherServer.trigger("emails", "delivered", {
+        //   emailId,
+        //   to: eventData.to,
+        //   subject: eventData.subject,
+        // });
+      } catch {}
+      break;
+    }
+    case "email.bounced": {
+      await db
+        .update(emails)
+        .set({ status: "bounced" })
+        .where(eq(emails.id, emailId));
+      try {
+        // await pusherServer.trigger("emails", "bounced", {
+        //   emailId,
+        //   to: eventData.to,
+        //   subject: eventData.subject,
+        // });
+      } catch {}
+      break;
+    }
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    console.log("request initialized");
+
+    const url = new URL(request.url);
+    const queryUserId = url.searchParams.get("userId");
+
+    console.log(`[Webhook:Resend] Inbound HTTP POST received: ${request.url}`);
+
+    // 1. Verify required Svix headers
+    const svixHeaders = extractSvixHeaders(request.headers);
+    if (!svixHeaders) {
+      console.warn("[Webhook:Resend] Missing required Svix headers in request");
+      return NextResponse.json(
+        { error: "Missing svix headers" },
+        { status: 400 },
+      );
+    }
+
+    const payload = await request.text();
+
+    // 2. Resolve candidates and verify webhook signature
+    const secretCandidates = await resolveSecretCandidates(queryUserId);
+    if (secretCandidates.length === 0) {
+      return NextResponse.json(
+        { error: "Webhook secret not configured on server" },
+        { status: 400 },
+      );
+    }
+
+    const { isVerified, resolvedUserId } = verifyWebhookSignature(
+      payload,
+      svixHeaders,
+      secretCandidates,
+    );
+
+    if (!isVerified) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    // 3. Parse JSON event payload
+    let event: ResendWebhookEvent;
+    try {
+      event = JSON.parse(payload);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON payload" },
+        { status: 400 },
+      );
+    }
+
+    // 4. Ensure idempotency
+    const existing = await db.query.webhookEvents.findFirst({
+      where: eq(webhookEvents.id, svixHeaders.id),
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { success: true, message: "Already processed" },
+        { status: 200 },
+      );
+    }
+
+    // 5. Store audit log of webhook event
+    const emailId = event.data?.email_id;
+    try {
+      await db.insert(webhookEvents).values({
+        id: svixHeaders.id,
+        type: event.type,
+        createdAt: event.created_at || new Date().toISOString(),
+        emailId: emailId || null,
+        data: event.data,
+      });
+    } catch (insertErr) {
+      console.warn(
+        "[Webhook] Failed to insert webhook audit event:",
+        insertErr,
+      );
+    }
+
+    console.log(
+      `[Webhook:Resend] Received event: ${event.type} for email: ${emailId || "none"}`,
+    );
+
+    // 6. Dispatch event processing asynchronously so Resend does not time out!
+    if (emailId) {
+      const processPromise = (async () => {
+        try {
+          if (event.type === "email.received") {
+            await handleEmailReceived(emailId, resolvedUserId, event.data);
+          } else {
+            await handleStatusChange(emailId, event.type, event.data);
+          }
+        } catch (procErr) {
+          console.error(
+            `[Webhook:Resend] Background processing error for ${emailId}:`,
+            procErr,
+          );
+        }
+      })();
+
+      // Prevent unhandled rejection while responding immediately with HTTP 200 OK
+      processPromise.catch((e) =>
+        console.error("[Webhook:Resend] Unhandled background error:", e),
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to process webhook" },
-      { status: 500 }
+      { success: true, event: event.type },
+      { status: 200 },
+    );
+  } catch (error: any) {
+    console.error("[Webhook:Resend] Processing exception:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to process webhook" },
+      { status: 500 },
     );
   }
 }
