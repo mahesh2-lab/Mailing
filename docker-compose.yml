@@ -12,10 +12,19 @@ services:
     environment:
       - DATABASE_URL=postgresql://mailing_user:password@postgres:5432/mailing_db
       - NEXT_PUBLIC_APP_URL=http://localhost:3000
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres
+      - redis
     env_file:
       - .env
+  
+  redis:
+    image: redis:7-alpine
+    container_name: mailing_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
 
   postgres:
     image: postgres:16-alpine
