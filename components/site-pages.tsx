@@ -43,18 +43,14 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-
-
 function ProfilePanel() {
   const { data: session, refetch } = authClient.useSession();
   const user = session?.user;
 
-  
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
@@ -140,8 +136,6 @@ function ProfilePanel() {
       setProfileSaving(false);
     }
   }
-
-  
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -450,8 +444,6 @@ function ProfilePanel() {
   );
 }
 
-
-
 const PROVIDERS = [
   "Resend",
   "SendGrid",
@@ -475,7 +467,6 @@ function ApiKeysPanel() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  
   const [provider, setProvider] = useState(PROVIDERS[0]);
   const [domain, setDomain] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -486,7 +477,10 @@ function ApiKeysPanel() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string, provider: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    provider: string;
+  } | null>(null);
 
   async function fetchKeys() {
     setLoading(true);
@@ -691,7 +685,9 @@ function ApiKeysPanel() {
                   flexShrink: 0,
                 }}
                 disabled={deletingId === k.id}
-                onClick={() => setConfirmDelete({ id: k.id, provider: k.provider })}
+                onClick={() =>
+                  setConfirmDelete({ id: k.id, provider: k.provider })
+                }
                 aria-label={`Remove ${k.provider} key`}
               >
                 <Trash2 style={{ width: 14 }} />
@@ -708,15 +704,14 @@ function ApiKeysPanel() {
         description={`Are you sure you want to remove the ${confirmDelete?.provider} API key? This action cannot be undone and mail sending/receiving may stop working.`}
         confirmLabel="Remove key"
         onConfirm={() => {
-          if (confirmDelete) handleDelete(confirmDelete.provider, confirmDelete.id);
+          if (confirmDelete)
+            handleDelete(confirmDelete.provider, confirmDelete.id);
         }}
         onCancel={() => setConfirmDelete(null)}
       />
     </section>
   );
 }
-
-
 
 const pageData = {
   automation: {
@@ -747,8 +742,6 @@ const pageData = {
 } as const;
 
 type PageKey = keyof typeof pageData;
-
-
 
 export function SitePage({ type }: { type: PageKey }) {
   const [saved, setSaved] = useState(false);
