@@ -7,17 +7,24 @@ import Pusher from "pusher-js";
 export function NotificationListener() {
   useEffect(() => {
     const pusherKey =
-      process.env.NEXT_PUBLIC_PUSHER_KEY || "";
+      process.env.NEXT_PUBLIC_PUSHER_KEY?.replace(/['"]/g, "") || "";
     const pusherCluster =
-      process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "";
+      process.env.NEXT_PUBLIC_PUSHER_CLUSTER?.replace(/['"]/g, "") || "";
 
     console.log("[NotificationListener] Connecting to Pusher...", {
       key: pusherKey,
       cluster: pusherCluster,
     });
 
-    if (!pusherKey || !pusherCluster) {
-      console.warn("[NotificationListener] Pusher key or cluster is missing. Real-time notifications will be disabled.");
+    if (
+      !pusherKey ||
+      !pusherCluster ||
+      pusherKey === "undefined" ||
+      pusherCluster === "undefined"
+    ) {
+      console.warn(
+        "[NotificationListener] Pusher key or cluster is missing. Real-time notifications will be disabled.",
+      );
       return;
     }
 
@@ -34,7 +41,6 @@ export function NotificationListener() {
       console.error("[NotificationListener] Pusher error:", err);
     });
 
-    
     const emailsChannel = pusher.subscribe("emails");
 
     emailsChannel.bind(
@@ -116,7 +122,6 @@ export function NotificationListener() {
       window.dispatchEvent(new CustomEvent("mail:refresh", { detail: data }));
     });
 
-    
     const notificationsChannel = pusher.subscribe("notifications");
 
     notificationsChannel.bind(
