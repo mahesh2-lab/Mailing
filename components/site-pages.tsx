@@ -478,6 +478,7 @@ function ApiKeysPanel() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingKeyId, setEditingKeyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
     provider: string;
@@ -503,12 +504,13 @@ function ApiKeysPanel() {
     setError("");
     setSaving(true);
     try {
+      const isEditing = editingKeyId !== null;
       const res = await fetch("/api/v1/keys", {
-        method: "POST",
+        method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           provider,
-          apiKey,
+          apiKey: apiKey || undefined,
           webhookKey: webhookKey || undefined,
           domain: domain || undefined,
         }),
@@ -518,6 +520,7 @@ function ApiKeysPanel() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
       setShowForm(false);
+      setEditingKeyId(null);
       setApiKey("");
       setWebhookKey("");
       setDomain("");
@@ -557,6 +560,13 @@ function ApiKeysPanel() {
         <button
           className="button-secondary"
           onClick={() => {
+            if (showForm && editingKeyId) {
+              setEditingKeyId(null);
+              setProvider(PROVIDERS[0]);
+              setDomain("");
+              setApiKey("");
+              setWebhookKey("");
+            }
             setShowForm((v) => !v);
             setError("");
           }}
@@ -574,6 +584,7 @@ function ApiKeysPanel() {
               <select
                 value={provider}
                 onChange={(e) => setProvider(e.target.value as typeof provider)}
+                disabled={!!editingKeyId}
               >
                 {PROVIDERS.map((p) => (
                   <option key={p}>{p}</option>
@@ -592,13 +603,14 @@ function ApiKeysPanel() {
             </label>
             <label className="form-field full">
               API key
+              {editingKeyId && <span style={{ opacity: 0.5, fontWeight: 400 }}>(leave blank to keep unchanged)</span>}
               <div className="pw-input-wrap">
                 <input
                   type={showApiKey ? "text" : "password"}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="Paste your API key here"
-                  required
+                  required={!editingKeyId}
                   autoComplete="off"
                 />
                 <button
@@ -678,22 +690,40 @@ function ApiKeysPanel() {
                   )}
                 </span>
               </div>
-              <button
-                className="button-secondary"
-                style={{
-                  color: "var(--destructive)",
-                  borderColor: "rgba(239,68,68,0.4)",
-                  flexShrink: 0,
-                }}
-                disabled={deletingId === k.id}
-                onClick={() =>
-                  setConfirmDelete({ id: k.id, provider: k.provider })
-                }
-                aria-label={`Remove ${k.provider} key`}
-              >
-                <Trash2 style={{ width: 14 }} />
-                {deletingId === k.id ? "Removing…" : "Remove"}
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="button-secondary"
+                  style={{ flexShrink: 0 }}
+                  disabled={deletingId === k.id}
+                  onClick={() => {
+                    setEditingKeyId(k.id);
+                    setProvider(k.provider as any);
+                    setDomain(k.domain || "");
+                    setApiKey("");
+                    setWebhookKey("");
+                    setShowForm(true);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="button-secondary"
+                  style={{
+                    color: "var(--destructive)",
+                    borderColor: "rgba(239,68,68,0.4)",
+                    flexShrink: 0,
+                  }}
+                  disabled={deletingId === k.id}
+                  onClick={() =>
+                    setConfirmDelete({ id: k.id, provider: k.provider })
+                  }
+                  aria-label={`Remove ${k.provider} key`}
+                >
+                  <Trash2 style={{ width: 14 }} />
+                  {deletingId === k.id ? "Removing…" : "Remove"}
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -141,3 +141,70 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "Internal error" }, { status: 500 });
   }
 }
+
+const KeyPatchSchema = z.object({
+  provider: z.string().min(1, "Provider is required"),
+  apiKey: z.string().optional(),
+  webhookKey: z.string().optional(),
+  domain: z.string().optional(),
+});
+
+export async function PATCH(request: Request) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session)
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const parseResult = KeyPatchSchema.safeParse(body);
+    if (!parseResult.success) {
+      return Response.json({ error: "Invalid payload", details: parseResult.error.format() }, { status: 400 });
+    }
+
+    const { provider, apiKey, webhookKey, domain } = parseResult.data;
+
+    const existing = await db.query.userApiKeys.findFirst({
+      where: and(
+        eq(userApiKeys.userId, session.user.id),
+        eq(userApiKeys.provider, provider),
+      ),
+    });
+
+    if (!existing) {
+      return Response.json({ error: "Key not found for this provider" }, { status: 404 });
+    }
+
+    const updates: any = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (domain !== undefined) {
+      updates.domain = domain;
+    }
+
+    if (apiKey) {
+      updates.encryptedKey = await encrypt(apiKey);
+      updates.keyLastFour = apiKey.slice(-4);
+    }
+
+    if (webhookKey) {
+      updates.encryptedWebhookKey = await encrypt(webhookKey);
+      updates.webhookKeyLastFour = webhookKey.slice(-4);
+    }
+
+    await db
+      .update(userApiKeys)
+      .set(updates)
+      .where(eq(userApiKeys.id, existing.id));
+
+    return Response.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error("Failed to update API key:", error);
+    return Response.json({ error: "Internal error" }, { status: 500 });
+  }
+}
