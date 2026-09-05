@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
-import { eq, or, desc } from 'drizzle-orm';
+import { eq, or, desc, and } from 'drizzle-orm';
 import { getAuthSession } from '@/src/lib/require-auth';
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
     const data = await db
       .select()
       .from(emails)
-      .where(or(eq(emails.folder, 'drafts'), eq(emails.status, 'draft')))
+      .where(and(or(eq(emails.folder, 'drafts'), eq(emails.status, 'draft')), eq(emails.userId, session.user.id)))
       .orderBy(desc(emails.createdAt));
 
     return NextResponse.json(data ?? []);
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
 
     const newDraft = {
       id: draftId,
+      userId: session.user.id,
       to: recipients,
       from: 'Mahesh <mahesh@heymahesh.in>',
       createdAt: now,

@@ -8,16 +8,13 @@ import {
   userApiKeys,
   automations,
 } from "@/src/db/schema";
+import { pusherServer } from "@/src/lib/pusher";
 import { getResendClient } from "@/lib/resend";
-// import { pusherServer } from "@/src/lib/pusher";
 import { decrypt } from "@/src/lib/crypto";
-import { executeAutomation, matchesTrigger } from "@/lib/automation-engine";
+import { matchesTrigger } from "@/lib/automation-engine";
+import { automationQueue } from "@/lib/queue";
 
-function ownSendingDomain(): string {
-  const raw = process.env.MAIL_FROM || "Mahesh <mahesh@heymahesh.in>";
-  const addr = raw.match(/<([^>]+)>/)?.[1] || raw;
-  return addr.split("@")[1]?.toLowerCase() || "heymahesh.in";
-}
+import { userSettings } from "@/src/db/schema";
 
 interface WebhookHeaders {
   id: string;
@@ -35,6 +32,7 @@ interface ResendEventData {
   from?: string;
   to?: string | string[];
   subject?: string;
+  bounce_summary?: string;
   [key: string]: unknown;
 }
 
@@ -95,9 +93,6 @@ async function resolveSecretCandidates(
     }
   }
 
-  if (process.env.RESEND_WEBHOOK_SECRET) {
-    candidates.push({ secret: cleanSecret(process.env.RESEND_WEBHOOK_SECRET) });
-  }
   try {
     const records = await db.query.userApiKeys.findMany({
       where: eq(userApiKeys.provider, "Resend"),
@@ -155,7 +150,7 @@ function verifyWebhookSignature(
 
   if (!isVerified) {
     console.warn(
-      `[Webhook:Resend] Signature verification failed across all ${candidates.length} secret candidates! Check RESEND_WEBHOOK_SECRET.`,
+      `[Webhook:Resend] Signature verification failed across all ${candidates.length} secret candidates! Check configured webhook secrets.`
     );
   }
 
@@ -179,12 +174,14 @@ async function handleEmailReceived(
   if (error || !emailData) {
     console.error("Failed to fetch received email from Resend API:", error);
     try {
-      // await pusherServer.trigger("emails", "new-email", {
-      //   emailId,
-      //   from: eventData.from || "Unknown",
-      //   subject: eventData.subject || "New Email",
-      // });
-    } catch {}
+      await pusherServer.trigger("emails", "new-email", {
+        emailId,
+        from: eventData.from || "Unknown",
+        subject: eventData.subject || "New Email",
+      });
+    } catch (err) {
+      console.error("Failed to trigger Pusher fallback event:", err);
+    }
     return;
   }
 
@@ -193,6 +190,7 @@ async function handleEmailReceived(
     .insert(emails)
     .values({
       id: emailData.id,
+      userId: resolvedUserId!,
       to: toArray(emailData.to),
       from: emailData.from,
       createdAt: emailData.created_at || new Date().toISOString(),
@@ -216,14 +214,14 @@ async function handleEmailReceived(
     const rawPreview = emailData.text || emailData.html || "";
     const cleanPreview = rawPreview.replace(/<[^>]+>/g, "").slice(0, 130);
 
-    // await pusherServer.trigger("emails", "new-email", {
-    //   emailId: emailData.id,
-    //   from: emailData.from,
-    //   to: emailData.to,
-    //   subject: emailData.subject || "No Subject",
-    //   preview: cleanPreview,
-    //   createdAt: emailData.created_at || new Date().toISOString(),
-    // });
+    await pusherServer.trigger("emails", "new-email", {
+      emailId: emailData.id,
+      from: emailData.from,
+      to: emailData.to,
+      subject: emailData.subject || "No Subject",
+      preview: cleanPreview,
+      createdAt: emailData.created_at || new Date().toISOString(),
+    });
   } catch (err) {
     console.error("Failed to trigger Pusher real-time event:", err);
   }
@@ -232,7 +230,12 @@ async function handleEmailReceived(
   // reliably completes on serverless instead of being frozen post-response.
   try {
     const fromAddr = (emailData.from || "").toLowerCase();
-    if (fromAddr.includes("@" + ownSendingDomain())) {
+    const settings = await db.query.userSettings.findFirst({
+      where: eq(userSettings.userId, resolvedUserId!),
+    });
+    const ownDomain = settings?.senderEmail ? settings.senderEmail.split("@")[1]?.toLowerCase() : null;
+
+    if (ownDomain && fromAddr.includes("@" + ownDomain)) {
       console.log(
         `[Webhook:Resend] Inbound email is from our own domain (${fromAddr}); skipping automations to avoid mail loops.`,
       );
@@ -265,13 +268,16 @@ async function handleEmailReceived(
 
     await Promise.allSettled(
       matching.map((auto) =>
-        executeAutomation(auto.id, {
-          email: emailCtx,
-          triggerSource: "Resend Inbound Email Webhook",
-          simulated: false,
+        automationQueue.add("execute-automation", {
+          automationId: auto.id,
+          triggerPayload: {
+            email: emailCtx,
+            triggerSource: "Resend Inbound Email Webhook",
+            simulated: false,
+          },
         }).catch((autoErr) => {
           console.error(
-            `Automation ${auto.id} background execution error:`,
+            `Failed to enqueue automation ${auto.id}:`,
             autoErr,
           );
         }),
@@ -298,7 +304,7 @@ async function handleStatusChange(
         .set({ status: "read" })
         .where(eq(emails.id, emailId));
       try {
-        // await pusherServer.trigger("emails", "read", { emailId });
+        await pusherServer.trigger("emails", "read", { emailId });
       } catch {}
       break;
     }
@@ -308,11 +314,10 @@ async function handleStatusChange(
         .set({ status: "delivered" })
         .where(eq(emails.id, emailId));
       try {
-        // await pusherServer.trigger("emails", "delivered", {
-        //   emailId,
-        //   to: eventData.to,
-        //   subject: eventData.subject,
-        // });
+        await pusherServer.trigger("emails", "delivered", {
+          emailId,
+          timestamp: new Date().toISOString(),
+        });
       } catch {}
       break;
     }
@@ -322,11 +327,11 @@ async function handleStatusChange(
         .set({ status: "bounced" })
         .where(eq(emails.id, emailId));
       try {
-        // await pusherServer.trigger("emails", "bounced", {
-        //   emailId,
-        //   to: eventData.to,
-        //   subject: eventData.subject,
-        // });
+        await pusherServer.trigger("emails", "bounced", {
+          emailId,
+          reason: eventData.bounce_summary || "Unknown",
+          timestamp: new Date().toISOString(),
+        });
       } catch {}
       break;
     }
@@ -414,6 +419,7 @@ export async function POST(request: Request) {
         .insert(webhookEvents)
         .values({
           id: svixHeaders.id,
+          userId: resolvedUserId!,
           type: event.type,
           createdAt: event.created_at || new Date().toISOString(),
           emailId: emailId || null,

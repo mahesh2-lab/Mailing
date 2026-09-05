@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails, customLabels } from "@/src/db/schema";
-import { sql, ne } from "drizzle-orm";
+import { sql, ne, eq, and } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 const DEFAULT_LABELS = ["Important", "Work", "Personal"];
 
 
-async function ensureLabelsInitialized() {
+async function ensureLabelsInitialized(userId: string) {
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS custom_labels (
@@ -18,7 +18,7 @@ async function ensureLabelsInitialized() {
       )
     `);
 
-    const existing = await db.select().from(customLabels);
+    const existing = await db.select().from(customLabels).where(eq(customLabels.userId, userId));
     if (existing.length === 0) {
       for (const name of DEFAULT_LABELS) {
         await db
@@ -26,6 +26,7 @@ async function ensureLabelsInitialized() {
           .values({
             id: `lbl_${crypto.randomUUID()}`,
             name,
+            userId,
             createdAt: new Date().toISOString(),
           })
           .onConflictDoNothing();
@@ -41,13 +42,13 @@ export async function GET() {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await ensureLabelsInitialized();
+    await ensureLabelsInitialized(session.user.id);
 
-    const allLabels = await db.select().from(customLabels);
+    const allLabels = await db.select().from(customLabels).where(eq(customLabels.userId, session.user.id));
     const allEmails = await db
       .select({ id: emails.id, labels: emails.labels, folder: emails.folder })
       .from(emails)
-      .where(ne(emails.folder, "trash"));
+      .where(and(ne(emails.folder, "trash"), eq(emails.userId, session.user.id)));
 
     // Compute live count for each label
     const labelCounts: Record<string, number> = {};
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await ensureLabelsInitialized();
+    await ensureLabelsInitialized(session.user.id);
 
     const { name, color } = await request.json();
     const trimmed = (name || "").trim();
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
     const newLabel = {
       id: `lbl_${crypto.randomUUID()}`,
       name: trimmed,
+      userId: session.user.id,
       color: color || null,
       createdAt: new Date().toISOString(),
     };

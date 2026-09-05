@@ -1,9 +1,10 @@
 import { db } from "@/src";
 import { automations, automationRuns, emails } from "@/src/db/schema";
 import { and, eq, sql } from "drizzle-orm";
-import { resend } from "@/lib/resend";
+
 import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
+import { logger } from "@/lib/logger";
 
 function getGeminiClient() {
   const key = process.env.GEMINI_API_KEY;
@@ -11,12 +12,6 @@ function getGeminiClient() {
   return new GoogleGenAI({ apiKey: key });
 }
 
-const FROM_ADDRESS = process.env.MAIL_FROM || "Mahesh <mahesh@heymahesh.in>";
-
-// Loop / runaway protection for the graph walker. A workflow is a directed
-// graph, so cyclic edges (or a logic_loop wired back on itself) would otherwise
-// spin forever. MAX_TOTAL_STEPS is the hard ceiling on executed nodes per run;
-// MAX_VISITS_PER_NODE allows small intentional loops while still terminating.
 const MAX_TOTAL_STEPS = 100;
 const MAX_VISITS_PER_NODE = 10;
 
@@ -43,6 +38,7 @@ export interface ExecutionContext {
     error?: string;
     logs?: string[];
   }[];
+  userId: string;
 }
 
 interface WorkflowNode {
@@ -64,12 +60,17 @@ interface WorkflowEdge {
  * Substitute {{token}} placeholders in a single pass so that a resolved value
  * which itself contains braces is never re-substituted by a later key.
  */
-export function resolveVariables(template: string, ctx: ExecutionContext): string {
+export function resolveVariables(
+  template: string,
+  ctx: ExecutionContext,
+): string {
   if (!template || typeof template !== "string") return template || "";
 
   const map: Record<string, any> = {
-    "{{email.from.name}}": ctx.email?.from?.split("<")[0]?.trim() || ctx.email?.from || "Friend",
-    "{{email.from.address}}": ctx.email?.from?.match(/<([^>]+)>/)?.[1] || ctx.email?.from || "",
+    "{{email.from.name}}":
+      ctx.email?.from?.split("<")[0]?.trim() || ctx.email?.from || "Friend",
+    "{{email.from.address}}":
+      ctx.email?.from?.match(/<([^>]+)>/)?.[1] || ctx.email?.from || "",
     "{{email.subject}}": ctx.email?.subject || "",
     "{{email.text}}": ctx.email?.text || "",
     "{{email.id}}": ctx.email?.id || "",
@@ -86,12 +87,7 @@ export function resolveVariables(template: string, ctx: ExecutionContext): strin
     return token;
   });
 }
-
-/**
- * Block requests to loopback, link-local (incl. cloud metadata 169.254.169.254),
- * and private address space to prevent SSRF from user/AI-authored HTTP nodes.
- * Note: this is a literal host/IP check; it does not defend against DNS rebinding.
- */
+  
 export function isSafeHttpUrl(raw: string): { ok: boolean; reason?: string } {
   let u: URL;
   try {
@@ -116,7 +112,16 @@ export function isSafeHttpUrl(raw: string): { ok: boolean; reason?: string } {
   }
 
   // IPv6 loopback / link-local (fe80::/10) / unique-local (fc00::/7)
-  if (host === "::1" || host === "::" || host.startsWith("fe8") || host.startsWith("fe9") || host.startsWith("fea") || host.startsWith("feb") || host.startsWith("fc") || host.startsWith("fd")) {
+  if (
+    host === "::1" ||
+    host === "::" ||
+    host.startsWith("fe8") ||
+    host.startsWith("fe9") ||
+    host.startsWith("fea") ||
+    host.startsWith("feb") ||
+    host.startsWith("fc") ||
+    host.startsWith("fd")
+  ) {
     return { ok: false, reason: `Blocked IPv6 host "${host}"` };
   }
 
@@ -158,14 +163,27 @@ export function matchesTrigger(
 
   if (filterFrom && typeof filterFrom === "string" && filterFrom.trim()) {
     const from = (email.from || "").toLowerCase();
-    const senders = filterFrom.toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
+    const senders = filterFrom
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (senders.length && !senders.some((s) => from.includes(s))) return false;
   }
 
-  if (filterSubject && typeof filterSubject === "string" && filterSubject.trim()) {
+  if (
+    filterSubject &&
+    typeof filterSubject === "string" &&
+    filterSubject.trim()
+  ) {
     const subject = (email.subject || "").toLowerCase();
-    const keywords = filterSubject.toLowerCase().split(",").map((s) => s.trim()).filter(Boolean);
-    if (keywords.length && !keywords.some((k) => subject.includes(k))) return false;
+    const keywords = filterSubject
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (keywords.length && !keywords.some((k) => subject.includes(k)))
+      return false;
   }
 
   return true;
@@ -177,6 +195,7 @@ export async function executeAutomation(
     email?: any;
     triggerSource?: string;
     simulated?: boolean;
+    jobId?: string;
   },
 ) {
   const startTime = Date.now();
@@ -197,11 +216,14 @@ export async function executeAutomation(
     triggerSource: triggerPayload.triggerSource || "Manual Test Execution",
     variables: {},
     steps: [],
+    userId: auto.userId,
   };
 
   if (ctx.email) {
-    ctx.variables["{{email.from.name}}"] = ctx.email.from?.split("<")[0]?.trim() || ctx.email.from || "Friend";
-    ctx.variables["{{email.from.address}}"] = ctx.email.from?.match(/<([^>]+)>/)?.[1] || ctx.email.from || "";
+    ctx.variables["{{email.from.name}}"] =
+      ctx.email.from?.split("<")[0]?.trim() || ctx.email.from || "Friend";
+    ctx.variables["{{email.from.address}}"] =
+      ctx.email.from?.match(/<([^>]+)>/)?.[1] || ctx.email.from || "";
     ctx.variables["{{email.subject}}"] = ctx.email.subject || "";
     ctx.variables["{{email.text}}"] = ctx.email.text || "";
   }
@@ -210,17 +232,26 @@ export async function executeAutomation(
   let executionError: string | undefined;
   const executionLogs: string[] = [];
 
+  const jobLogger = logger.child({
+    automationId: auto.id,
+    jobId: triggerPayload.jobId || "sync",
+  });
+
   const addLog = (msg: string) => {
     const timestamp = new Date().toISOString().split("T")[1].slice(0, 8);
     const line = `[${timestamp}] ${msg}`;
     executionLogs.push(line);
-    console.log(`[Automation:${auto.name}] ${line}`);
+    jobLogger.info(msg);
   };
 
   addLog(`Starting workflow execution "${auto.name}" (ID: ${auto.id})`);
-  addLog(`Trigger source: ${ctx.triggerSource} | Nodes: ${nodes.length} | Edges: ${edges.length}`);
+  addLog(
+    `Trigger source: ${ctx.triggerSource} | Nodes: ${nodes.length} | Edges: ${edges.length}`,
+  );
   if (ctx.email) {
-    addLog(`Email context detected: "${ctx.email.subject || "No Subject"}" from <${ctx.email.from || "unknown"}>`);
+    addLog(
+      `Email context detected: "${ctx.email.subject || "No Subject"}" from <${ctx.email.from || "unknown"}>`,
+    );
   }
 
   // Adjacency for graph traversal.
@@ -241,7 +272,10 @@ export async function executeAutomation(
    * Run a single node and record its step result. Returns false if a step error
    * aborted the run.
    */
-  const runNode = async (node: WorkflowNode, stepIndex: number): Promise<boolean> => {
+  const runNode = async (
+    node: WorkflowNode,
+    stepIndex: number,
+  ): Promise<boolean> => {
     const stepStart = Date.now();
     const input: Record<string, any> = { ...(node.config || {}) };
     let output: Record<string, any> = {};
@@ -259,26 +293,39 @@ export async function executeAutomation(
       if (node.category === "trigger") {
         const matched = matchesTrigger({ nodes: [node] }, ctx.email);
         if (!matched) {
-          addStepLog(`Trigger filters did not match this email; downstream steps will be skipped`);
+          addStepLog(
+            `Trigger filters did not match this email; downstream steps will be skipped`,
+          );
           pathBlocked.add(node.id);
           output = { matched: false };
         } else {
           addStepLog(`Trigger condition satisfied for ${node.type}`);
-          output = { matched: true, triggered: true, source: ctx.triggerSource };
+          output = {
+            matched: true,
+            triggered: true,
+            source: ctx.triggerSource,
+          };
         }
       } else if (node.type === "ai_classify") {
-        const categories: string[] = node.config?.categories?.length ? node.config.categories : ["Billing", "General", "Support"];
-        const textToAnalyze = `${ctx.email?.subject || ""} ${ctx.email?.text || ""}`.trim();
+        const categories: string[] = node.config?.categories?.length
+          ? node.config.categories
+          : ["Billing", "General", "Support"];
+        const textToAnalyze =
+          `${ctx.email?.subject || ""} ${ctx.email?.text || ""}`.trim();
         let matchedCategory = categories[0];
         let confidence = 0.95;
         let classifiedByAI = false;
 
-        addStepLog(`Running AI classification against categories: [${categories.join(", ")}]`);
+        addStepLog(
+          `Running AI classification against categories: [${categories.join(", ")}]`,
+        );
 
         const geminiClient = getGeminiClient();
         if (geminiClient && textToAnalyze) {
           try {
-            addStepLog("Calling Google Gemini (gemini-2.5-flash) for email classification...");
+            addStepLog(
+              "Calling Google Gemini (gemini-2.5-flash) for email classification...",
+            );
             const prompt = `Classify this email into exactly one of these categories: [${categories.join(", ")}].\n\nSubject: ${ctx.email?.subject || ""}\nBody: ${ctx.email?.text || ""}\n\nRespond with ONLY the exact category name.`;
             const resp = await geminiClient.models.generateContent({
               model: "gemini-2.5-flash",
@@ -286,20 +333,30 @@ export async function executeAutomation(
               config: { temperature: 0.1 },
             });
             const predicted = resp.text?.trim() || "";
-            const found = categories.find((c) => c.toLowerCase() === predicted.toLowerCase());
+            const found = categories.find(
+              (c) => c.toLowerCase() === predicted.toLowerCase(),
+            );
             if (found) {
               matchedCategory = found;
               confidence = 0.99;
               classifiedByAI = true;
-              addStepLog(`Gemini successfully classified as: "${matchedCategory}" (confidence: 99%)`);
+              addStepLog(
+                `Gemini successfully classified as: "${matchedCategory}" (confidence: 99%)`,
+              );
             } else {
-              addStepLog(`Gemini returned "${predicted}", no exact category match; will fall back to heuristic`);
+              addStepLog(
+                `Gemini returned "${predicted}", no exact category match; will fall back to heuristic`,
+              );
             }
           } catch (aiErr: any) {
-            addStepLog(`Gemini API call notice: ${aiErr.message || "Failed"}. Falling back to heuristic match.`);
+            addStepLog(
+              `Gemini API call notice: ${aiErr.message || "Failed"}. Falling back to heuristic match.`,
+            );
           }
         } else {
-          addStepLog("Gemini client not initialized or no text. Using keyword heuristic.");
+          addStepLog(
+            "Gemini client not initialized or no text. Using keyword heuristic.",
+          );
         }
 
         if (!classifiedByAI) {
@@ -307,7 +364,9 @@ export async function executeAutomation(
           for (const cat of categories) {
             if (lowerText.includes(cat.toLowerCase())) {
               matchedCategory = cat;
-              addStepLog(`Keyword match identified category: "${matchedCategory}"`);
+              addStepLog(
+                `Keyword match identified category: "${matchedCategory}"`,
+              );
               break;
             }
           }
@@ -317,10 +376,15 @@ export async function executeAutomation(
         addStepLog(`Set variable {{ai.category}} = "${matchedCategory}"`);
         output = { classifiedCategory: matchedCategory, confidence };
       } else if (node.type === "ai_generate") {
-        const promptInstruction = resolveVariables(node.config?.prompt || "Draft an acknowledgment reply", ctx);
+        const promptInstruction = resolveVariables(
+          node.config?.prompt || "Draft an acknowledgment reply",
+          ctx,
+        );
         let generated = `Thank you for contacting us regarding "${ctx.email?.subject || "your inquiry"}". We have received your message and will review it promptly.`;
 
-        addStepLog(`Prompt instruction: "${promptInstruction.slice(0, 80)}..."`);
+        addStepLog(
+          `Prompt instruction: "${promptInstruction.slice(0, 80)}..."`,
+        );
 
         const geminiClient = getGeminiClient();
         if (geminiClient) {
@@ -337,10 +401,14 @@ export async function executeAutomation(
               addStepLog(`Gemini generated reply (${generated.length} chars)`);
             }
           } catch (aiErr: any) {
-            addStepLog(`Gemini generation note: ${aiErr.message}. Using default template.`);
+            addStepLog(
+              `Gemini generation note: ${aiErr.message}. Using default template.`,
+            );
           }
         } else {
-          addStepLog("Gemini API key not configured. Using standard template reply.");
+          addStepLog(
+            "Gemini API key not configured. Using standard template reply.",
+          );
         }
 
         ctx.variables["{{ai.reply}}"] = generated;
@@ -371,88 +439,172 @@ export async function executeAutomation(
         ctx.variables["{{ai.summary}}"] = summary;
         output = { summary };
       } else if (node.type === "logic_if_else") {
-        const rawVar = resolveVariables(node.config?.variable || "{{ai.category}}", ctx);
+        const rawVar = resolveVariables(
+          node.config?.variable || "{{ai.category}}",
+          ctx,
+        );
         const targetVal = node.config?.value || "";
         const operator = node.config?.operator || "equals";
 
         let passed = false;
-        if (operator === "equals") passed = rawVar.toLowerCase() === targetVal.toLowerCase();
-        else if (operator === "contains") passed = rawVar.toLowerCase().includes(targetVal.toLowerCase());
-        else if (operator === "starts_with") passed = rawVar.toLowerCase().startsWith(targetVal.toLowerCase());
-        else if (operator === "not_equals") passed = rawVar.toLowerCase() !== targetVal.toLowerCase();
-        else if (operator === "is_empty") passed = !rawVar || rawVar.trim() === "";
+        if (operator === "equals")
+          passed = rawVar.toLowerCase() === targetVal.toLowerCase();
+        else if (operator === "contains")
+          passed = rawVar.toLowerCase().includes(targetVal.toLowerCase());
+        else if (operator === "starts_with")
+          passed = rawVar.toLowerCase().startsWith(targetVal.toLowerCase());
+        else if (operator === "not_equals")
+          passed = rawVar.toLowerCase() !== targetVal.toLowerCase();
+        else if (operator === "is_empty")
+          passed = !rawVar || rawVar.trim() === "";
 
         branchTaken.set(node.id, passed ? "true" : "false");
-        addStepLog(`Condition evaluated: "${rawVar}" ${operator} "${targetVal}" -> Result: ${passed ? "TRUE (branch: true)" : "FALSE (branch: false)"}`);
+        addStepLog(
+          `Condition evaluated: "${rawVar}" ${operator} "${targetVal}" -> Result: ${passed ? "TRUE (branch: true)" : "FALSE (branch: false)"}`,
+        );
         ctx.variables["{{logic.conditionPassed}}"] = passed;
-        output = { variableValue: rawVar, targetValue: targetVal, operator, conditionPassed: passed };
+        output = {
+          variableValue: rawVar,
+          targetValue: targetVal,
+          operator,
+          conditionPassed: passed,
+        };
       } else if (node.type === "logic_filter") {
-        const condition = resolveVariables(node.config?.condition || "", ctx).trim().toLowerCase();
-        const passed = condition !== "" && condition !== "false" && condition !== "0" && condition !== "no";
-        addStepLog(`Filter condition "${condition}" -> ${passed ? "PASS (continue)" : "STOP (halt path)"}`);
+        const condition = resolveVariables(node.config?.condition || "", ctx)
+          .trim()
+          .toLowerCase();
+        const passed =
+          condition !== "" &&
+          condition !== "false" &&
+          condition !== "0" &&
+          condition !== "no";
+        addStepLog(
+          `Filter condition "${condition}" -> ${passed ? "PASS (continue)" : "STOP (halt path)"}`,
+        );
         if (!passed) pathBlocked.add(node.id);
         output = { conditionPassed: passed };
       } else if (node.type === "logic_delay") {
         const amount = node.config?.amount ?? node.config?.minutes ?? 15;
         const unit = node.config?.unit || "minutes";
-        addStepLog(`Delay of ${amount} ${unit} requested. Delays are not enforced in synchronous execution; continuing immediately.`);
+        addStepLog(
+          `Delay of ${amount} ${unit} requested. Delays are not enforced in synchronous execution; continuing immediately.`,
+        );
         output = { delay: amount, unit, enforced: false };
       } else if (node.type === "logic_loop") {
         // Actual iteration is expressed via edges wired back into the graph and
         // is bounded by the walker's per-node visit cap. This node is a no-op marker.
-        addStepLog("Loop marker reached (iteration bounded by execution loop guard).");
+        addStepLog(
+          "Loop marker reached (iteration bounded by execution loop guard).",
+        );
         output = { loop: true };
       } else if (node.type === "email_send" || node.type === "email_reply") {
         const recipient = resolveVariables(
-          node.config?.recipient || node.config?.to || ctx.email?.from || "test@heymahesh.in",
+          node.config?.recipient ||
+            node.config?.to ||
+            ctx.email?.from ||
+            "test@heymahesh.in",
           ctx,
         );
 
-        const emailSubject = node.type === "email_reply"
-          ? (ctx.email?.subject?.toLowerCase().startsWith("re:") ? ctx.email.subject : `Re: ${ctx.email?.subject || "Your Inquiry"}`)
-          : resolveVariables(node.config?.subject || (ctx.email?.subject ? `Re: ${ctx.email.subject}` : "Automated Response"), ctx);
+        const emailSubject =
+          node.type === "email_reply"
+            ? ctx.email?.subject?.toLowerCase().startsWith("re:")
+              ? ctx.email.subject
+              : `Re: ${ctx.email?.subject || "Your Inquiry"}`
+            : resolveVariables(
+                node.config?.subject ||
+                  (ctx.email?.subject
+                    ? `Re: ${ctx.email.subject}`
+                    : "Automated Response"),
+                ctx,
+              );
 
-        const rawTemplate = node.config?.template || node.config?.body || (
-          ctx.variables["{{ai.reply}}"]
+        const rawTemplate =
+          node.config?.template ||
+          node.config?.body ||
+          (ctx.variables["{{ai.reply}}"]
             ? "{{ai.reply}}"
-            : "Hi {{email.from.name}},\n\nThank you for reaching out. We have received your message and will get back to you shortly.\n\nBest regards,\nMailing Team"
-        );
+            : "Hi {{email.from.name}},\n\nThank you for reaching out. We have received your message and will get back to you shortly.\n\nBest regards,\nMailing Team");
 
         const templateBody = resolveVariables(rawTemplate, ctx);
 
-        addStepLog(`Preparing dispatch to <${recipient}> with subject "${emailSubject}"`);
-        addStepLog(`Email body preview: "${templateBody.replace(/\n/g, " ").slice(0, 90)}..."`);
+        addStepLog(
+          `Preparing dispatch to <${recipient}> with subject "${emailSubject}"`,
+        );
+        addStepLog(
+          `Email body preview: "${templateBody.replace(/\n/g, " ").slice(0, 90)}..."`,
+        );
 
-        if (!triggerPayload.simulated && process.env.RESEND_API_KEY && resend) {
+        if (!triggerPayload.simulated) {
           try {
-            addStepLog("Sending live email via Resend API...");
-            await resend.emails.send({
-              from: FROM_ADDRESS,
-              to: [recipient],
-              subject: emailSubject,
-              text: templateBody,
+            addStepLog("Sending live email via internal API...");
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+            const res = await fetch(`${appUrl}/api/v1/messages`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-internal-token": process.env.INTERNAL_API_SECRET || "default-internal-secret-123",
+              },
+              body: JSON.stringify({
+                userId: ctx.userId,
+                to: [recipient],
+                subject: emailSubject,
+                text: templateBody,
+                isDraft: node.type === "email_reply",
+              }),
             });
-            addStepLog(`Email successfully delivered via Resend to ${recipient}`);
-            output = { sentTo: recipient, subject: emailSubject, status: "delivered_via_resend" };
+            
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || `HTTP error ${res.status}`);
+            }
+            
+            addStepLog(
+              `Email successfully delivered and stored via API to ${recipient}`,
+            );
+            output = {
+              sentTo: recipient,
+              subject: emailSubject,
+              status: "delivered_via_api",
+            };
           } catch (sendErr: any) {
-            addStepLog(`Resend API dispatch error: ${sendErr.message}`);
-            output = { sentTo: recipient, subject: emailSubject, simulated: true, error: sendErr.message };
+            addStepLog(`API dispatch error: ${sendErr.message}`);
+            output = {
+              sentTo: recipient,
+              subject: emailSubject,
+              simulated: true,
+              error: sendErr.message,
+            };
           }
         } else {
-          addStepLog(`Simulated dispatch to <${recipient}> (simulated test mode)`);
-          output = { sentTo: recipient, subject: emailSubject, status: "simulated_send_ok", text: templateBody };
+          addStepLog(
+            `Simulated dispatch to <${recipient}> (simulated test mode)`,
+          );
+          output = {
+            sentTo: recipient,
+            subject: emailSubject,
+            status: "simulated_send_ok",
+            text: templateBody,
+          };
         }
       } else if (node.type === "email_add_label") {
         const labelToAdd = node.config?.label || "Automated";
         addStepLog(`Applying label "${labelToAdd}" to current thread`);
         if (ctx.email?.id) {
           try {
-            const existing = await db.query.emails.findFirst({ where: eq(emails.id, ctx.email.id) });
+            const existing = await db.query.emails.findFirst({
+              where: eq(emails.id, ctx.email.id),
+            });
             if (existing) {
               const currentLabels = existing.labels || [];
               if (!currentLabels.includes(labelToAdd)) {
-                await db.update(emails).set({ labels: [...currentLabels, labelToAdd] }).where(eq(emails.id, ctx.email.id));
-                addStepLog(`Updated database email record ${ctx.email.id} with label "${labelToAdd}"`);
+                await db
+                  .update(emails)
+                  .set({ labels: [...currentLabels, labelToAdd] })
+                  .where(eq(emails.id, ctx.email.id));
+                addStepLog(
+                  `Updated database email record ${ctx.email.id} with label "${labelToAdd}"`,
+                );
               }
             }
           } catch (lblErr: any) {
@@ -464,7 +616,10 @@ export async function executeAutomation(
         addStepLog("Moving email to Archive folder");
         if (ctx.email?.id) {
           try {
-            await db.update(emails).set({ folder: "archive" }).where(eq(emails.id, ctx.email.id));
+            await db
+              .update(emails)
+              .set({ folder: "archive" })
+              .where(eq(emails.id, ctx.email.id));
             addStepLog(`Email ${ctx.email.id} marked as archived in database`);
           } catch {}
         }
@@ -473,7 +628,10 @@ export async function executeAutomation(
         addStepLog("Marking email as Starred Priority");
         if (ctx.email?.id) {
           try {
-            await db.update(emails).set({ starred: true }).where(eq(emails.id, ctx.email.id));
+            await db
+              .update(emails)
+              .set({ starred: true })
+              .where(eq(emails.id, ctx.email.id));
             addStepLog(`Email ${ctx.email.id} starred`);
           } catch {}
         }
@@ -495,7 +653,9 @@ export async function executeAutomation(
           try {
             parsedBody = JSON.parse(resolvedBody);
           } catch {
-            addStepLog("Request body is not valid JSON after variable resolution; sending as raw string.");
+            addStepLog(
+              "Request body is not valid JSON after variable resolution; sending as raw string.",
+            );
             parsedBody = resolvedBody;
           }
         }
@@ -518,8 +678,16 @@ export async function executeAutomation(
             output = { error: reqErr.message, simulatedFallback: true };
           }
         } else {
-          addStepLog(`HTTP request simulated: ${method} ${url} -> status 200 OK`);
-          output = { url, method, simulated: true, status: 200, response: "OK" };
+          addStepLog(
+            `HTTP request simulated: ${method} ${url} -> status 200 OK`,
+          );
+          output = {
+            url,
+            method,
+            simulated: true,
+            status: 200,
+            response: "OK",
+          };
         }
       } else {
         addStepLog(`Node ${node.type} executed`);
@@ -596,7 +764,9 @@ export async function executeAutomation(
         const vc = (visitCounts.get(nodeId) || 0) + 1;
         visitCounts.set(nodeId, vc);
         if (vc > MAX_VISITS_PER_NODE) {
-          addLog(`Loop guard: node "${node.title}" (${nodeId}) hit visit cap (${MAX_VISITS_PER_NODE}); stopping this path.`);
+          addLog(
+            `Loop guard: node "${node.title}" (${nodeId}) hit visit cap (${MAX_VISITS_PER_NODE}); stopping this path.`,
+          );
           continue;
         }
 
@@ -614,7 +784,9 @@ export async function executeAutomation(
         if (node.type === "logic_if_else") {
           const taken = branchTaken.get(nodeId) || "false";
           const matching = outs.filter((e) => e.condition === taken);
-          const unconditional = outs.filter((e) => !e.condition || e.condition === "default");
+          const unconditional = outs.filter(
+            (e) => !e.condition || e.condition === "default",
+          );
           nextEdges = matching.length ? matching : unconditional;
         } else {
           nextEdges = outs;
@@ -631,7 +803,9 @@ export async function executeAutomation(
 
   const totalDuration = Date.now() - startTime;
   const runId = crypto.randomUUID();
-  addLog(`Workflow execution finished in ${totalDuration}ms with status: ${executionFailed ? "FAILED" : "SUCCESS"}`);
+  addLog(
+    `Workflow execution finished in ${totalDuration}ms with status: ${executionFailed ? "FAILED" : "SUCCESS"}`,
+  );
 
   const runRecord = {
     id: runId,
@@ -649,6 +823,7 @@ export async function executeAutomation(
   try {
     await db.insert(automationRuns).values({
       id: runRecord.id,
+      userId: auto.userId,
       automationId: runRecord.automationId,
       automationName: runRecord.automationName,
       status: runRecord.status,
@@ -669,18 +844,32 @@ export async function executeAutomation(
     const [{ succeeded }] = await db
       .select({ succeeded: sql<number>`count(*)` })
       .from(automationRuns)
-      .where(and(eq(automationRuns.automationId, auto.id), eq(automationRuns.status, "success")));
+      .where(
+        and(
+          eq(automationRuns.automationId, auto.id),
+          eq(automationRuns.status, "success"),
+        ),
+      );
 
-    const successRate = Number(total) > 0 ? Math.round((Number(succeeded) / Number(total)) * 100) : 100;
+    const successRate =
+      Number(total) > 0
+        ? Math.round((Number(succeeded) / Number(total)) * 100)
+        : 100;
 
-    await db.update(automations).set({
-      runCount: String(currentCount),
-      successRate: String(successRate),
-      lastRunAt: runRecord.startedAt,
-      updatedAt: new Date().toISOString(),
-    }).where(eq(automations.id, auto.id));
+    await db
+      .update(automations)
+      .set({
+        runCount: String(currentCount),
+        successRate: String(successRate),
+        lastRunAt: runRecord.startedAt,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(automations.id, auto.id));
   } catch (persistErr: any) {
-    console.error(`[Automation:${auto.name}] Failed to persist run record:`, persistErr);
+    console.error(
+      `[Automation:${auto.name}] Failed to persist run record:`,
+      persistErr,
+    );
   }
 
   return runRecord;

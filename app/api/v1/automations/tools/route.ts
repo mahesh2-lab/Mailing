@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { customTools } from "@/src/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const list = await db.select().from(customTools).orderBy(desc(customTools.createdAt));
+    const list = await db.select().from(customTools).where(eq(customTools.userId, session.user.id)).orderBy(desc(customTools.createdAt));
     return NextResponse.json({ data: list });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -34,6 +34,7 @@ export async function POST(request: Request) {
       headers: body.headers || [],
       bodyTemplate: body.bodyTemplate || null,
       inputSchema: body.inputSchema || null,
+      userId: session.user.id,
       createdAt: new Date().toISOString(),
     };
 

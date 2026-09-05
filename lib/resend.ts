@@ -5,8 +5,6 @@ import { and, eq } from 'drizzle-orm';
 import { decrypt } from '@/src/lib/crypto';
 
 
-export const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null as unknown as Resend;
-
 export async function getResendClient(userId?: string | null): Promise<Resend | null> {
   if (userId) {
     const apiKeyRecord = await db.query.userApiKeys.findFirst({
@@ -24,10 +22,6 @@ export async function getResendClient(userId?: string | null): Promise<Resend | 
         console.error("Failed to decrypt Resend API key for user:", userId);
       }
     }
-  }
-
-  if (process.env.RESEND_API_KEY) {
-    return new Resend(process.env.RESEND_API_KEY);
   }
 
   const anyRecord = await db.query.userApiKeys.findFirst({

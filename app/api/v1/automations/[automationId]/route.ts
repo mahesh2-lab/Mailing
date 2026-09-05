@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { automations } from "@/src/db/schema";
 import { eq } from "drizzle-orm";
-import { executeAutomation } from "@/lib/automation-engine";
+import { automationQueue } from "@/lib/queue";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(
@@ -90,19 +90,22 @@ export async function POST(
     const { automationId } = await Promise.resolve(params);
     const body = await request.json().catch(() => ({}));
     
-    const runResult = await executeAutomation(automationId, {
-      email: body.email || {
-        id: "sim-email-1",
-        from: "Acme Client <client@acme.corp>",
-        to: ["mahesh@heymahesh.in"],
-        subject: "Invoice #1042 for September services",
-        text: "Please find attached our invoice #1042 for billing.",
-      },
-      triggerSource: body.triggerSource || "Manual Builder Test",
-      simulated: body.simulated !== false,
+    const job = await automationQueue.add("execute-automation", {
+      automationId,
+      triggerPayload: {
+        email: body.email || {
+          id: "sim-email-1",
+          from: "Acme Client <client@acme.corp>",
+          to: ["mahesh@heymahesh.in"],
+          subject: "Invoice #1042 for September services",
+          text: "Please find attached our invoice #1042 for billing.",
+        },
+        triggerSource: body.triggerSource || "Manual Builder Test",
+        simulated: body.simulated !== false,
+      }
     });
 
-    return NextResponse.json({ data: runResult });
+    return NextResponse.json({ data: { queued: true, jobId: job.id } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

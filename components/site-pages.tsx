@@ -21,6 +21,7 @@ import {
   UserPlus,
   Users,
   Zap,
+  Loader2,
 } from "lucide-react";
 import { authClient } from "@/src/lib/auth-client";
 import ConfirmDialog from "./confirm-dialog";
@@ -743,6 +744,171 @@ const pageData = {
 
 type PageKey = keyof typeof pageData;
 
+function SettingsPanel() {
+  const [senderName, setSenderName] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+
+    // Load sender details from API
+    fetch("/api/v1/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.senderName) setSenderName(data.senderName);
+        if (data.senderEmail) setSenderEmail(data.senderEmail);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    toast.loading("Saving settings...", { id: "settings" });
+    try {
+      const res = await fetch("/api/v1/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senderName, senderEmail }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save settings");
+      toast.success("Settings saved", { id: "settings" });
+    } catch (err: any) {
+      toast.error(err.message, { id: "settings" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div style={{ opacity: 0.5 }}>Loading settings…</div>;
+  }
+
+  return (
+    <div className="page-grid">
+      <section className="panel">
+        <div className="panel-title">
+          <div>
+            <h2>General</h2>
+            <p>How Mailing behaves for you.</p>
+          </div>
+          <SlidersHorizontal />
+        </div>
+        <label className="form-field">
+          Display name
+          <input
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            placeholder="Enter your display name"
+          />
+        </label>
+        <label className="form-field">
+          Email address
+          <input
+            type="email"
+            value={senderEmail}
+            onChange={(e) => setSenderEmail(e.target.value)}
+            placeholder="Enter your email address"
+          />
+        </label>
+        <div className="profile-actions" style={{ marginTop: "1rem" }}>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="button-primary"
+          >
+            <Check />
+            {saving ? "Saving…" : "Save settings"}
+          </button>
+        </div>
+      </section>
+
+      
+      <section className="panel">
+        <div className="panel-title">
+          <div>
+            <h2>Data Sync</h2>
+            <p>Manually sync emails with the server.</p>
+          </div>
+          <Mail />
+        </div>
+        <div className="setting-row" style={{ flexWrap: "wrap", gap: 12 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            <strong>Sync Emails</strong>
+            <span>Fetch the latest sent and received emails</span>
+          </div>
+            <button
+              className="button-secondary"
+              disabled={syncing}
+              style={{ minWidth: 100, display: "flex", justifyContent: "center", alignItems: "center", gap: 6 }}
+              onClick={async () => {
+                setSyncing(true);
+                toast.loading("Syncing emails...", { id: "sync" });
+                try {
+                  const res = await fetch("/api/sync", { method: "POST" });
+                  const data = await res.json().catch(() => ({}));
+                  
+                  if (!res.ok) {
+                    if (res.status === 429) {
+                      throw new Error(data.message || "Please wait before syncing again.");
+                    }
+                    throw new Error(data.message || "Sync failed");
+                  }
+                  
+                  const totalNew = data.stats?.totalNew || 0;
+                  if (totalNew > 0) {
+                    toast.success(`Sync complete: ${totalNew} new emails found!`, { id: "sync" });
+                  } else {
+                    toast.success("Sync complete: No new emails found.", { id: "sync" });
+                  }
+                } catch (e: any) {
+                  toast.error(e.message || "Failed to sync emails", { id: "sync" });
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} /> Syncing...
+                </>
+              ) : (
+                "Sync Now"
+              )}
+            </button>
+          {syncing && (
+            <div style={{ position: "relative", height: 4, width: "100%", backgroundColor: "#f4f4f5", borderRadius: 2, overflow: "hidden", marginTop: 4 }}>
+              <style>{`
+                @keyframes indeterminateProgress {
+                  0% { transform: translateX(-100%); }
+                  50% { transform: translateX(100%); }
+                  100% { transform: translateX(300%); }
+                }
+              `}</style>
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: 0,
+                  width: "40%",
+                  backgroundColor: "#09090b",
+                  borderRadius: 2,
+                  animation: "indeterminateProgress 1.5s infinite linear",
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </section>
+      <ApiKeysPanel />
+    </div>
+  );
+}
+
 export function SitePage({ type }: { type: PageKey }) {
   const [saved, setSaved] = useState(false);
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
@@ -858,88 +1024,7 @@ export function SitePage({ type }: { type: PageKey }) {
         </div>
       )}
 
-      {type === "settings" && (
-        <div className="page-grid">
-          <section className="panel">
-            <div className="panel-title">
-              <div>
-                <h2>General</h2>
-                <p>How Mailing behaves for you.</p>
-              </div>
-              <SlidersHorizontal />
-            </div>
-            <label className="form-field">
-              Display name
-              <input placeholder="Enter your display name" />
-            </label>
-            <label className="form-field">
-              Email address
-              <input type="email" placeholder="Enter your email address" />
-            </label>
-            <label className="form-field">
-              Theme
-              <select defaultValue="System">
-                <option>System</option>
-                <option>Light</option>
-                <option>Dark</option>
-              </select>
-            </label>
-          </section>
-          <section className="panel">
-            <div className="panel-title">
-              <div>
-                <h2>Notifications</h2>
-                <p>Choose when Mailing speaks up.</p>
-              </div>
-              <CircleHelp />
-            </div>
-            {["Desktop notifications", "Unread digest", "Sound effects"].map(
-              (item, index) => (
-                <div className="setting-row" key={item}>
-                  <strong>{item}</strong>
-                  <button
-                    className={`toggle ${index < 2 ? "on" : ""}`}
-                    onClick={notify}
-                  >
-                    <i />
-                  </button>
-                </div>
-              ),
-            )}
-          </section>
-          <section className="panel">
-            <div className="panel-title">
-              <div>
-                <h2>Data Sync</h2>
-                <p>Manually sync emails with the server.</p>
-              </div>
-              <Mail />
-            </div>
-            <div className="setting-row">
-              <div>
-                <strong>Sync Emails</strong>
-                <span>Fetch the latest sent and received emails</span>
-              </div>
-              <button
-                className="button-secondary"
-                onClick={async () => {
-                  toast.loading("Syncing emails...", { id: "sync" });
-                  try {
-                    const res = await fetch("/api/sync", { method: "POST" });
-                    if (!res.ok) throw new Error("Sync failed");
-                    toast.success("Emails synced successfully", { id: "sync" });
-                  } catch (e) {
-                    toast.error("Failed to sync emails", { id: "sync" });
-                  }
-                }}
-              >
-                Sync Now
-              </button>
-            </div>
-          </section>
-          <ApiKeysPanel />
-        </div>
-      )}
+      {type === "settings" && <SettingsPanel />}
 
       {type === "profile" && <ProfilePanel />}
 

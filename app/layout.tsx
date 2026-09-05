@@ -95,7 +95,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {children}
             </TooltipProvider>
             <Toaster position="bottom-right" richColors closeButton />
-            {/* <NotificationListener /> */}
+            <NotificationListener />
             <PwaRegistration />
           </ThemeProvider>
         </body>

@@ -1,6 +1,6 @@
 import { db } from "@/src/index";
 import { emails } from "@/src/db/schema";
-import { resend } from "@/lib/resend";
+import { getResendClient } from "@/lib/resend";
 
 type EmailInsert = typeof emails.$inferInsert;
 
@@ -12,19 +12,27 @@ function normalizeEmails(
   return Array.isArray(value) ? value : [value];
 }
 
-export async function syncSentEmails() {
+export async function syncSentEmails(userId: string) {
   console.log("Fetching sent emails from Resend...");
+
+  let stats = { found: 0, new: 0 };
+
+  const resend = await getResendClient(userId);
+  if (!resend) {
+    console.error("Resend client not configured for user", userId);
+    return stats;
+  }
 
   const { data: response, error } = await resend.emails.list();
 
   if (error) {
     console.error("Failed to fetch sent emails:", error);
 
-    return;
+    return stats;
   }
 
   const sentEmails = response?.data ?? [];
-
+  stats.found = sentEmails.length;
   console.log(`Found ${sentEmails.length} sent emails`);
 
   for (const email of sentEmails) {
@@ -56,6 +64,7 @@ export async function syncSentEmails() {
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
+        userId,
         to: normalizeEmails(fullEmail.to),
         from: fullEmail.from,
         createdAt: fullEmail.created_at,
@@ -76,28 +85,42 @@ export async function syncSentEmails() {
         labels: [],
       };
 
-      await db.insert(emails).values(emailData).onConflictDoNothing();
-
-      console.log(`Synced sent email: ${email.id}`);
+      const inserted = await db.insert(emails).values(emailData).onConflictDoNothing().returning({ id: emails.id });
+      if (inserted.length > 0) {
+        stats.new += 1;
+        console.log(`Synced NEW sent email: ${email.id}`);
+      } else {
+        console.log(`Sent email already synced: ${email.id}`);
+      }
     } catch (error) {
       console.error(`Error syncing sent email ${email.id}:`, error);
     }
   }
+  
+  return stats;
 }
 
-export async function syncReceivedEmails() {
+export async function syncReceivedEmails(userId: string) {
   console.log("Fetching received emails from Resend...");
+
+  let stats = { found: 0, new: 0 };
+
+  const resend = await getResendClient(userId);
+  if (!resend) {
+    console.error("Resend client not configured for user", userId);
+    return stats;
+  }
 
   const { data: response, error } = await resend.emails.receiving.list();
 
   if (error) {
     console.error("Failed to fetch received emails:", error);
 
-    return;
+    return stats;
   }
 
   const receivedEmails = response?.data ?? [];
-
+  stats.found = receivedEmails.length;
   console.log(`Found ${receivedEmails.length} received emails`);
 
   for (const email of receivedEmails) {
@@ -131,6 +154,7 @@ export async function syncReceivedEmails() {
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
+        userId,
         to: normalizeEmails(fullEmail.to),
         from: fullEmail.from,
         createdAt: fullEmail.created_at,
@@ -151,11 +175,17 @@ export async function syncReceivedEmails() {
         labels: [],
       };
 
-      await db.insert(emails).values(emailData).onConflictDoNothing();
-
-      console.log(`Synced received email: ${email.id}`);
+      const inserted = await db.insert(emails).values(emailData).onConflictDoNothing().returning({ id: emails.id });
+      if (inserted.length > 0) {
+        stats.new += 1;
+        console.log(`Synced NEW received email: ${email.id}`);
+      } else {
+        console.log(`Received email already synced: ${email.id}`);
+      }
     } catch (error) {
       console.error(`Error syncing received email ${email.id}:`, error);
     }
   }
+  
+  return stats;
 }

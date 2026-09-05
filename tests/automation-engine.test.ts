@@ -19,6 +19,7 @@ function makeCtx(partial: Partial<ExecutionContext> = {}): ExecutionContext {
     triggerSource: "test",
     variables: {},
     steps: [],
+    userId: "test-user-id",
     ...partial,
   };
 }
