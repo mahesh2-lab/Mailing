@@ -124,8 +124,11 @@ function verifyWebhookSignature(
   let resolvedUserId: string | null = null;
   let isVerified = false;
 
+  console.log(`[Webhook:Resend] Verifying signature against payload of length ${payload.length}. Headers: id=${svix.id}, ts=${svix.timestamp}, sig=${svix.signature.substring(0, 15)}...`);
+
   for (const candidate of candidates) {
     try {
+      console.log(`[Webhook:Resend] Trying candidate starting with: ${candidate.secret.slice(0, 15)}... (length: ${candidate.secret.length})`);
       const wh = new Webhook(candidate.secret);
       wh.verify(payload, {
         "svix-id": svix.id,
@@ -143,7 +146,7 @@ function verifyWebhookSignature(
       break;
     } catch (err: any) {
       console.log(
-        `[Webhook:Resend] Signature mismatch with secret candidate starting with: ${candidate.secret.slice(0, 8)}...`,
+        `[Webhook:Resend] Signature mismatch with secret candidate starting with: ${candidate.secret.slice(0, 15)}... (Error: ${err.message})`,
       );
     }
   }

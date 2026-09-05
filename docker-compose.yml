@@ -22,6 +22,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: mailing_redis
+    command: redis-server --maxmemory-policy noeviction
     restart: unless-stopped
     ports:
       - "6379:6379"

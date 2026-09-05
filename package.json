@@ -23,6 +23,7 @@
     "bullmq": "^6.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cn": "^0.2.5",
     "dotenv": "^17.4.2",
     "drizzle-orm": "0.45.2",
     "ioredis": "^6.0.0",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.20",
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
@@ -69,4 +71,3 @@
     ]
   }
 }
- 

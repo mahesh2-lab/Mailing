@@ -116,11 +116,26 @@ export default function OnboardingPage() {
         <div className="relative z-10 flex flex-col items-center">
           {/* Animated icon / loader */}
           <div className="relative w-20 h-20 mb-8">
-            <div className="absolute inset-0 rounded-full border-[3px] border-zinc-100"></div>
-            <div className="absolute inset-0 rounded-full border-[3px] border-zinc-950 border-t-transparent animate-spin duration-1000"></div>
+            <svg className="absolute inset-0 w-full h-full text-zinc-100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="6" />
+            </svg>
+            <svg className="absolute inset-0 w-full h-full text-(--brand) animate-spin" viewBox="0 0 100 100">
+              <circle 
+                cx="50" 
+                cy="50" 
+                r="46" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="6" 
+                strokeDasharray="289" 
+                strokeDashoffset="216" 
+                strokeLinecap="round" 
+              />
+            </svg>
             <div className="absolute inset-0 flex items-center justify-center">
               <svg 
-                className="w-7 h-7 text-zinc-900 animate-pulse duration-2000" 
+                className="w-7 h-7 text-zinc-900 animate-pulse" 
+                style={{ animationDuration: '2s' }}
                 fill="none" 
                 stroke="currentColor" 
                 strokeWidth="1.5" 

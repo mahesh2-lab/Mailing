@@ -6,6 +6,7 @@ import {
   Archive,
   FileText,
   Inbox,
+  Link,
   Pencil,
   Plus,
   Send,
@@ -243,13 +244,7 @@ export default function MailSidebar() {
     }
   }
 
-  const formattedStorage = useMemo(() => {
-    if (storageBytes === 0) return "0 MB of 1 GB";
-    if (storageBytes < 1024 * 1024) {
-      return `${Math.round(storageBytes / 1024)} KB of 1 GB`;
-    }
-    return `${(storageBytes / (1024 * 1024)).toFixed(1)} MB of 1 GB`;
-  }, [storageBytes]);
+
 
   const storagePercent = Math.min(
     100,
@@ -440,18 +435,13 @@ export default function MailSidebar() {
           <Settings className="size-3.5" />
           <span>Settings</span>
         </button>
-        <div className="storage">
-          <div className="storage-row">
-            <span>Storage</span>
-            <span>{formattedStorage}</span>
-          </div>
-          <div className="storage-bar">
-            <i
-              className="storage-fill"
-              style={{ width: `${storagePercent}%` }}
-            />
-          </div>
-        </div>
+
+        <div className="h-px bg-border my-2 mx-2" />
+
+        <button className="nav-item" onClick={() => router.push("/docs")}>
+          <FileText className="size-3.5" />
+          <span>Docs</span>
+        </button>
       </aside>
 
       {}
