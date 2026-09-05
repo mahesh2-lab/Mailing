@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postinstall": "npx drizzle-kit generate && npx drizzle-kit push",
+    "postinstall": "npx drizzle-kit generate && npx drizzle-kit push --force",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -70,3 +70,4 @@
     ]
   }
 }
+ 
