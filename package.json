@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "postinstall": "npx drizzle-kit generate && npx drizzle-kit push --force",
+    "build": "npx drizzle-kit generate && npx drizzle-kit push --force && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
