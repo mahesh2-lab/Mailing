@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pusherServer } from '@/src/lib/pusher';
 import { getAuthSession } from '@/src/lib/require-auth';
+import { notificationChannelForUser } from '@/lib/realtime-channels';
 
 export async function GET() {
   const session = await getAuthSession();
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     if (body.action === 'test-pusher' || body.test) {
-      const channel = body.channel || 'emails';
+      const channel = body.channel || notificationChannelForUser(session.user.id);
       const event = body.event || 'new-email';
       const data = body.data || {
         emailId: `test_${Date.now()}`,
