@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Pusher from "pusher-js";
 import { authClient } from "@/src/lib/auth-client";
@@ -11,6 +12,7 @@ import {
 
 export function NotificationListener() {
   const { data: session } = authClient.useSession();
+  const router = useRouter();
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -50,7 +52,7 @@ export function NotificationListener() {
       console.log("[NotificationListener] Pusher connected successfully");
     });
 
-    pusher.connection.bind("error", (err: any) => {
+    pusher.connection.bind("error", (err: unknown) => {
       console.error("[NotificationListener] Pusher error:", err);
     });
 
@@ -80,7 +82,7 @@ export function NotificationListener() {
           action: {
             label: "View",
             onClick: () => {
-              window.location.href = "/inbox";
+              router.push("/inbox");
             },
           },
         });
@@ -129,11 +131,11 @@ export function NotificationListener() {
       },
     );
 
-    emailsChannel.bind("sent", (data: any) => {
+    emailsChannel.bind("sent", (data: { emailId?: string; subject?: string }) => {
       window.dispatchEvent(new CustomEvent("mail:refresh", { detail: data }));
     });
 
-    emailsChannel.bind("read", (data: any) => {
+    emailsChannel.bind("read", (data: { emailId?: string }) => {
       window.dispatchEvent(new CustomEvent("mail:refresh", { detail: data }));
     });
 
@@ -190,7 +192,7 @@ export function NotificationListener() {
       pusher.unsubscribe(notificationsChannelName);
       pusher.disconnect();
     };
-  }, [session?.user?.id]);
+  }, [router, session?.user?.id]);
 
   return null;
 }

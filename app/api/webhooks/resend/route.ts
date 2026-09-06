@@ -131,9 +131,10 @@ function verifyWebhookSignature(
 
       resolvedUserId = candidate.userId;
       return { isVerified: true, resolvedUserId };
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "unknown error";
       debugWebhookLog(
-        `[Webhook:Resend] Signature mismatch for candidate user ${candidate.userId}: ${err.message}`,
+        `[Webhook:Resend] Signature mismatch for candidate user ${candidate.userId}: ${message}`,
       );
     }
   }
@@ -309,10 +310,10 @@ export async function POST(request: Request) {
           await handleStatusChange(emailId, resolvedUserId, event.type, event.data);
           await recordEvent();
         } catch (procErr) {
-          console.error(
-            `[Webhook:Resend] Background status processing error for ${emailId}:`,
-            procErr,
-          );
+          console.error("[Webhook:Resend] Background status processing error:", {
+            emailId,
+            error: procErr,
+          });
         }
       });
     } else {
@@ -323,10 +324,11 @@ export async function POST(request: Request) {
       { success: true, event: event.type },
       { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to process webhook";
     console.error("[Webhook:Resend] Processing exception:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to process webhook" },
+      { error: message },
       { status: 500 },
     );
   }

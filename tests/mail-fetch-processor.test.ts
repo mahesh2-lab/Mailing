@@ -1,22 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getResendClientMock = vi.fn();
-const userSettingsFindFirstMock = vi.fn();
-const automationsFindManyMock = vi.fn();
-const pusherTriggerMock = vi.fn();
-const automationAddMock = vi.fn();
-const onConflictDoNothingMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  getResendClient: vi.fn(),
+  userSettingsFindFirst: vi.fn(),
+  automationsFindMany: vi.fn(),
+  pusherTrigger: vi.fn(),
+  automationAdd: vi.fn(),
+  onConflictDoNothing: vi.fn(),
+}));
 
 vi.mock("@/lib/resend", () => ({
-  getResendClient: getResendClientMock,
+  getResendClient: mocks.getResendClient,
 }));
 
 vi.mock("@/src/lib/pusher", () => ({
-  pusherServer: { trigger: pusherTriggerMock },
+  pusherServer: { trigger: mocks.pusherTrigger },
 }));
 
 vi.mock("@/lib/queue", () => ({
-  automationQueue: { add: automationAddMock },
+  automationQueue: { add: mocks.automationAdd },
 }));
 
 vi.mock("@/lib/automation-engine", () => ({
@@ -27,12 +29,12 @@ vi.mock("@/src/index", () => ({
   db: {
     insert: vi.fn(() => ({
       values: vi.fn(() => ({
-        onConflictDoNothing: onConflictDoNothingMock,
+        onConflictDoNothing: mocks.onConflictDoNothing,
       })),
     })),
     query: {
-      userSettings: { findFirst: userSettingsFindFirstMock },
-      automations: { findMany: automationsFindManyMock },
+      userSettings: { findFirst: mocks.userSettingsFindFirst },
+      automations: { findMany: mocks.automationsFindMany },
     },
   },
 }));
@@ -42,13 +44,13 @@ import { processMailFetchJob } from "@/lib/mail-fetch-processor";
 describe("processMailFetchJob", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    onConflictDoNothingMock.mockResolvedValue(undefined);
-    pusherTriggerMock.mockResolvedValue(undefined);
-    automationAddMock.mockResolvedValue(undefined);
-    userSettingsFindFirstMock.mockResolvedValue({
+    mocks.onConflictDoNothing.mockResolvedValue(undefined);
+    mocks.pusherTrigger.mockResolvedValue(undefined);
+    mocks.automationAdd.mockResolvedValue(undefined);
+    mocks.userSettingsFindFirst.mockResolvedValue({
       senderEmail: "owner@userb.com",
     });
-    getResendClientMock.mockResolvedValue({
+    mocks.getResendClient.mockResolvedValue({
       emails: {
         receiving: {
           get: vi.fn().mockResolvedValue({
@@ -74,7 +76,7 @@ describe("processMailFetchJob", () => {
   });
 
   it("queues automations only for the resolved user and triggers user-scoped channel", async () => {
-    automationsFindManyMock.mockResolvedValue([
+    mocks.automationsFindMany.mockResolvedValue([
       {
         id: "auto-a",
         userId: "user-a",
@@ -95,15 +97,15 @@ describe("processMailFetchJob", () => {
       eventData: { email_id: "resend_email_1" },
     });
 
-    expect(automationAddMock).toHaveBeenCalledTimes(1);
-    expect(automationAddMock).toHaveBeenCalledWith(
+    expect(mocks.automationAdd).toHaveBeenCalledTimes(1);
+    expect(mocks.automationAdd).toHaveBeenCalledWith(
       "execute-automation",
       expect.objectContaining({
         automationId: "auto-b",
       }),
     );
 
-    expect(pusherTriggerMock).toHaveBeenCalledWith(
+    expect(mocks.pusherTrigger).toHaveBeenCalledWith(
       "private-emails-user-b",
       "new-email",
       expect.objectContaining({ emailId: "inbound_1" }),

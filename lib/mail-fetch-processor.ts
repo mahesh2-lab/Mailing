@@ -70,8 +70,9 @@ export async function processMailFetchJob({
     })
     .onConflictDoNothing();
 
-  const rawPreview = emailData.text || emailData.html || "";
-  const cleanPreview = rawPreview.replace(/<[^>]+>/g, "").slice(0, 130);
+  const cleanPreview =
+    emailData.text?.replace(/\s+/g, " ").trim().slice(0, 130) ||
+    "New inbound email";
 
   await pusherServer.trigger(emailChannelForUser(resolvedUserId), "new-email", {
     emailId: emailData.id,
