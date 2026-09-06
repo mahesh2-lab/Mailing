@@ -3,9 +3,21 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import Pusher from "pusher-js";
+import { authClient } from "@/src/lib/auth-client";
+import {
+  emailChannelForUser,
+  notificationChannelForUser,
+} from "@/lib/realtime-channels";
 
 export function NotificationListener() {
+  const { data: session } = authClient.useSession();
+
   useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      return;
+    }
+
     const pusherKey =
       process.env.NEXT_PUBLIC_PUSHER_KEY?.replace(/['"]/g, "") || "";
     const pusherCluster =
@@ -31,6 +43,7 @@ export function NotificationListener() {
     const pusher = new Pusher(pusherKey, {
       cluster: pusherCluster,
       forceTLS: true,
+      authEndpoint: "/api/pusher/auth",
     });
 
     pusher.connection.bind("connected", () => {
@@ -41,7 +54,9 @@ export function NotificationListener() {
       console.error("[NotificationListener] Pusher error:", err);
     });
 
-    const emailsChannel = pusher.subscribe("emails");
+    const emailsChannelName = emailChannelForUser(userId);
+    const notificationsChannelName = notificationChannelForUser(userId);
+    const emailsChannel = pusher.subscribe(emailsChannelName);
 
     emailsChannel.bind(
       "new-email",
@@ -122,7 +137,7 @@ export function NotificationListener() {
       window.dispatchEvent(new CustomEvent("mail:refresh", { detail: data }));
     });
 
-    const notificationsChannel = pusher.subscribe("notifications");
+    const notificationsChannel = pusher.subscribe(notificationsChannelName);
 
     notificationsChannel.bind(
       "notification",
@@ -170,12 +185,12 @@ export function NotificationListener() {
 
     return () => {
       emailsChannel.unbind_all();
-      pusher.unsubscribe("emails");
+      pusher.unsubscribe(emailsChannelName);
       notificationsChannel.unbind_all();
-      pusher.unsubscribe("notifications");
+      pusher.unsubscribe(notificationsChannelName);
       pusher.disconnect();
     };
-  }, []);
+  }, [session?.user?.id]);
 
   return null;
 }

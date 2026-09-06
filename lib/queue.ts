@@ -17,3 +17,16 @@ export const automationQueue = new Queue("automation-queue", {
     removeOnFail: false, // Keep failed jobs for inspection/dead-letter
   },
 });
+
+export const mailFetchQueue = new Queue("mail-fetch-queue", {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 2000,
+    },
+    removeOnComplete: true,
+    removeOnFail: false,
+  },
+});
