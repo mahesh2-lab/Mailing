@@ -6,6 +6,7 @@ import { sql, eq, and, or, desc, ne } from "drizzle-orm";
 import { getResendClient } from "@/lib/resend";
 import { pusherServer } from "@/src/lib/pusher";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { emailChannelForUser } from "@/lib/realtime-channels";
 
 export async function GET(request: Request) {
   const session = await getAuthSession();
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
 
     if (!isDraft) {
       try {
-        await pusherServer.trigger("emails", "sent", {
+        await pusherServer.trigger(emailChannelForUser(userId), "sent", {
           emailId,
           to: recipients,
           subject: subject || "No Subject",

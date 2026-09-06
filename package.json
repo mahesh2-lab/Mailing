@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "sync-emails": "tsx scripts/sync-emails.ts",
     "worker": "tsx worker.ts",
+    "mail-worker": "tsx mail-worker.ts",
     "reset-db": "tsx scripts/reset-db.ts"
   },
   "dependencies": {
