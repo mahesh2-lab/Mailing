@@ -10,6 +10,10 @@ import {
   Play,
   Trash2,
   Zap,
+  Mail,
+  Wrench,
+  Cpu,
+  GitBranch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Automation } from "./automation-types";
+import { Automation, NodeCategory } from "./automation-types";
 
 interface AutomationCardProps {
   automation: Automation;
@@ -32,6 +36,14 @@ interface AutomationCardProps {
   onViewHistory: (automationId: string) => void;
 }
 
+const CategoryIcon: Record<NodeCategory, React.ElementType> = {
+  trigger: Zap,
+  logic: GitBranch,
+  ai: Cpu,
+  email: Mail,
+  tool: Wrench,
+};
+
 export function AutomationCard({
   automation,
   onEdit,
@@ -41,16 +53,14 @@ export function AutomationCard({
   onTestRun,
   onViewHistory,
 }: AutomationCardProps) {
-  const stepsBreadcrumb = automation.nodes.map((n) => n.title).join(" → ");
-
   return (
     <div
       onClick={() => onEdit(automation)}
-      className="p-4 rounded-lg border border-border bg-card hover:border-foreground/30 transition-all cursor-pointer group shadow-xs space-y-3"
+      className="p-4 rounded-xl border border-border bg-card/60 hover:bg-card hover:border-foreground/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group space-y-4"
     >
       {/* Top Header: Title, Enable/Disable, Action menu */}
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
+        <div className="space-y-1.5 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors truncate">
               {automation.name}
@@ -58,18 +68,23 @@ export function AutomationCard({
 
             {/* Enabled / Paused status pill */}
             <span
-              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border transition-colors shadow-xs ${
                 automation.enabled
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
-              <span
-                className={`size-1.5 rounded-full ${
-                  automation.enabled ? "bg-emerald-500" : "bg-muted-foreground"
-                }`}
-              />
-              {automation.enabled ? "Enabled" : "Paused"}
+              <span className="relative flex h-2 w-2">
+                {automation.enabled && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    automation.enabled ? "bg-emerald-500" : "bg-muted-foreground"
+                  }`}
+                ></span>
+              </span>
+              {automation.enabled ? "Active" : "Paused"}
             </span>
           </div>
 
@@ -80,7 +95,7 @@ export function AutomationCard({
 
         {/* Right side controls */}
         <div
-          className="flex items-center gap-1.5 shrink-0"
+          className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
           <Button
@@ -88,7 +103,7 @@ export function AutomationCard({
             variant="outline"
             size="xs"
             onClick={() => onToggleEnabled(automation.id, !automation.enabled)}
-            className="h-7 text-xs px-2"
+            className="h-7 text-xs px-2 shadow-xs"
           >
             {automation.enabled ? "Pause" : "Enable"}
           </Button>
@@ -98,7 +113,7 @@ export function AutomationCard({
             variant="outline"
             size="xs"
             onClick={() => onTestRun(automation)}
-            className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+            className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground shadow-xs"
             title="Run test execution"
           >
             <Play className="size-3 text-brand" /> Test
@@ -109,7 +124,7 @@ export function AutomationCard({
               render={
                 <button
                   type="button"
-                  className="size-7 rounded grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  className="size-7 rounded-md grid place-items-center border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border transition-all cursor-pointer"
                 />
               }
             >
@@ -138,25 +153,30 @@ export function AutomationCard({
       </div>
 
       {/* Workflow Nodes Pipeline Breadcrumb */}
-      <div className="p-2 bg-muted/40 rounded border border-border/60 flex items-center gap-1.5 flex-wrap text-xs text-foreground/80 font-mono text-[11px]">
-        {automation.nodes.map((n, idx) => (
-          <div key={n.id} className="flex items-center gap-1.5">
-            <span className="px-1.5 py-0.5 rounded bg-background border border-border/80 text-foreground font-sans font-medium text-xs">
-              {n.title}
-            </span>
-            {idx < automation.nodes.length - 1 && (
-              <ArrowRight className="size-3 text-muted-foreground/60 shrink-0" />
-            )}
-          </div>
-        ))}
+      <div className="p-2.5 bg-background/50 rounded-lg border border-border/60 flex items-center gap-2 flex-wrap text-xs text-foreground/80 font-mono text-[11px] shadow-inner">
+        {automation.nodes.map((n, idx) => {
+          const Icon = CategoryIcon[n.category] || Zap;
+          return (
+            <div key={n.id} className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card border border-border/80 text-foreground font-sans font-medium text-xs shadow-xs transition-colors group-hover:border-border">
+                <Icon className="size-3.5 text-muted-foreground group-hover:text-brand transition-colors" />
+                {n.title}
+              </span>
+              {idx < automation.nodes.length - 1 && (
+                <ArrowRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Metadata / Run Stats footer */}
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
         <div className="flex items-center gap-3">
-          <span>
+          <span className="flex items-center gap-1">
+            <Clock className="size-3" />
             Last run:{" "}
-            <strong>
+            <strong className="text-foreground/80">
               {automation.lastRunAt
                 ? new Date(automation.lastRunAt).toLocaleDateString(undefined, {
                     month: "short",
@@ -173,8 +193,8 @@ export function AutomationCard({
           <span>{automation.successRate}% success</span>
         </div>
 
-        <span className="text-[10px] text-brand hover:underline font-medium">
-          Edit builder →
+        <span className="text-[10px] text-brand hover:underline font-medium flex items-center gap-1">
+          Open builder <ArrowRight className="size-2.5" />
         </span>
       </div>
     </div>

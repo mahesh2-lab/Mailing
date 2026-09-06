@@ -110,6 +110,27 @@ export function AutomationBuilder({
     }));
   }
 
+  function handleConnectEdge(connection: { source: string; target: string }) {
+    setAutomation((prev) => {
+      // Prevent duplicate edges between same nodes
+      const exists = prev.edges.some(e => e.from === connection.source && e.to === connection.target);
+      if (exists) return prev;
+      
+      const newEdge: WorkflowEdge = {
+        id: `e-${Date.now()}`,
+        from: connection.source,
+        to: connection.target,
+      };
+      
+      toast.success("Nodes connected");
+
+      return {
+        ...prev,
+        edges: [...prev.edges, newEdge],
+      };
+    });
+  }
+
   function handleAddChildNode(parentId: string, condition?: "true" | "false") {
     setTargetParentId(parentId);
     setTargetBranchCondition(condition);
@@ -165,14 +186,14 @@ export function AutomationBuilder({
     let posY = 100;
     if (parentNode) {
       if (targetBranchCondition === "true") {
-        posX = parentNode.position.x - 140;
-        posY = parentNode.position.y + 130;
+        posX = parentNode.position.x + 320;
+        posY = parentNode.position.y - 100;
       } else if (targetBranchCondition === "false") {
-        posX = parentNode.position.x + 140;
-        posY = parentNode.position.y + 130;
+        posX = parentNode.position.x + 320;
+        posY = parentNode.position.y + 100;
       } else {
-        posX = parentNode.position.x;
-        posY = parentNode.position.y + 120;
+        posX = parentNode.position.x + 320;
+        posY = parentNode.position.y;
       }
     }
 
@@ -233,44 +254,49 @@ export function AutomationBuilder({
   return (
     <div className="flex-1 flex flex-col w-full h-full bg-background overflow-hidden select-none">
       {/* Top Builder Navigation & Actions Toolbar */}
-      <div className="h-13 border-b border-border/70 px-4 flex items-center justify-between gap-4 bg-card/60 backdrop-blur-md shrink-0">
+      <div className="h-14 border-b border-border/60 px-4 flex items-center justify-between gap-4 bg-background/70 backdrop-blur-2xl shrink-0 shadow-sm relative z-10">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
             onClick={onBack}
-            className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+            className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shadow-xs"
             title="Back to automations list"
           >
             <ArrowLeft className="size-4" />
           </Button>
 
-          <div className="w-[1px] h-4 bg-border/80" />
+          <div className="w-[1px] h-5 bg-border/80" />
 
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             <Input
               value={automation.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              className="h-8 text-sm font-semibold tracking-tight max-w-[240px] sm:max-w-xs border-transparent hover:border-border/60 focus:border-border focus:bg-background/80 px-2.5 rounded-lg transition-all"
+              className="h-8 text-sm font-semibold tracking-tight max-w-[240px] sm:max-w-xs border-transparent hover:border-border/60 focus:border-brand/50 focus:bg-background/80 px-2.5 rounded-lg transition-all bg-transparent"
               placeholder="Workflow Name"
             />
 
             <button
               type="button"
               onClick={handleToggleEnabled}
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all cursor-pointer shadow-2xs ${
+              className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all duration-300 cursor-pointer shadow-xs ${
                 automation.enabled
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/15"
-                  : "bg-muted/60 text-muted-foreground border-border/70 hover:bg-muted"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+                  : "bg-muted/60 text-muted-foreground border-border/80 hover:bg-muted hover:text-foreground"
               }`}
               title="Click to toggle status"
             >
-              <span
-                className={`size-1.5 rounded-full ${
-                  automation.enabled ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"
-                }`}
-              />
+              <span className="relative flex h-2 w-2">
+                {automation.enabled && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    automation.enabled ? "bg-emerald-500" : "bg-muted-foreground"
+                  }`}
+                ></span>
+              </span>
               {automation.enabled ? "Active" : "Paused"}
             </button>
           </div>
@@ -283,7 +309,7 @@ export function AutomationBuilder({
             variant="outline"
             size="sm"
             onClick={() => onRunTest(automation)}
-            className="h-8 text-xs gap-1.5 rounded-lg border-border/70 hover:bg-muted/60 text-foreground font-medium shadow-2xs"
+            className="h-8 text-xs gap-1.5 rounded-lg border-border/70 hover:bg-muted/80 text-foreground font-semibold shadow-xs transition-colors"
           >
             <Play className="size-3.5 text-brand" /> Test Workflow
           </Button>
@@ -292,7 +318,7 @@ export function AutomationBuilder({
             type="button"
             size="sm"
             onClick={handleSave}
-            className="h-8 text-xs gap-1.5 rounded-lg bg-brand text-brand-fg hover:opacity-95 font-medium shadow-xs"
+            className="h-8 text-xs gap-1.5 rounded-lg bg-brand text-brand-fg hover:opacity-90 font-semibold shadow-md transition-opacity"
           >
             <Save className="size-3.5" /> Save Changes
           </Button>
@@ -317,6 +343,7 @@ export function AutomationBuilder({
           onDeleteNode={handleDeleteNode}
           onAddChildNode={handleAddChildNode}
           onUpdateNodePosition={handleUpdateNodePosition}
+          onConnectEdge={handleConnectEdge}
         />
 
         {/* Docked Node Config Inspector on the Right */}

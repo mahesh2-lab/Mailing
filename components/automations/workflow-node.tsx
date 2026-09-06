@@ -131,136 +131,60 @@ export function WorkflowNodeCard({
         e.stopPropagation();
         onSelect(node.id);
       }}
-      className={`relative w-full rounded-xl bg-card border text-card-foreground shadow-xs transition-all cursor-pointer group ${
+      className={`relative w-64 rounded-xl bg-card/95 backdrop-blur-sm border text-card-foreground transition-all duration-300 cursor-pointer group flex shadow-xs ${
         selected
-          ? "ring-2 ring-brand border-brand shadow-md"
-          : "hover:border-foreground/40 hover:shadow-xs border-border"
+          ? "ring-2 ring-brand/50 border-brand shadow-lg scale-[1.02] z-10"
+          : "hover:border-foreground/30 hover:shadow-md border-border/80"
       }`}
     >
-      {/* Top Header Row */}
-      <div className="flex items-center justify-between p-3 pb-2 border-b border-border/60">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={`size-6 rounded-md grid place-items-center shrink-0 ${colors.bg} ${colors.text}`}>
-            <Icon className="size-3.5" />
+      {/* Left Colored Icon Block */}
+      <div className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-xl border-r border-border/40 ${colors.bg} ${colors.text}`}>
+        <Icon className="size-5" />
+      </div>
+
+      {/* Right Content Area */}
+      <div className="flex-1 flex flex-col justify-center min-w-0 p-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-semibold text-foreground truncate">{node.title}</div>
+          
+          {/* Action Menu (Visible on hover or selected) */}
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={(e) => e.stopPropagation()}
+                    className="size-5 rounded-md grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  />
+                }
+              >
+                <MoreHorizontal className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36 text-xs p-1">
+                <DropdownMenuItem onClick={() => onSelect(node.id)}>
+                  <Settings className="size-3.5 mr-2" /> Configure
+                </DropdownMenuItem>
+                {node.category !== "trigger" && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => onDelete(node.id)}
+                      className="text-destructive focus:text-destructive cursor-pointer"
+                    >
+                      <Trash2 className="size-3.5 mr-2" /> Delete node
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
-            {node.category}
-          </span>
         </div>
-
-        <div className="flex items-center gap-1">
-          {node.branch && (
-            <Badge
-              variant="outline"
-              className={`text-[9px] px-1.5 py-0 h-4 font-mono font-medium rounded-full ${
-                node.branch === "true"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-              }`}
-            >
-              {node.branch === "true" ? "Yes" : "No"}
-            </Badge>
-          )}
-
-          {/* Explicit direct Delete button on the card */}
-          {node.category !== "trigger" && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(node.id);
-              }}
-              className="size-6 rounded-md grid place-items-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-              title="Delete this step"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className="size-6 rounded-md grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  title="More options"
-                />
-              }
-            >
-              <MoreHorizontal className="size-3.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36 text-xs p-1">
-              <DropdownMenuItem onClick={() => onSelect(node.id)}>
-                <Settings className="size-3.5 mr-2" /> Configure
-              </DropdownMenuItem>
-              {node.category !== "trigger" && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onDelete(node.id)}
-                    className="text-destructive focus:text-destructive cursor-pointer"
-                  >
-                    <Trash2 className="size-3.5 mr-2" /> Delete node
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        
+        <div className="text-[10px] text-muted-foreground truncate mt-0.5 leading-snug">
+          {configSummary || "Configure parameters"}
         </div>
       </div>
-
-      {/* Main Body */}
-      <div className="p-2.5">
-        <div className="text-xs font-semibold text-foreground truncate">{node.title}</div>
-        <div className="text-[11px] text-muted-foreground truncate mt-0.5 leading-snug">
-          {configSummary || "Click to configure parameters"}
-        </div>
-      </div>
-
-      {/* Add Next Step Button at bottom */}
-      {onAddChild && (
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-150 z-10 flex gap-1.5 shadow-xs">
-          {node.type === "logic_if_else" ? (
-            <>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddChild(node.id, "true");
-                }}
-                className="size-6 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm grid place-items-center text-[10px] font-bold cursor-pointer transition-transform hover:scale-110 active:scale-95"
-                title="Add True branch step"
-              >
-                Y
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddChild(node.id, "false");
-                }}
-                className="size-6 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-sm grid place-items-center text-[10px] font-bold cursor-pointer transition-transform hover:scale-110 active:scale-95"
-                title="Add False branch step"
-              >
-                N
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddChild(node.id);
-              }}
-              className="size-6 rounded-full bg-brand text-brand-fg hover:opacity-90 shadow-sm grid place-items-center transition-transform hover:scale-110 active:scale-95 cursor-pointer"
-              title="Add next step"
-            >
-              <Plus className="size-3.5" />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
