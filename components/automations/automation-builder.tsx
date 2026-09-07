@@ -1,19 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import {
-  ArrowLeft,
-  Check,
-  Play,
-  Save,
-  Wrench,
-  Layers,
-  Sparkles,
-  Settings,
-} from "lucide-react";
+import { useCallback, useState } from "react";
+import { ArrowLeft, Play, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Automation,
   CustomTool,
@@ -74,14 +64,10 @@ export function AutomationBuilder({
     setAutomation((prev) => ({ ...prev, enabled: !prev.enabled }));
   }
 
-  function handleSelectNode(id: string | null) {
+  const handleSelectNode = useCallback((id: string | null) => {
     setSelectedNodeId(id);
-    if (id) {
-      setConfigPanelOpen(true);
-    } else {
-      setConfigPanelOpen(false);
-    }
-  }
+    setConfigPanelOpen(Boolean(id));
+  }, []);
 
   function handleUpdateNodeConfig(nodeId: string, updates: Partial<WorkflowNode>) {
     setAutomation((prev) => ({
@@ -91,51 +77,63 @@ export function AutomationBuilder({
     toast.success("Step updated");
   }
 
-  function handleDeleteNode(nodeId: string) {
+  const handleDeleteNode = useCallback((nodeId: string) => {
     setAutomation((prev) => ({
       ...prev,
       nodes: prev.nodes.filter((n) => n.id !== nodeId),
       edges: prev.edges.filter((e) => e.from !== nodeId && e.to !== nodeId),
     }));
-    if (selectedNodeId === nodeId) {
-      setSelectedNodeId(null);
-    }
+    setSelectedNodeId((current) => (current === nodeId ? null : current));
     toast.success("Step removed from workflow");
-  }
+  }, []);
 
-  function handleUpdateNodePosition(id: string, pos: { x: number; y: number }) {
-    setAutomation((prev) => ({
-      ...prev,
-      nodes: prev.nodes.map((n) => (n.id === id ? { ...n, position: pos } : n)),
-    }));
-  }
-
-  function handleConnectEdge(connection: { source: string; target: string }) {
-    setAutomation((prev) => {
-      // Prevent duplicate edges between same nodes
-      const exists = prev.edges.some(e => e.from === connection.source && e.to === connection.target);
-      if (exists) return prev;
-      
-      const newEdge: WorkflowEdge = {
-        id: `e-${Date.now()}`,
-        from: connection.source,
-        to: connection.target,
-      };
-      
-      toast.success("Nodes connected");
-
-      return {
+  const handleUpdateNodePosition = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      setAutomation((prev) => ({
         ...prev,
-        edges: [...prev.edges, newEdge],
-      };
-    });
-  }
+        nodes: prev.nodes.map((n) => (n.id === id ? { ...n, position: pos } : n)),
+      }));
+    },
+    []
+  );
 
-  function handleAddChildNode(parentId: string, condition?: "true" | "false") {
-    setTargetParentId(parentId);
-    setTargetBranchCondition(condition);
-    toast.info("Select an action from the left sidebar to connect as next step");
-  }
+  const handleConnectEdge = useCallback(
+    (connection: { source: string; target: string }) => {
+      setAutomation((prev) => {
+        // Prevent duplicate edges between the same pair of nodes.
+        const exists = prev.edges.some(
+          (e) => e.from === connection.source && e.to === connection.target
+        );
+        if (exists) return prev;
+
+        const newEdge: WorkflowEdge = {
+          id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          from: connection.source,
+          to: connection.target,
+        };
+
+        toast.success("Nodes connected");
+        return { ...prev, edges: [...prev.edges, newEdge] };
+      });
+    },
+    []
+  );
+
+  const handleDeleteEdge = useCallback((edgeId: string) => {
+    setAutomation((prev) => {
+      if (!prev.edges.some((e) => e.id === edgeId)) return prev;
+      return { ...prev, edges: prev.edges.filter((e) => e.id !== edgeId) };
+    });
+  }, []);
+
+  const handleAddChildNode = useCallback(
+    (parentId: string, condition?: "true" | "false") => {
+      setTargetParentId(parentId);
+      setTargetBranchCondition(condition);
+      toast.info("Select an action from the left sidebar to connect as next step");
+    },
+    []
+  );
 
   function handleAddNodeFromPicker(item: {
     type: NodeType;
@@ -344,6 +342,7 @@ export function AutomationBuilder({
           onAddChildNode={handleAddChildNode}
           onUpdateNodePosition={handleUpdateNodePosition}
           onConnectEdge={handleConnectEdge}
+          onDeleteEdge={handleDeleteEdge}
         />
 
         {/* Docked Node Config Inspector on the Right */}
