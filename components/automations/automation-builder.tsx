@@ -81,7 +81,6 @@ export function AutomationBuilder({
       ...prev,
       nodes: prev.nodes.map((n) => (n.id === nodeId ? { ...n, ...updates } : n)),
     }));
-    toast.success("Step updated");
   }
 
   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -345,7 +344,7 @@ export function AutomationBuilder({
             <Input
               value={automation.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              className="h-8 text-xs sm:text-sm font-semibold tracking-tight w-full max-w-[150px] sm:max-w-xs border-transparent hover:border-border/60 focus:border-brand/50 focus:bg-background/80 px-2 sm:px-2.5 rounded-lg transition-all bg-transparent truncate"
+              className="h-8 text-xs sm:text-sm font-semibold tracking-tight w-full max-w-37.5 sm:max-w-xs border-transparent hover:border-border/60 focus:border-brand/50 focus:bg-background/80 px-2 sm:px-2.5 rounded-lg transition-all bg-transparent truncate"
               placeholder="Workflow Name"
             />
 

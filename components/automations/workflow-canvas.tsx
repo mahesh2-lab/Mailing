@@ -258,7 +258,7 @@ function CanvasInner({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={`relative h-full w-full flex-1 transition-colors duration-200 ${
-        isDragOver ? "ring-2 ring-inset ring-brand/40 bg-brand/[0.02]" : ""
+        isDragOver ? "ring-2 ring-inset ring-brand/40 bg-brand/2" : ""
       }`}
     >
       <ReactFlow
@@ -280,7 +280,7 @@ function CanvasInner({
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-muted/10 [&_.react-flow\_\_node]:!outline-none [&_.react-flow\_\_node]:!shadow-none [&_.react-flow\_\_node:focus]:!outline-none [&_.react-flow\_\_node:focus-visible]:!outline-none [&_.react-flow\_\_node.selected]:!outline-none [&_.react-flow\_\_node.selected]:!shadow-none"
+        className="bg-muted/10 [&_.react-flow\_\_node]:outline-none! [&_.react-flow\_\_node]:shadow-none! [&_.react-flow\_\_node:focus]:!outline-none [&_.react-flow\_\_node:focus-visible]:!outline-none [&_.react-flow\_\_node.selected]:!outline-none [&_.react-flow\_\_node.selected]:!shadow-none"
       >
         <Background
           variant={BackgroundVariant.Dots}
