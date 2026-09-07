@@ -23,7 +23,6 @@ import {
 } from "./automation-types";
 import { AutomationList } from "./automation-list";
 import { ExecutionHistory } from "./execution-history";
-import { AiBuilderDialog } from "./ai-builder-dialog";
 import { toast } from "sonner";
 
 export function AutomationPage() {
@@ -35,9 +34,6 @@ export function AutomationPage() {
   const [customTools, setCustomTools] = useState<CustomTool[]>([]);
   const [history, setHistory] = useState<ExecutionRun[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // AI Builder modal
-  const [aiBuilderOpen, setAiBuilderOpen] = useState(false);
 
   // Load live data from PostgreSQL backend API
   async function loadData() {
@@ -75,7 +71,7 @@ export function AutomationPage() {
   async function handleCreateNew() {
     const newAuto: Automation = {
       id: `auto-${Date.now()}`,
-      name: "New Automation Workflow",
+      name: "New Workflow",
       description: "Triggered on inbound message",
       enabled: false,
       createdAt: new Date().toISOString(),
@@ -222,7 +218,9 @@ export function AutomationPage() {
     }
   }
 
-  async function handleApplyAiWorkflow(wf: {
+
+
+  async function handleCreateFromTemplate(template: {
     name: string;
     description: string;
     nodes: WorkflowNode[];
@@ -230,15 +228,15 @@ export function AutomationPage() {
   }) {
     const newAuto: Automation = {
       id: `auto-${Date.now()}`,
-      name: wf.name,
-      description: wf.description,
+      name: template.name,
+      description: template.description,
       enabled: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       runCount: 0,
       successRate: 100,
-      nodes: wf.nodes,
-      edges: wf.edges,
+      nodes: template.nodes,
+      edges: template.edges,
     };
 
     try {
@@ -248,6 +246,7 @@ export function AutomationPage() {
         body: JSON.stringify(newAuto),
       });
       setAutomations([newAuto, ...automations]);
+      toast.success(`Created "${newAuto.name}"`);
     } catch {}
 
     router.push(`/automations/${newAuto.id}`);
@@ -291,12 +290,60 @@ export function AutomationPage() {
         </div>
       </nav>
 
+      {/* Standard Site Page Header */}
+      <header className="page-header">
+        <div>
+          <span className="eyebrow">
+            {view === "list" ? "AUTOMATION / WORKFLOW ENGINE" : "AUTOMATION / EXECUTION AUDIT"}
+          </span>
+          <h1>{view === "list" ? "Automations" : "Execution History"}</h1>
+          <p>
+            {view === "list"
+              ? "Build automated rules and intelligent AI workflows triggered by incoming emails."
+              : "Audit logs, execution traces, and performance metrics for all automated inbox actions."}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {view === "list" ? (
+            <>
+              <Link href="/inbox" className="button-secondary">
+                <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
+              </Link>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setView("history")}
+              >
+                <History className="size-4 mr-1.5" /> History {history.length > 0 && `(${history.length})`}
+              </button>
+              <button
+                type="button"
+                className="button-primary"
+                onClick={handleCreateNew}
+              >
+                <Plus className="size-4 mr-1.5" /> New workflow
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setView("list")}
+            >
+              <ArrowLeft className="size-4 mr-1.5" /> Back to Workflows
+            </button>
+          )}
+        </div>
+      </header>
+
       {/* Main View Switcher */}
       {view === "list" && (
         <AutomationList
           automations={automations}
+          history={history}
           onCreateNew={handleCreateNew}
-          onOpenAiBuilder={() => setAiBuilderOpen(true)}
+          onCreateFromTemplate={handleCreateFromTemplate}
           onOpenHistory={() => setView("history")}
           onEdit={handleEdit}
           onToggleEnabled={handleToggleEnabled}
@@ -308,53 +355,14 @@ export function AutomationPage() {
       )}
 
       {view === "history" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between border-b border-border pb-4">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setView("list")}
-                className="size-8 text-muted-foreground hover:text-foreground"
-              >
-                <ArrowLeft className="size-4" />
-              </Button>
-              <div>
-                <h2 className="text-lg font-bold text-foreground">Execution History</h2>
-                <p className="text-xs text-muted-foreground">
-                  Audit logs and execution traces for all automated inbox actions.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setView("list")}
-              className="text-xs"
-            >
-              Back to Automations
-            </Button>
-          </div>
-
-          <ExecutionHistory
-            history={history}
-            onRetryRun={(run) => {
-              const auto = automations.find((a) => a.id === run.automationId);
-              if (auto) handleTestRun(auto);
-            }}
-          />
-        </div>
+        <ExecutionHistory
+          history={history}
+          onRetryRun={(run) => {
+            const auto = automations.find((a) => a.id === run.automationId);
+            if (auto) handleTestRun(auto);
+          }}
+        />
       )}
-
-      {/* AI Builder Modal */}
-      <AiBuilderDialog
-        open={aiBuilderOpen}
-        onOpenChange={setAiBuilderOpen}
-        onApplyWorkflow={handleApplyAiWorkflow}
-      />
     </main>
   );
 }

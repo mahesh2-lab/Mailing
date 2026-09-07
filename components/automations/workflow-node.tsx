@@ -131,14 +131,14 @@ export function WorkflowNodeCard({
         e.stopPropagation();
         onSelect(node.id);
       }}
-      className={`relative w-64 rounded-xl bg-card/95 backdrop-blur-sm border text-card-foreground transition-all duration-300 cursor-pointer group flex shadow-xs ${
+      className={`relative w-64 rounded-sm bg-card/95 backdrop-blur-sm border text-card-foreground transition-colors cursor-pointer group flex shadow-2xs outline-none focus:outline-none focus:ring-0 ${
         selected
-          ? "ring-2 ring-brand/50 border-brand shadow-lg scale-[1.02] z-10"
-          : "hover:border-foreground/30 hover:shadow-md border-border/80"
+          ? "border-brand ring-1 ring-brand/20 shadow-xs"
+          : "hover:border-foreground/30 border-border/80"
       }`}
     >
       {/* Left Colored Icon Block */}
-      <div className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-xl border-r border-border/40 ${colors.bg} ${colors.text}`}>
+      <div className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}>
         <Icon className="size-5" />
       </div>
 
@@ -155,13 +155,13 @@ export function WorkflowNodeCard({
                   <button
                     type="button"
                     onClick={(e) => e.stopPropagation()}
-                    className="size-5 rounded-md grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                    className="size-5 rounded-sm grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                   />
                 }
               >
                 <MoreHorizontal className="size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 text-xs p-1">
+              <DropdownMenuContent align="end" className="w-36 text-xs p-1 rounded-sm">
                 <DropdownMenuItem onClick={() => onSelect(node.id)}>
                   <Settings className="size-3.5 mr-2" /> Configure
                 </DropdownMenuItem>
@@ -172,7 +172,7 @@ export function WorkflowNodeCard({
                       onClick={() => onDelete(node.id)}
                       className="text-destructive focus:text-destructive cursor-pointer"
                     >
-                      <Trash2 className="size-3.5 mr-2" /> Delete node
+                      <Trash2 className="size-3.5 mr-2" /> Delete
                     </DropdownMenuItem>
                   </>
                 )}
@@ -181,9 +181,11 @@ export function WorkflowNodeCard({
           </div>
         </div>
         
-        <div className="text-[10px] text-muted-foreground truncate mt-0.5 leading-snug">
-          {configSummary || "Configure parameters"}
-        </div>
+        {configSummary && (
+          <div className="text-[10px] text-muted-foreground truncate mt-0.5 leading-snug">
+            {configSummary}
+          </div>
+        )}
       </div>
     </div>
   );

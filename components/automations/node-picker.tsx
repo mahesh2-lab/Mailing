@@ -13,8 +13,11 @@ import {
   Forward,
   GitBranch,
   Globe,
+  GripVertical,
   Inbox,
   Mail,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
@@ -27,7 +30,13 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { CustomTool, NodeCategory, NodeType } from "./automation-types";
+import {
+  CustomTool,
+  NODE_DRAG_MIME,
+  NodeCategory,
+  NodePickerItem,
+  NodeType,
+} from "./automation-types";
 
 interface NodeItemDef {
   type: NodeType;
@@ -37,6 +46,34 @@ interface NodeItemDef {
   icon: React.ComponentType<{ className?: string }>;
   customToolId?: string;
 }
+
+const CATEGORY_STYLES: Record<NodeCategory, { bg: string; text: string; badge: string }> = {
+  trigger: {
+    bg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    text: "text-emerald-600 dark:text-emerald-400",
+    badge: "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
+  },
+  logic: {
+    bg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    text: "text-amber-600 dark:text-amber-400",
+    badge: "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10",
+  },
+  ai: {
+    bg: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    text: "text-violet-600 dark:text-violet-400",
+    badge: "border-violet-500/30 text-violet-600 dark:text-violet-400 bg-violet-500/10",
+  },
+  email: {
+    bg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    text: "text-blue-600 dark:text-blue-400",
+    badge: "border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10",
+  },
+  tool: {
+    bg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+    text: "text-cyan-600 dark:text-cyan-400",
+    badge: "border-cyan-500/30 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10",
+  },
+};
 
 const PREDEFINED_NODE_ITEMS: NodeItemDef[] = [
   // TRIGGERS
@@ -205,11 +242,11 @@ const PREDEFINED_NODE_ITEMS: NodeItemDef[] = [
 ];
 
 const CATEGORY_LABELS: Record<NodeCategory, string> = {
-  trigger: "TRIGGERS",
-  logic: "LOGIC",
-  ai: "AI ACTIONS",
-  email: "EMAIL ACTIONS",
-  tool: "TOOLS & INTEGRATIONS",
+  trigger: "Triggers",
+  logic: "Logic",
+  ai: "AI",
+  email: "Email",
+  tool: "Tools",
 };
 
 interface NodePickerProps {
@@ -292,22 +329,20 @@ export function NodePicker({
     <div className="w-72 border-r border-border bg-card/20 flex flex-col h-full select-none shrink-0 transition-all">
       {/* Header & Search */}
       <div className="p-3 border-b border-border space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
-              Workflow Steps
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
+            Steps
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
             <Button
               type="button"
               variant="ghost"
               size="xs"
               onClick={onOpenCreateTool}
-              className="h-6 text-[10px] gap-1 px-1.5 text-muted-foreground hover:text-foreground"
+              className="h-6 text-[10px] gap-1 px-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
               title="Create Custom HTTP Tool"
             >
-              <Plus className="size-3" /> Custom Tool
+              <Plus className="size-3" /> Tool
             </Button>
             {onToggleCollapse && (
               <Button
@@ -315,10 +350,10 @@ export function NodePicker({
                 variant="ghost"
                 size="icon-xs"
                 onClick={onToggleCollapse}
-                className="size-6 text-muted-foreground hover:text-foreground"
+                className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
                 title="Collapse sidebar"
               >
-                <span className="text-xs">‹</span>
+                <PanelLeftClose className="size-3.5" />
               </Button>
             )}
           </div>
@@ -353,7 +388,7 @@ export function NodePicker({
         <div className="relative">
           <Search className="size-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder={activeTab === "actions" ? "Search actions, AI, logic..." : "Search triggers..."}
+            placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 text-xs pl-8 rounded-lg bg-background/80"
@@ -376,23 +411,40 @@ export function NodePicker({
               <div className="space-y-1">
                 {catItems.map((item, idx) => {
                   const Icon = item.icon;
+                  const ct = item.customToolId
+                    ? customTools.find((t) => t.id === item.customToolId)
+                    : undefined;
+
+                  const handleSelect = () => {
+                    onSelectNode({
+                      type: item.type,
+                      category: item.category,
+                      title: item.title,
+                      description: item.description,
+                      customTool: ct,
+                    });
+                  };
+
+                  const handleDragStart = (e: React.DragEvent) => {
+                    const payload: NodePickerItem = {
+                      type: item.type,
+                      category: item.category,
+                      title: item.title,
+                      description: item.description,
+                      customTool: ct,
+                    };
+                    e.dataTransfer.setData(NODE_DRAG_MIME, JSON.stringify(payload));
+                    e.dataTransfer.effectAllowed = "move";
+                  };
+
                   return (
                     <button
                       key={`${item.type}-${idx}`}
                       type="button"
-                      onClick={() => {
-                        const ct = item.customToolId
-                          ? customTools.find((t) => t.id === item.customToolId)
-                          : undefined;
-                        onSelectNode({
-                          type: item.type,
-                          category: item.category,
-                          title: item.title,
-                          description: item.description,
-                          customTool: ct,
-                        });
-                      }}
-                      className="w-full text-left p-2 rounded-md hover:bg-accent hover:text-foreground transition-all flex items-start gap-2.5 group cursor-pointer border border-transparent hover:border-border/60"
+                      draggable={true}
+                      onDragStart={handleDragStart}
+                      onClick={handleSelect}
+                      className="w-full text-left p-2 rounded-md hover:bg-accent hover:text-foreground transition-all flex items-start gap-2.5 group cursor-pointer border border-transparent hover:border-border/60 select-none"
                     >
                       <div className="size-6 rounded bg-muted grid place-items-center shrink-0 mt-0.5 text-muted-foreground group-hover:text-foreground group-hover:bg-background transition-colors shadow-xs">
                         <Icon className="size-3.5" />

@@ -20,6 +20,11 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-muted: var(--brand-muted);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
@@ -934,7 +939,9 @@ button:disabled:not([data-loading="true"]) {
   flex: 1;
 }
 .back-button {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .detail-scroll-area {
   flex: 1;

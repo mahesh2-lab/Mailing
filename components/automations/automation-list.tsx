@@ -8,18 +8,157 @@ import {
   History,
   Zap,
   CheckCircle2,
-  Inbox,
-  Filter,
+  XCircle,
+  Clock,
+  ChevronRight,
+  Mail,
+  ArrowRight,
+  Activity,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Automation } from "./automation-types";
+import {
+  Automation,
+  ExecutionRun,
+  WorkflowEdge,
+  WorkflowNode,
+} from "./automation-types";
 import { AutomationCard } from "./automation-card";
+
+export interface StarterTemplate {
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+}
+
+const STARTER_TEMPLATES: StarterTemplate[] = [
+  {
+    name: "Auto-Reply to Inquiries",
+    description: "Instantly acknowledge incoming emails matching subject keywords.",
+    icon: Mail,
+    nodes: [
+      {
+        id: "root-1",
+        type: "trigger_email_received",
+        category: "trigger",
+        title: "Email Received",
+        description: "Subject contains 'Inquiry'",
+        config: { filterSubject: "Inquiry" },
+        position: { x: 200, y: 100 },
+      },
+      {
+        id: "reply-1",
+        type: "email_reply",
+        category: "email",
+        title: "Send Acknowledgment",
+        description: "Reply to sender",
+        config: {
+          recipient: "{{email.from.address}}",
+          template: "Thank you for reaching out! We received your message and will respond shortly.",
+        },
+        position: { x: 520, y: 100 },
+      },
+    ],
+    edges: [{ id: "e-1", from: "root-1", to: "reply-1" }],
+  },
+  {
+    name: "AI Lead Classifier & Tag",
+    description: "Use Gemini AI to analyze intent and label high-value leads automatically.",
+    icon: Sparkles,
+    nodes: [
+      {
+        id: "root-2",
+        type: "trigger_email_received",
+        category: "trigger",
+        title: "Email Received",
+        description: "Any incoming email",
+        config: {},
+        position: { x: 200, y: 100 },
+      },
+      {
+        id: "ai-2",
+        type: "ai_classify",
+        category: "ai",
+        title: "Classify Intent",
+        description: "Sales, Support, Billing",
+        config: { categories: ["Sales Lead", "Support", "Billing", "Newsletter"] },
+        position: { x: 520, y: 100 },
+      },
+      {
+        id: "tag-2",
+        type: "email_add_label",
+        category: "email",
+        title: "Tag VIP Lead",
+        description: "Apply 'VIP Lead' label",
+        config: { label: "VIP Lead" },
+        position: { x: 840, y: 100 },
+      },
+    ],
+    edges: [
+      { id: "e-2a", from: "root-2", to: "ai-2" },
+      { id: "e-2b", from: "ai-2", to: "tag-2" },
+    ],
+  },
+  {
+    name: "Invoice & Receipt Router",
+    description: "Detect invoices or receipts and extract financial summaries.",
+    icon: Zap,
+    nodes: [
+      {
+        id: "root-3",
+        type: "trigger_email_received",
+        category: "trigger",
+        title: "Email Received",
+        description: "Subject contains 'Invoice'",
+        config: { filterSubject: "Invoice" },
+        position: { x: 200, y: 100 },
+      },
+      {
+        id: "ai-3",
+        type: "ai_summarize",
+        category: "ai",
+        title: "Extract Summary",
+        description: "Summarize invoice contents",
+        config: {},
+        position: { x: 520, y: 100 },
+      },
+      {
+        id: "tag-3",
+        type: "email_add_label",
+        category: "email",
+        title: "Label Finance",
+        description: "Tag with Finance label",
+        config: { label: "Finance" },
+        position: { x: 840, y: 100 },
+      },
+    ],
+    edges: [
+      { id: "e-3a", from: "root-3", to: "ai-3" },
+      { id: "e-3b", from: "ai-3", to: "tag-3" },
+    ],
+  },
+];
+
+function formatRelativeTime(dateStr?: string) {
+  if (!dateStr) return "Never";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 interface AutomationListProps {
   automations: Automation[];
+  history?: ExecutionRun[];
   onCreateNew: () => void;
-  onOpenAiBuilder: () => void;
+  onCreateFromTemplate?: (template: StarterTemplate) => void;
   onOpenHistory: () => void;
   onEdit: (automation: Automation) => void;
   onToggleEnabled: (id: string, enabled: boolean) => void;
@@ -31,8 +170,9 @@ interface AutomationListProps {
 
 export function AutomationList({
   automations,
+  history = [],
   onCreateNew,
-  onOpenAiBuilder,
+  onCreateFromTemplate,
   onOpenHistory,
   onEdit,
   onToggleEnabled,
@@ -59,154 +199,239 @@ export function AutomationList({
 
   const activeCount = automations.filter((a) => a.enabled).length;
   const pausedCount = automations.length - activeCount;
+  const totalRuns = automations.reduce((acc, a) => acc + (a.runCount || 0), 0);
+  const avgSuccess =
+    automations.length > 0
+      ? Math.round(
+          automations.reduce((acc, a) => acc + (a.successRate || 100), 0) /
+            automations.length
+        )
+      : 100;
+  const recentRuns = history.slice(0, 4);
 
   return (
-    <div className="space-y-6">
-      {/* Top Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border/60 bg-gradient-to-br from-card/80 to-muted/20 backdrop-blur-xl p-5 rounded-xl shadow-xs">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-brand/10 grid place-items-center">
-              <Zap className="size-4 text-brand" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight">
-              Automations
-            </h1>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand/10 text-brand font-semibold tracking-wide uppercase">
-              Resend Engine
-            </span>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* Main Left Column: Workflows List (8 Cols) */}
+      <div className="lg:col-span-8 space-y-4">
+        {/* Search & Status Filters */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-1">
+          <div className="relative w-full sm:w-80 group">
+            <Search className="size-3.5 absolute left-3 top-3 text-muted-foreground group-focus-within:text-foreground transition-colors pointer-events-none" />
+            <Input
+              placeholder="Search workflows..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 text-xs pl-9 bg-card border-border focus:border-primary transition-all rounded-md shadow-2xs"
+            />
           </div>
-          <p className="text-xs text-muted-foreground mt-2 ml-10">
-            Set up rules and workflows to automate repetitive tasks in your Mailing inbox.
-          </p>
-        </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenHistory}
-            className="h-9 text-xs gap-1.5 shadow-xs bg-background/50"
-          >
-            <History className="size-3.5 text-muted-foreground" />
-            <span>Execution History</span>
-          </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenAiBuilder}
-            className="h-9 text-xs gap-1.5 text-brand hover:text-brand border-brand/20 bg-brand/5 hover:bg-brand/10 shadow-xs transition-colors"
-          >
-            <Sparkles className="size-3.5 text-brand" />
-            <span>AI Builder</span>
-          </Button>
-
-          <Button
-            type="button"
-            size="sm"
-            onClick={onCreateNew}
-            className="h-9 text-xs gap-1.5 bg-brand text-brand-fg hover:opacity-90 font-semibold shadow-md transition-opacity"
-          >
-            <Plus className="size-4" />
-            <span>Create Automation</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-1">
-        <div className="relative w-full sm:w-80 group">
-          <Search className="size-4 absolute left-3 top-2.5 text-muted-foreground group-focus-within:text-brand transition-colors" />
-          <Input
-            placeholder="Search automations..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 text-xs pl-9 bg-card/50 border-border/80 focus:border-brand/50 transition-all rounded-lg shadow-xs"
-          />
-        </div>
-
-        <div className="flex items-center gap-1 self-start sm:self-auto bg-card/50 p-1 rounded-lg border border-border/80 shadow-xs">
-          <Button
-            type="button"
-            variant={statusFilter === "all" ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => setStatusFilter("all")}
-            className={`h-7 text-xs rounded-md transition-all ${
-              statusFilter === "all" ? "bg-background shadow-xs font-medium" : "text-muted-foreground"
-            }`}
-          >
-            All ({automations.length})
-          </Button>
-          <Button
-            type="button"
-            variant={statusFilter === "active" ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => setStatusFilter("active")}
-            className={`h-7 text-xs rounded-md transition-all ${
-              statusFilter === "active" ? "bg-background shadow-xs font-medium text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-            }`}
-          >
-            Active ({activeCount})
-          </Button>
-          <Button
-            type="button"
-            variant={statusFilter === "paused" ? "secondary" : "ghost"}
-            size="xs"
-            onClick={() => setStatusFilter("paused")}
-            className={`h-7 text-xs rounded-md transition-all ${
-              statusFilter === "paused" ? "bg-background shadow-xs font-medium text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            Paused ({pausedCount})
-          </Button>
-        </div>
-      </div>
-
-      {/* Cards Grid */}
-      <div className="space-y-3">
-        {filtered.map((auto) => (
-          <AutomationCard
-            key={auto.id}
-            automation={auto}
-            onEdit={onEdit}
-            onToggleEnabled={onToggleEnabled}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onTestRun={onTestRun}
-            onViewHistory={onViewHistoryForAutomation}
-          />
-        ))}
-
-        {filtered.length === 0 && (
-          <div className="p-16 text-center rounded-xl border border-dashed border-border/80 bg-card/30 space-y-4 shadow-inner">
-            <div className="size-14 rounded-2xl bg-gradient-to-br from-brand/10 to-brand/5 border border-brand/10 grid place-items-center mx-auto text-brand shadow-xs relative">
-              <div className="absolute inset-0 bg-brand/5 blur-xl rounded-full" />
-              <Zap className="size-6 relative z-10" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground tracking-tight">
-                No automations found
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-                {search
-                  ? "No workflows match your search query. Try clearing filters."
-                  : "Create your first email automation to streamline your inbox."}
-              </p>
-            </div>
+          <div className="flex items-center gap-1 self-start sm:self-auto bg-muted/60 p-1 rounded-lg border border-border">
             <Button
               type="button"
-              size="sm"
-              onClick={onCreateNew}
-              className="text-xs gap-2 bg-brand text-brand-fg hover:opacity-90 font-medium shadow-md transition-all hover:scale-105"
+              variant={statusFilter === "all" ? "secondary" : "ghost"}
+              size="xs"
+              onClick={() => setStatusFilter("all")}
+              className={`h-7 text-xs rounded-md transition-all ${
+                statusFilter === "all"
+                  ? "bg-background shadow-xs font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <Plus className="size-4" /> Create Automation
+              All ({automations.length})
+            </Button>
+            <Button
+              type="button"
+              variant={statusFilter === "active" ? "secondary" : "ghost"}
+              size="xs"
+              onClick={() => setStatusFilter("active")}
+              className={`h-7 text-xs rounded-md transition-all ${
+                statusFilter === "active"
+                  ? "bg-background shadow-xs font-medium text-emerald-600 dark:text-emerald-400"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Active ({activeCount})
+            </Button>
+            <Button
+              type="button"
+              variant={statusFilter === "paused" ? "secondary" : "ghost"}
+              size="xs"
+              onClick={() => setStatusFilter("paused")}
+              className={`h-7 text-xs rounded-md transition-all ${
+                statusFilter === "paused"
+                  ? "bg-background shadow-xs font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Paused ({pausedCount})
             </Button>
           </div>
-        )}
+        </div>
+
+        {/* Workflows Cards */}
+        <div className="space-y-3">
+          {filtered.map((auto) => (
+            <AutomationCard
+              key={auto.id}
+              automation={auto}
+              onEdit={onEdit}
+              onToggleEnabled={onToggleEnabled}
+              onDuplicate={onDuplicate}
+              onDelete={onDelete}
+              onTestRun={onTestRun}
+              onViewHistory={onViewHistoryForAutomation}
+            />
+          ))}
+
+          {filtered.length === 0 && (
+            <div className="panel text-center py-12 space-y-3">
+              <div className="size-10 rounded-full bg-muted grid place-items-center mx-auto text-muted-foreground">
+                <Zap className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {search ? "No matching workflows" : "No automations configured"}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                  {search
+                    ? `No workflows found matching "${search}". Try clearing your search or status filter.`
+                    : "Create your first automated email rule or choose one of the starter templates on the right."}
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onCreateNew}
+                  className="button-primary text-xs"
+                >
+                  <Plus className="size-3.5 mr-1" /> Create Workflow
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right Column: Engine Stats, Templates & Activity (4 Cols) */}
+      <div className="lg:col-span-4 space-y-6">
+        {/* Panel 1: Engine Status & Key Metrics */}
+        <div className="panel space-y-4">
+          <div className="panel-title">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Engine Status</h2>
+              <p className="text-xs text-muted-foreground">Resend webhook & worker health</p>
+            </div>
+            <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Online
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
+              <div className="text-[11px] text-muted-foreground">Active Rules</div>
+              <div className="text-lg font-bold text-foreground mt-0.5">{activeCount}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
+              <div className="text-[11px] text-muted-foreground">Total Executions</div>
+              <div className="text-lg font-bold text-foreground mt-0.5">{totalRuns}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
+              <div className="text-[11px] text-muted-foreground">Success Rate</div>
+              <div className="text-lg font-bold text-foreground mt-0.5">{avgSuccess}%</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
+              <div className="text-[11px] text-muted-foreground">Queue Worker</div>
+              <div className="text-xs font-semibold text-foreground mt-1.5 flex items-center gap-1">
+                <Activity className="size-3 text-brand" /> Active
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel 2: Quick Starter Templates */}
+        <div className="panel space-y-3">
+          <div className="panel-title">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Quick Templates</h2>
+              <p className="text-xs text-muted-foreground">Click to instantiate pre-built logic.</p>
+            </div>
+            <Sparkles className="size-4 text-brand" />
+          </div>
+
+          <div className="space-y-2 pt-1">
+            {STARTER_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.name}
+                type="button"
+                onClick={() => onCreateFromTemplate?.(tpl)}
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-foreground/30 bg-card hover:bg-muted/20 transition-all group flex items-start justify-between gap-3 cursor-pointer"
+              >
+                <div className="space-y-0.5 min-w-0">
+                  <div className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors flex items-center gap-1.5">
+                    <tpl.icon className="size-3.5 text-muted-foreground group-hover:text-brand transition-colors shrink-0" />
+                    <span className="truncate">{tpl.name}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                    {tpl.description}
+                  </p>
+                </div>
+                <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-foreground shrink-0 mt-0.5 transition-colors" />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Panel 3: Recent Executions Feed */}
+        <div className="panel space-y-3">
+          <div className="panel-title">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
+              <p className="text-xs text-muted-foreground">Latest execution audit traces.</p>
+            </div>
+            <History className="size-4 text-muted-foreground" />
+          </div>
+
+          <div className="space-y-2 pt-1">
+            {recentRuns.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center">
+                No recent executions yet.
+              </div>
+            ) : (
+              recentRuns.map((run) => (
+                <div
+                  key={run.id}
+                  className="p-2 rounded-md border border-border/60 bg-muted/20 flex items-center justify-between text-xs gap-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {run.status === "success" ? (
+                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                    ) : (
+                      <XCircle className="size-3.5 text-rose-500 shrink-0" />
+                    )}
+                    <span className="font-medium text-foreground truncate max-w-40">
+                      {run.automationName}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {formatRelativeTime(run.startedAt)}
+                  </span>
+                </div>
+              ))
+            )}
+
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              className="text-button text-xs w-full justify-between pt-2 text-muted-foreground hover:text-foreground"
+            >
+              <span>View full history audit</span>
+              <ArrowRight className="size-3" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

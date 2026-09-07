@@ -284,6 +284,7 @@ export default function MailListPane() {
   );
   const [selected, setSelected] = useState<string[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
+  const hasAutoSelectedRef = useRef(false);
 
   const [allLabels, setAllLabels] = useState<
     Array<{ id: string; name: string }>
@@ -356,6 +357,7 @@ export default function MailListPane() {
 
   const handleOpen = useCallback(
     async (item: MailItem) => {
+      hasAutoSelectedRef.current = true;
       setOpenId(item.id);
       if (item.unread) {
         setMail((prev) =>
@@ -642,10 +644,16 @@ export default function MailListPane() {
     });
   }
 
-  // On desktop, auto-select first message if none selected so 3-pane is populated
+  // Reset auto-select state when folder or label changes so new views can auto-select their first conversation
+  useEffect(() => {
+    hasAutoSelectedRef.current = false;
+  }, [folder, label]);
+
+  // On desktop, auto-select first message on initial folder load if none selected so 3-pane is populated
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-      if (!openId && visible.length > 0 && !initialLoading) {
+      if (!hasAutoSelectedRef.current && !openId && visible.length > 0 && !initialLoading) {
+        hasAutoSelectedRef.current = true;
         setOpenId(visible[0].id);
       }
     }

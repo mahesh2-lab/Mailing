@@ -12,11 +12,9 @@ import {
   Zap,
   Mail,
   Wrench,
-  Cpu,
+  Sparkles,
   GitBranch,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,9 +37,40 @@ interface AutomationCardProps {
 const CategoryIcon: Record<NodeCategory, React.ElementType> = {
   trigger: Zap,
   logic: GitBranch,
-  ai: Cpu,
+  ai: Sparkles,
   email: Mail,
   tool: Wrench,
+};
+
+const CATEGORY_STYLES: Record<
+  NodeCategory,
+  { bg: string; border: string; text: string }
+> = {
+  trigger: {
+    bg: "bg-emerald-500/10",
+    border: "border-emerald-500/30",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  logic: {
+    bg: "bg-amber-500/10",
+    border: "border-amber-500/30",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  ai: {
+    bg: "bg-violet-500/10",
+    border: "border-violet-500/30",
+    text: "text-violet-600 dark:text-violet-400",
+  },
+  email: {
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/30",
+    text: "text-blue-600 dark:text-blue-400",
+  },
+  tool: {
+    bg: "bg-cyan-500/10",
+    border: "border-cyan-500/30",
+    text: "text-cyan-600 dark:text-cyan-400",
+  },
 };
 
 export function AutomationCard({
@@ -56,75 +85,80 @@ export function AutomationCard({
   return (
     <div
       onClick={() => onEdit(automation)}
-      className="p-4 rounded-xl border border-border bg-card/60 hover:bg-card hover:border-foreground/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group space-y-4"
+      className="p-5 rounded-xl border border-border bg-card hover:border-foreground/25 hover:shadow-xs transition-all duration-200 cursor-pointer group space-y-4"
     >
-      {/* Top Header: Title, Enable/Disable, Action menu */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+      {/* Top Header: Title, Status, Native Toggle, and Actions */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h3 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors truncate">
               {automation.name}
             </h3>
 
-            {/* Enabled / Paused status pill */}
+            {/* Status Pill */}
             <span
-              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full border transition-colors shadow-xs ${
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
                 automation.enabled
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                   : "bg-muted text-muted-foreground border-border"
               }`}
             >
-              <span className="relative flex h-2 w-2">
-                {automation.enabled && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2 w-2 ${
-                    automation.enabled ? "bg-emerald-500" : "bg-muted-foreground"
-                  }`}
-                ></span>
-              </span>
+              <span
+                className={`size-1.5 rounded-full ${
+                  automation.enabled ? "bg-emerald-500" : "bg-muted-foreground/60"
+                }`}
+              />
               {automation.enabled ? "Active" : "Paused"}
             </span>
           </div>
 
           <p className="text-xs text-muted-foreground line-clamp-1">
-            {automation.description || "No description provided."}
+            {automation.description || "Triggered on inbound message"}
           </p>
         </div>
 
         {/* Right side controls */}
         <div
-          className="flex items-center gap-1.5 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity"
+          className="flex items-center gap-2 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <Button
+          {/* Native Mailing Toggle Switch */}
+          <button
             type="button"
-            variant="outline"
-            size="xs"
+            className={`toggle ${automation.enabled ? "on" : ""}`}
             onClick={() => onToggleEnabled(automation.id, !automation.enabled)}
-            className="h-7 text-xs px-2 shadow-xs"
+            title={automation.enabled ? "Pause workflow" : "Activate workflow"}
+            aria-label="Toggle workflow status"
           >
-            {automation.enabled ? "Pause" : "Enable"}
-          </Button>
+            <i />
+          </button>
 
-          <Button
+          {/* Test Action */}
+          <button
             type="button"
-            variant="outline"
-            size="xs"
             onClick={() => onTestRun(automation)}
-            className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground shadow-xs"
+            className="button-secondary text-xs py-1 px-2.5 h-7"
             title="Run test execution"
           >
-            <Play className="size-3 text-brand" /> Test
-          </Button>
+            <Play className="size-3 text-brand mr-1 fill-brand" /> Test
+          </button>
 
+          {/* Edit Action */}
+          <button
+            type="button"
+            onClick={() => onEdit(automation)}
+            className="button-secondary text-xs py-1 px-2.5 h-7"
+          >
+            <Edit className="size-3 mr-1" /> Edit
+          </button>
+
+          {/* Action Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <button
                   type="button"
-                  className="size-7 rounded-md grid place-items-center border border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border transition-all cursor-pointer"
+                  className="size-7 rounded-md grid place-items-center border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                 />
               }
             >
@@ -143,24 +177,25 @@ export function AutomationCard({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onDelete(automation.id)}
-                className="text-destructive focus:text-destructive"
+                className="text-destructive focus:text-destructive cursor-pointer"
               >
-                <Trash2 className="size-3.5 mr-2" /> Delete automation
+                <Trash2 className="size-3.5 mr-2" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      {/* Workflow Nodes Pipeline Breadcrumb */}
-      <div className="p-2.5 bg-background/50 rounded-lg border border-border/60 flex items-center gap-2 flex-wrap text-xs text-foreground/80 font-mono text-[11px] shadow-inner">
+      {/* Workflow Step Pipeline Visualization */}
+      <div className="p-2.5 bg-muted/30 rounded-lg border border-border/60 flex items-center gap-2 flex-wrap">
         {automation.nodes.map((n, idx) => {
           const Icon = CategoryIcon[n.category] || Zap;
+          const style = CATEGORY_STYLES[n.category] || CATEGORY_STYLES.tool;
           return (
             <div key={n.id} className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-card border border-border/80 text-foreground font-sans font-medium text-xs shadow-xs transition-colors group-hover:border-border">
-                <Icon className="size-3.5 text-muted-foreground group-hover:text-brand transition-colors" />
-                {n.title}
+              <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium shadow-2xs ${style.bg} ${style.border} ${style.text}`}>
+                <Icon className="size-3.5 shrink-0" />
+                <span className="truncate max-w-44">{n.title}</span>
               </span>
               {idx < automation.nodes.length - 1 && (
                 <ArrowRight className="size-3.5 text-muted-foreground/40 shrink-0" />
@@ -170,13 +205,13 @@ export function AutomationCard({
         })}
       </div>
 
-      {/* Metadata / Run Stats footer */}
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+      {/* Metadata Footer */}
+      <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5 border-t border-border/40">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
             <Clock className="size-3" />
             Last run:{" "}
-            <strong className="text-foreground/80">
+            <span className="text-foreground font-medium">
               {automation.lastRunAt
                 ? new Date(automation.lastRunAt).toLocaleDateString(undefined, {
                     month: "short",
@@ -185,16 +220,16 @@ export function AutomationCard({
                     minute: "2-digit",
                   })
                 : "Never"}
-            </strong>
+            </span>
           </span>
           <span>·</span>
-          <span>{automation.runCount} total runs</span>
+          <span>{automation.runCount} {automation.runCount === 1 ? "run" : "runs"}</span>
           <span>·</span>
           <span>{automation.successRate}% success</span>
         </div>
 
-        <span className="text-[10px] text-brand hover:underline font-medium flex items-center gap-1">
-          Open builder <ArrowRight className="size-2.5" />
+        <span className="text-[11px] text-muted-foreground group-hover:text-foreground font-medium flex items-center gap-1 transition-colors">
+          Open workflow <ArrowRight className="size-3" />
         </span>
       </div>
     </div>

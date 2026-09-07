@@ -8,6 +8,7 @@ import {
   Automation,
   CustomTool,
   NodeCategory,
+  NodePickerItem,
   NodeType,
   WorkflowEdge,
   WorkflowNode,
@@ -244,6 +245,73 @@ export function AutomationBuilder({
     toast.success(`Added "${newNode.title}" to workflow`);
   }
 
+  const handleDropNode = useCallback(
+    (item: NodePickerItem, position: { x: number; y: number }) => {
+      // If dropping a trigger and a trigger already exists, update/replace it!
+      if (item.category === "trigger") {
+        const existingTriggerIndex = automation.nodes.findIndex(
+          (n) => n.category === "trigger"
+        );
+
+        if (existingTriggerIndex !== -1) {
+          const existingTrigger = automation.nodes[existingTriggerIndex];
+          setAutomation((prev) => ({
+            ...prev,
+            nodes: prev.nodes.map((n, idx) =>
+              idx === existingTriggerIndex
+                ? {
+                    ...n,
+                    type: item.type,
+                    title: item.title,
+                    description: item.description,
+                    position,
+                  }
+                : n
+            ),
+          }));
+          setSelectedNodeId(existingTrigger.id);
+          setConfigPanelOpen(true);
+          toast.success(`Trigger updated to "${item.title}"`);
+          return;
+        }
+      }
+
+      const newId = `node-${Date.now()}`;
+      const defaultNodeConfig = item.customTool
+        ? {
+            toolId: item.customTool.id,
+            url: item.customTool.url,
+            method: item.customTool.method,
+          }
+        : item.type === "email_send" || item.type === "email_reply"
+        ? {
+            recipient: "{{email.from.address}}",
+            template: "{{ai.reply}}",
+          }
+        : {};
+
+      const newNode: WorkflowNode = {
+        id: newId,
+        type: item.type,
+        category: item.category,
+        title: item.title,
+        description: item.description,
+        config: defaultNodeConfig,
+        position,
+      };
+
+      setAutomation((prev) => ({
+        ...prev,
+        nodes: [...prev.nodes, newNode],
+      }));
+
+      setSelectedNodeId(newId);
+      setConfigPanelOpen(true);
+      toast.success(`Added "${newNode.title}" to workflow`);
+    },
+    [automation.nodes]
+  );
+
   function handleSave() {
     onSaveAutomation(automation);
     toast.success("Workflow saved successfully");
@@ -309,7 +377,7 @@ export function AutomationBuilder({
             onClick={() => onRunTest(automation)}
             className="h-8 text-xs gap-1.5 rounded-lg border-border/70 hover:bg-muted/80 text-foreground font-semibold shadow-xs transition-colors"
           >
-            <Play className="size-3.5 text-brand" /> Test Workflow
+            <Play className="size-3.5 text-brand" /> Test
           </Button>
 
           <Button
@@ -318,12 +386,12 @@ export function AutomationBuilder({
             onClick={handleSave}
             className="h-8 text-xs gap-1.5 rounded-lg bg-brand text-brand-fg hover:opacity-90 font-semibold shadow-md transition-opacity"
           >
-            <Save className="size-3.5" /> Save Changes
+            <Save className="size-3.5" /> Save
           </Button>
         </div>
       </div>
 
-      {/* Main Builder Area: Node Palette (Left) + Canvas (Center) + Config Sidebar (Right) */}
+      {/* Main Builder Area: Node Palette (Left) + Full Canvas (Center) + Floating Overlay Config */}
       <div className="flex-1 flex overflow-hidden relative">
         <NodePicker
           onSelectNode={handleAddNodeFromPicker}
@@ -343,6 +411,7 @@ export function AutomationBuilder({
           onUpdateNodePosition={handleUpdateNodePosition}
           onConnectEdge={handleConnectEdge}
           onDeleteEdge={handleDeleteEdge}
+          onDropNode={handleDropNode}
         />
 
         {/* Docked Node Config Inspector on the Right */}

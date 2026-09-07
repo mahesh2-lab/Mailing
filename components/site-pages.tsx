@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  ArrowLeft,
   Camera,
   Check,
   ChevronRight,
@@ -991,11 +992,16 @@ export function SitePage({ type }: { type: PageKey }) {
           <h1>{data.title}</h1>
           <p>{data.description}</p>
         </div>
-        {type !== "profile" && (
-          <button className="button-primary" onClick={notify}>
-            <Check /> Save changes
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <a className="button-secondary" href="/inbox">
+            <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
+          </a>
+          {type !== "profile" && (
+            <button className="button-primary" onClick={notify}>
+              <Check /> Save changes
+            </button>
+          )}
+        </div>
       </header>
 
       {type === "automation" && (

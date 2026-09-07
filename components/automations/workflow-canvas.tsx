@@ -1,15 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
   Controls,
+  ControlButton,
   Background,
   BackgroundVariant,
   Handle,
   Position,
   MarkerType,
+  useReactFlow,
+  useViewport,
   type NodeProps,
   type Node,
   type Edge,
@@ -21,7 +24,12 @@ import {
   useEdgesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { WorkflowEdge as WorkflowEdgeType, WorkflowNode } from "./automation-types";
+import {
+  NODE_DRAG_MIME,
+  type NodePickerItem,
+  type WorkflowEdge as WorkflowEdgeType,
+  type WorkflowNode,
+} from "./automation-types";
 import { WorkflowNodeCard } from "./workflow-node";
 import { WorkflowEdge, edgeColor } from "./workflow-edge";
 
@@ -35,6 +43,7 @@ interface WorkflowCanvasProps {
   onUpdateNodePosition?: (id: string, pos: { x: number; y: number }) => void;
   onConnectEdge?: (connection: { source: string; target: string }) => void;
   onDeleteEdge?: (edgeId: string) => void;
+  onDropNode?: (item: NodePickerItem, position: { x: number; y: number }) => void;
 }
 
 type WorkflowNodeData = {
@@ -52,7 +61,7 @@ function WorkflowFlowNode({ data, selected, isConnectable }: NodeProps<Node<Work
   const { node } = data;
 
   return (
-    <div className="relative w-64">
+    <div className="relative w-64 outline-none focus:outline-none">
       {node.category !== "trigger" && (
         <Handle
           type="target"
@@ -64,12 +73,12 @@ function WorkflowFlowNode({ data, selected, isConnectable }: NodeProps<Node<Work
 
       {/* Category / branch badge above the node */}
       <div className="pointer-events-none absolute -top-6 left-0 mb-1 flex w-full items-center gap-2">
-        <span className="rounded border border-border bg-background/80 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground shadow-2xs backdrop-blur-sm">
+        <span className="rounded-sm border border-border bg-background/80 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-muted-foreground shadow-2xs backdrop-blur-sm">
           {node.category}
         </span>
         {node.branch && node.branch !== "main" && (
           <span
-            className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-medium ${
+            className={`rounded-sm border px-1.5 py-0.5 font-mono text-[9px] font-medium ${
               node.branch === "true"
                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                 : "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400"
@@ -108,7 +117,11 @@ function CanvasInner({
   onUpdateNodePosition,
   onConnectEdge,
   onDeleteEdge,
+  onDropNode,
 }: WorkflowCanvasProps) {
+  const { screenToFlowPosition } = useReactFlow();
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const [rfNodes, setRfNodes, onNodesChangeCore] = useNodesState<Node<WorkflowNodeData>>([]);
   const [rfEdges, setRfEdges, onEdgesChangeCore] = useEdgesState<Edge>([]);
 
@@ -202,8 +215,52 @@ function CanvasInner({
     [edges]
   );
 
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setIsDragOver(true);
+  }, []);
+
+  const onDragLeave = useCallback((event: React.DragEvent) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Element)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      setIsDragOver(false);
+      const rawData = event.dataTransfer.getData(NODE_DRAG_MIME);
+      if (!rawData) return;
+      try {
+        const item = JSON.parse(rawData) as NodePickerItem;
+        const flowPosition = screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        // Center the 256px wide card on cursor
+        const position = {
+          x: Math.round(flowPosition.x - 128),
+          y: Math.round(flowPosition.y - 28),
+        };
+        onDropNode?.(item, position);
+      } catch (err) {
+        console.error("Failed to parse dropped node data:", err);
+      }
+    },
+    [screenToFlowPosition, onDropNode]
+  );
+
   return (
-    <div className="relative h-full w-full flex-1">
+    <div
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`relative h-full w-full flex-1 transition-colors duration-200 ${
+        isDragOver ? "ring-2 ring-inset ring-brand/40 bg-brand/[0.02]" : ""
+      }`}
+    >
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -217,12 +274,13 @@ function CanvasInner({
         defaultEdgeOptions={{ type: "workflow" }}
         connectionLineStyle={{ stroke: edgeColor(), strokeWidth: 2 }}
         deleteKeyCode={["Backspace", "Delete"]}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         fitView
-        fitViewOptions={{ padding: 0.25 }}
+        fitViewOptions={{ padding: 0.25, minZoom: 1, maxZoom: 1 }}
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-muted/10"
+        className="bg-muted/10 [&_.react-flow\_\_node]:!outline-none [&_.react-flow\_\_node]:!shadow-none [&_.react-flow\_\_node:focus]:!outline-none [&_.react-flow\_\_node:focus-visible]:!outline-none [&_.react-flow\_\_node.selected]:!outline-none [&_.react-flow\_\_node.selected]:!shadow-none"
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -234,9 +292,27 @@ function CanvasInner({
           className="!rounded-md !border-border !bg-card !shadow-sm [&_button]:!border-border [&_button]:!bg-card [&_button]:!text-foreground [&_button:hover]:!bg-muted"
           position="bottom-left"
           showInteractive={false}
-        />
+        >
+          <ZoomLevelIndicator />
+        </Controls>
       </ReactFlow>
     </div>
+  );
+}
+
+function ZoomLevelIndicator() {
+  const { zoom } = useViewport();
+  const { zoomTo } = useReactFlow();
+  const zoomPercent = Math.round(zoom * 100);
+
+  return (
+    <ControlButton
+      onClick={() => zoomTo(1, { duration: 250 })}
+      title="Zoom level. Click to reset to 100%"
+      className="!font-mono !text-[10px] !font-medium"
+    >
+      {zoomPercent}%
+    </ControlButton>
   );
 }
 

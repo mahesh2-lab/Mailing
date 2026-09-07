@@ -53,6 +53,17 @@ export interface WorkflowEdge {
   condition?: "true" | "false" | "default";
 }
 
+export interface NodePickerItem {
+  type: NodeType;
+  category: NodeCategory;
+  title: string;
+  description: string;
+  customTool?: CustomTool;
+}
+
+/** Payload transferred during a sidebar → canvas drag. */
+export const NODE_DRAG_MIME = "application/x-workflow-node";
+
 export interface CustomTool {
   id: string;
   name: string;

@@ -552,26 +552,6 @@ export default function MailDetailPane() {
     }
   }
 
-  async function handleCopyLink() {
-    if (!message) return;
-    try {
-      const url = `${window.location.origin}${window.location.pathname}?id=${message.id}`;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = url;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
-      toast.success("Link copied to clipboard");
-    } catch {
-      toast.error("Failed to copy link");
-    }
-  }
-
   function handlePrint() {
     if (!message) return;
 
@@ -834,19 +814,34 @@ ${message.rawText || htmlToPlainText(message.body)}`;
     );
   }
 
+  const backLabel = label
+    ? `Back to #${label}`
+    : folder
+      ? `Back to ${folder}`
+      : "Back to list";
+
   if (error) {
     return (
       <section
         className={`detail-pane detail-visible ${!openId ? "mobile-hidden" : ""}`}
       >
         <div className="detail-toolbar">
-          <button
-            className="icon-button back-button"
-            onClick={() => setOpenId(null)}
-            aria-label="Back"
-          >
-            <ArrowLeft />
-          </button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="icon-button back-button text-muted-foreground hover:text-foreground"
+                  onClick={() => setOpenId(null)}
+                  aria-label={backLabel}
+                />
+              }
+            >
+              <ArrowLeft className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>{backLabel} (Esc)</TooltipContent>
+          </Tooltip>
         </div>
         <div className="detail-error">
           <p>Could not load this message.</p>
@@ -869,16 +864,18 @@ ${message.rawText || htmlToPlainText(message.body)}`;
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="icon-button back-button"
+                  className="icon-button back-button text-muted-foreground hover:text-foreground"
                   onClick={() => setOpenId(null)}
-                  aria-label="Back"
+                  aria-label={backLabel}
                 />
               }
             >
               <ArrowLeft className="size-4" />
             </TooltipTrigger>
-            <TooltipContent>Back to list</TooltipContent>
+            <TooltipContent>{backLabel} (Esc)</TooltipContent>
           </Tooltip>
+
+          <div className="h-4 w-px bg-border/60 mx-0.5" />
 
           {message && (
             <>
@@ -1026,9 +1023,6 @@ ${message.rawText || htmlToPlainText(message.body)}`;
             <DropdownMenuContent align="end" className="w-44 p-1">
               <DropdownMenuItem onClick={handleMarkAsUnread}>
                 Mark as unread
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleCopyLink}>
-                Copy link
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handlePrint}>Print</DropdownMenuItem>
             </DropdownMenuContent>
