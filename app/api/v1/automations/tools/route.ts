@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const id = body.id || `tool-${Date.now()}`;
+    const id = body.id || crypto.randomUUID();
     const record = {
       id,
       name: body.name || "Custom Webhook Tool",

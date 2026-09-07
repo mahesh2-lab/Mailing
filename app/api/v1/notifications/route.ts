@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       const channel = body.channel || notificationChannelForUser(session.user.id);
       const event = body.event || 'new-email';
       const data = body.data || {
-        emailId: `test_${Date.now()}`,
+        emailId: crypto.randomUUID(),
         from: 'Resend Test <notifications@mailing.app>',
         subject: 'Real-time Pusher Test Notification',
         preview: 'This is a real-time test toast notification from Pusher.',

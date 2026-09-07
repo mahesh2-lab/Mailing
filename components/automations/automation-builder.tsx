@@ -18,6 +18,7 @@ import { WorkflowCanvas } from "./workflow-canvas";
 import { NodeConfigPanel } from "./node-config-panel";
 import { CustomToolDialog } from "./custom-tool-dialog";
 import { toast } from "sonner";
+import { generateId } from "@/lib/utils";
 
 interface AutomationBuilderProps {
   automation: Automation;
@@ -113,7 +114,7 @@ export function AutomationBuilder({
         if (exists) return prev;
 
         const newEdge: WorkflowEdge = {
-          id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          id: generateId(),
           from: connection.source,
           to: connection.target,
         };
@@ -179,7 +180,7 @@ export function AutomationBuilder({
       }
     }
 
-    const newId = `node-${Date.now()}`;
+    const newId = generateId();
     const parentNode = targetParentId
       ? automation.nodes.find((n) => n.id === targetParentId)
       : selectedNodeId
@@ -228,7 +229,7 @@ export function AutomationBuilder({
     const newEdges = [...automation.edges];
     if (parentNode) {
       newEdges.push({
-        id: `e-${Date.now()}`,
+        id: generateId(),
         from: parentNode.id,
         to: newId,
         condition: targetBranchCondition,
@@ -281,7 +282,7 @@ export function AutomationBuilder({
         }
       }
 
-      const newId = `node-${Date.now()}`;
+      const newId = generateId();
       const defaultNodeConfig = item.customTool
         ? {
             toolId: item.customTool.id,

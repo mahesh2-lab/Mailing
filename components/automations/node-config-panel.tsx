@@ -81,8 +81,11 @@ export function NodeConfigPanel({
             <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-brand/10 text-brand border border-brand/20">
               {node.category} Step
             </span>
-            <span className="text-[11px] font-mono text-muted-foreground truncate">
-              {node.id}
+            <span
+              className="text-[11px] font-mono text-muted-foreground truncate hover:text-foreground transition-colors cursor-default"
+              title={`Step ID: ${node.id}`}
+            >
+              #{node.id.length > 8 ? node.id.slice(0, 8) : node.id}
             </span>
           </div>
           <h3 className="text-sm font-semibold tracking-tight text-foreground truncate mt-1">

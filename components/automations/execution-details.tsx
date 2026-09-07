@@ -52,8 +52,8 @@ export function ExecutionDetails({
               ) : (
                 <XCircle className="size-5 text-destructive" />
               )}
-              <DialogTitle className="text-base font-semibold text-foreground">
-                Run #{run.id}
+              <DialogTitle className="text-base font-semibold text-foreground" title={run.id}>
+                Run #{run.id.length > 8 ? run.id.slice(0, 8) : run.id}
               </DialogTitle>
             </div>
             <Badge

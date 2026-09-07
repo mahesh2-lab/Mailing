@@ -23,6 +23,7 @@ import {
 import { VariablePicker } from "./variable-picker";
 import { CustomTool } from "./automation-types";
 import { toast } from "sonner";
+import { generateId } from "@/lib/utils";
 
 interface CustomToolDialogProps {
   open: boolean;
@@ -135,7 +136,7 @@ export function CustomToolDialog({
     }
 
     const tool: CustomTool = {
-      id: initialTool?.id || `tool-${Date.now()}`,
+      id: initialTool?.id || generateId(),
       name: name.trim(),
       description: description.trim(),
       method,

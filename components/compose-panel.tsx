@@ -24,6 +24,7 @@ import {
 import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { toast } from "sonner";
+import { generateId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -363,7 +364,7 @@ export default function ComposePanel() {
       try {
         const base64 = await fileToBase64(file);
         newItems.push({
-          id: `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          id: generateId(),
           name: file.name,
           size: file.size,
           type: file.type || "application/octet-stream",

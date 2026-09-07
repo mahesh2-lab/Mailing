@@ -43,7 +43,10 @@ interface WorkflowCanvasProps {
   onUpdateNodePosition?: (id: string, pos: { x: number; y: number }) => void;
   onConnectEdge?: (connection: { source: string; target: string }) => void;
   onDeleteEdge?: (edgeId: string) => void;
-  onDropNode?: (item: NodePickerItem, position: { x: number; y: number }) => void;
+  onDropNode?: (
+    item: NodePickerItem,
+    position: { x: number; y: number },
+  ) => void;
 }
 
 type WorkflowNodeData = {
@@ -57,7 +60,11 @@ const HANDLE_CLASS =
   "!w-2.5 !h-2.5 !rounded-full !border-2 !border-background !bg-brand transition-transform hover:!scale-125";
 
 /** Custom node that renders the existing card UI inside a React Flow node. */
-function WorkflowFlowNode({ data, selected, isConnectable }: NodeProps<Node<WorkflowNodeData>>) {
+function WorkflowFlowNode({
+  data,
+  selected,
+  isConnectable,
+}: NodeProps<Node<WorkflowNodeData>>) {
   const { node } = data;
 
   return (
@@ -122,7 +129,9 @@ function CanvasInner({
   const { screenToFlowPosition } = useReactFlow();
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const [rfNodes, setRfNodes, onNodesChangeCore] = useNodesState<Node<WorkflowNodeData>>([]);
+  const [rfNodes, setRfNodes, onNodesChangeCore] = useNodesState<
+    Node<WorkflowNodeData>
+  >([]);
   const [rfEdges, setRfEdges, onEdgesChangeCore] = useEdgesState<Edge>([]);
 
   const nodeTypes = useMemo(() => ({ workflowNode: WorkflowFlowNode }), []);
@@ -142,10 +151,19 @@ function CanvasInner({
           data: { node, onSelectNode, onDeleteNode, onAddChildNode },
           selected: selectedNodeId === node.id,
         };
-        return existing ? { ...existing, ...next, measured: existing.measured } : next;
+        return existing
+          ? { ...existing, ...next, measured: existing.measured }
+          : next;
       });
     });
-  }, [nodes, selectedNodeId, onSelectNode, onDeleteNode, onAddChildNode, setRfNodes]);
+  }, [
+    nodes,
+    selectedNodeId,
+    onSelectNode,
+    onDeleteNode,
+    onAddChildNode,
+    setRfNodes,
+  ]);
 
   // Sync parent `edges` -> React Flow edges.
   useEffect(() => {
@@ -167,7 +185,7 @@ function CanvasInner({
           condition: edge.condition,
           onDelete: onDeleteEdge,
         },
-      }))
+      })),
     );
   }, [edges, onDeleteEdge, setRfEdges]);
 
@@ -177,12 +195,19 @@ function CanvasInner({
       if (!onUpdateNodePosition) return;
       for (const change of changes) {
         // Only persist once the drag completes to avoid flooding parent state.
-        if (change.type === "position" && change.position && change.dragging === false) {
-          onUpdateNodePosition(change.id, { x: change.position.x, y: change.position.y });
+        if (
+          change.type === "position" &&
+          change.position &&
+          change.dragging === false
+        ) {
+          onUpdateNodePosition(change.id, {
+            x: change.position.x,
+            y: change.position.y,
+          });
         }
       }
     },
-    [onNodesChangeCore, onUpdateNodePosition]
+    [onNodesChangeCore, onUpdateNodePosition],
   );
 
   const onEdgesChange = useCallback(
@@ -193,7 +218,7 @@ function CanvasInner({
         if (change.type === "remove") onDeleteEdge(change.id);
       }
     },
-    [onEdgesChangeCore, onDeleteEdge]
+    [onEdgesChangeCore, onDeleteEdge],
   );
 
   const onConnect = useCallback(
@@ -202,7 +227,7 @@ function CanvasInner({
         onConnectEdge({ source: connection.source, target: connection.target });
       }
     },
-    [onConnectEdge]
+    [onConnectEdge],
   );
 
   // Reject self-loops and duplicate connections at the interaction layer.
@@ -210,9 +235,11 @@ function CanvasInner({
     (connection) => {
       if (!connection.source || !connection.target) return false;
       if (connection.source === connection.target) return false;
-      return !edges.some((e) => e.from === connection.source && e.to === connection.target);
+      return !edges.some(
+        (e) => e.from === connection.source && e.to === connection.target,
+      );
     },
-    [edges]
+    [edges],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -249,7 +276,7 @@ function CanvasInner({
         console.error("Failed to parse dropped node data:", err);
       }
     },
-    [screenToFlowPosition, onDropNode]
+    [screenToFlowPosition, onDropNode],
   );
 
   return (
@@ -280,7 +307,7 @@ function CanvasInner({
         minZoom={0.2}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
-        className="bg-muted/10 [&_.react-flow\_\_node]:outline-none! [&_.react-flow\_\_node]:shadow-none! [&_.react-flow\_\_node:focus]:!outline-none [&_.react-flow\_\_node:focus-visible]:!outline-none [&_.react-flow\_\_node.selected]:!outline-none [&_.react-flow\_\_node.selected]:!shadow-none"
+        className="bg-muted/10 [&_.react-flow\_\_node]:outline-none! [&_.react-flow\_\_node]:shadow-none! [&_.react-flow\_\_node:focus]:outline-none! [&_.react-flow\_\_node:focus-visible]:outline-none! [&_.react-flow\_\_node.selected]:outline-none! [&_.react-flow\_\_node.selected]:shadow-none!"
       >
         <Background
           variant={BackgroundVariant.Dots}
@@ -289,7 +316,7 @@ function CanvasInner({
           className="text-muted-foreground/20"
         />
         <Controls
-          className="!rounded-md !border-border !bg-card !shadow-sm [&_button]:!border-border [&_button]:!bg-card [&_button]:!text-foreground [&_button:hover]:!bg-muted"
+          className="rounded-md! border-border! bg-card! shadow-sm! [&_button]:border-border! [&_button]:bg-card! [&_button]:text-foreground! [&_button:hover]:bg-muted!"
           position="bottom-left"
           showInteractive={false}
         >
@@ -309,7 +336,7 @@ function ZoomLevelIndicator() {
     <ControlButton
       onClick={() => zoomTo(1, { duration: 250 })}
       title="Zoom level. Click to reset to 100%"
-      className="!font-mono !text-[10px] !font-medium"
+      className="font-mono! text-[10px]! font-medium!"
     >
       {zoomPercent}%
     </ControlButton>

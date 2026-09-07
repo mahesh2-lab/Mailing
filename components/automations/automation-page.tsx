@@ -24,6 +24,7 @@ import {
 import { AutomationList } from "./automation-list";
 import { ExecutionHistory } from "./execution-history";
 import { toast } from "sonner";
+import { generateId } from "@/lib/utils";
 
 export function AutomationPage() {
   const router = useRouter();
@@ -69,8 +70,9 @@ export function AutomationPage() {
   }, []);
 
   async function handleCreateNew() {
+    const newAutoId = generateId();
     const newAuto: Automation = {
-      id: `auto-${Date.now()}`,
+      id: newAutoId,
       name: "New Workflow",
       description: "Triggered on inbound message",
       enabled: false,
@@ -80,7 +82,7 @@ export function AutomationPage() {
       successRate: 100,
       nodes: [
         {
-          id: "node-root",
+          id: generateId(),
           type: "trigger_email_received",
           category: "trigger",
           title: "Email Received",
@@ -132,11 +134,26 @@ export function AutomationPage() {
   }
 
   async function handleDuplicate(automation: Automation) {
+    const idMap = new Map<string, string>();
+    const duplicatedNodes = (automation.nodes || []).map((node) => {
+      const newId = generateId();
+      idMap.set(node.id, newId);
+      return { ...node, id: newId };
+    });
+    const duplicatedEdges = (automation.edges || []).map((edge) => ({
+      ...edge,
+      id: generateId(),
+      from: idMap.get(edge.from) || edge.from,
+      to: idMap.get(edge.to) || edge.to,
+    }));
+
     const duplicated: Automation = {
       ...automation,
-      id: `auto-${Date.now()}`,
+      id: generateId(),
       name: `${automation.name} (Copy)`,
       enabled: false,
+      nodes: duplicatedNodes,
+      edges: duplicatedEdges,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       runCount: 0,
@@ -179,7 +196,7 @@ export function AutomationPage() {
           simulated: false,
           triggerSource: "Live Interactive Test",
           email: {
-            id: `test-email-${Date.now().toString().slice(-4)}`,
+            id: generateId(),
             from: "Billing Department <billing@acme.corp>",
             to: ["mahesh@heymahesh.in"],
             subject: "Invoice #9021 for Professional Services",
@@ -218,16 +235,27 @@ export function AutomationPage() {
     }
   }
 
-
-
   async function handleCreateFromTemplate(template: {
     name: string;
     description: string;
     nodes: WorkflowNode[];
     edges: WorkflowEdge[];
   }) {
+    const idMap = new Map<string, string>();
+    const newNodes = template.nodes.map((node) => {
+      const newId = generateId();
+      idMap.set(node.id, newId);
+      return { ...node, id: newId };
+    });
+    const newEdges = template.edges.map((edge) => ({
+      ...edge,
+      id: generateId(),
+      from: idMap.get(edge.from) || edge.from,
+      to: idMap.get(edge.to) || edge.to,
+    }));
+
     const newAuto: Automation = {
-      id: `auto-${Date.now()}`,
+      id: generateId(),
       name: template.name,
       description: template.description,
       enabled: false,
@@ -235,8 +263,8 @@ export function AutomationPage() {
       updatedAt: new Date().toISOString(),
       runCount: 0,
       successRate: 100,
-      nodes: template.nodes,
-      edges: template.edges,
+      nodes: newNodes,
+      edges: newEdges,
     };
 
     try {

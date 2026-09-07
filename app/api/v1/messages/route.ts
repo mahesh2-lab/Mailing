@@ -163,7 +163,7 @@ export async function POST(request: Request) {
 
     const storedAttachments = (attachments || []).map(
       (att: any, idx: number) => ({
-        id: att.id || `att_${idx}_${Date.now()}`,
+        id: att.id || crypto.randomUUID(),
         filename: att.filename,
         size: att.size || 0,
         content_type: att.type || "application/octet-stream",

@@ -10,6 +10,7 @@ import { AutomationBuilder } from "@/components/automations/automation-builder";
 import { ExecutionDetails } from "@/components/automations/execution-details";
 import { Automation, CustomTool, ExecutionRun } from "@/components/automations/automation-types";
 import { toast } from "sonner";
+import { generateId } from "@/lib/utils";
 
 export default function AutomationEditorPage() {
   const params = useParams();
@@ -107,7 +108,7 @@ export default function AutomationEditorPage() {
           simulated: false,
           triggerSource: "Live Interactive Test",
           email: {
-            id: `test-email-${Date.now().toString().slice(-4)}`,
+            id: generateId(),
             from: "Billing Department <billing@acme.corp>",
             to: ["mahesh@heymahesh.in"],
             subject: "Invoice #9021 for Professional Services",

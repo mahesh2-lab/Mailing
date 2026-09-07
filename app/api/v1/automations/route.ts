@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const id = body.id || `auto-${Date.now()}`;
+    const id = body.id || crypto.randomUUID();
     const now = new Date().toISOString();
 
     const record = {

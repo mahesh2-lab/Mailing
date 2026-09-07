@@ -115,8 +115,11 @@ export function ExecutionHistory({
                     <span className="font-semibold text-xs text-foreground">
                       {run.automationName}
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      #{run.id}
+                    <span
+                      className="text-[10px] text-muted-foreground font-mono"
+                      title={run.id}
+                    >
+                      #{run.id.slice(0, 8)}
                     </span>
                     <Badge
                       variant="outline"
