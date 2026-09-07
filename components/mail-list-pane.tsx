@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, Pencil, RefreshCw, Star, Tag, Trash2 } from "lucide-react";
+import { Check, Paperclip, Pencil, RefreshCw, Star, Tag, Trash2, X } from "lucide-react";
 import axios from "axios";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { MailItem } from "../hooks/use-mail";
@@ -54,6 +54,7 @@ interface EmailRowProps {
   isSelected: boolean;
   isActioning: boolean;
   primaryActions: MailActionConfig[];
+  isSelectionMode: boolean;
   onOpen: (item: MailItem) => void;
   onToggleSelect: (id: string) => void;
   onStarToggle: (id: string, starred: boolean) => void;
@@ -66,19 +67,94 @@ const EmailRow = memo(function EmailRow({
   isSelected,
   isActioning,
   primaryActions,
+  isSelectionMode,
   onOpen,
   onToggleSelect,
   onStarToggle,
   onSingleAction,
 }: EmailRowProps) {
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressTriggeredRef = useRef(false);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const startLongPress = useCallback(
+    (clientX: number, clientY: number) => {
+      isLongPressTriggeredRef.current = false;
+      startPosRef.current = { x: clientX, y: clientY };
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+
+      longPressTimerRef.current = setTimeout(() => {
+        isLongPressTriggeredRef.current = true;
+        if (typeof window !== "undefined" && "vibrate" in navigator) {
+          try {
+            navigator.vibrate(40);
+          } catch {}
+        }
+        onToggleSelect(item.id);
+      }, 420);
+    },
+    [item.id, onToggleSelect],
+  );
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    startPosRef.current = null;
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    startLongPress(e.clientX, e.clientY);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!startPosRef.current) return;
+    const dx = Math.abs(e.clientX - startPosRef.current.x);
+    const dy = Math.abs(e.clientY - startPosRef.current.y);
+    if (dx > 8 || dy > 8) {
+      cancelLongPress();
+    }
+  };
+
+  const handlePointerUp = () => {
+    cancelLongPress();
+  };
+
+  const handlePointerCancel = () => {
+    cancelLongPress();
+  };
+
+  const handleClick = () => {
+    if (isLongPressTriggeredRef.current) {
+      isLongPressTriggeredRef.current = false;
+      return;
+    }
+    if (isSelectionMode) {
+      onToggleSelect(item.id);
+      return;
+    }
+    onOpen(item);
+  };
+
   return (
     <article
       className={`email-row ${isOpen ? "selected" : ""} ${
-        item.unread ? "unread" : ""
-      } ${isActioning ? "actioning" : ""}`}
-      onClick={() => onOpen(item)}
+        isSelected ? "item-selected" : ""
+      } ${item.unread ? "unread" : ""} ${isActioning ? "actioning" : ""}`}
+      onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onContextMenu={(e) => {
+        if (isLongPressTriggeredRef.current) {
+          e.preventDefault();
+        }
+      }}
     >
-      {/* Selection & star controls */}
+      {/* Desktop Checkbox & Star controls */}
       <div
         onClick={(e) => e.stopPropagation()}
         className="flex items-center gap-1.5 pt-0.5 shrink-0"
@@ -87,7 +163,7 @@ const EmailRow = memo(function EmailRow({
           checked={isSelected}
           onCheckedChange={() => onToggleSelect(item.id)}
           aria-label={`Select ${item.sender.name}`}
-          className="size-3.5"
+          className="size-3.5 hidden md:inline-flex"
         />
         <Tooltip>
           <TooltipTrigger
@@ -116,20 +192,36 @@ const EmailRow = memo(function EmailRow({
         </Tooltip>
       </div>
 
-      <Avatar className="size-7 shrink-0 mt-0.5">
-        {item.sender.avatarUrl && (
-          <AvatarImage src={item.sender.avatarUrl} alt={item.sender.name} />
+      {/* Avatar / Selection Indicator */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleSelect(item.id);
+        }}
+        className="relative size-7 shrink-0 mt-0.5 cursor-pointer select-none"
+        title={isSelected ? "Deselect" : "Select"}
+      >
+        {isSelected ? (
+          <div className="size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center animate-in zoom-in-75 duration-150 shadow-xs">
+            <Check className="size-3.5 stroke-[2.5]" />
+          </div>
+        ) : (
+          <Avatar className="size-7">
+            {item.sender.avatarUrl && (
+              <AvatarImage src={item.sender.avatarUrl} alt={item.sender.name} />
+            )}
+            <AvatarFallback
+              style={{
+                background: avatarColor(item.sender.name),
+                color: "#ffffff",
+              }}
+              className="text-[10px] font-semibold"
+            >
+              {getInitials(item.sender.name)}
+            </AvatarFallback>
+          </Avatar>
         )}
-        <AvatarFallback
-          style={{
-            background: avatarColor(item.sender.name),
-            color: "#ffffff",
-          }}
-          className="text-[10px] font-semibold"
-        >
-          {getInitials(item.sender.name)}
-        </AvatarFallback>
-      </Avatar>
+      </div>
 
       <div className="email-copy min-w-0 flex-1">
         <div className="flex items-center justify-between gap-1 mb-0.5">
@@ -285,6 +377,111 @@ export default function MailListPane() {
   const [selected, setSelected] = useState<string[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
   const hasAutoSelectedRef = useRef(false);
+
+  // Pull-to-refresh state
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0 || isRefreshing) {
+      touchStartY.current = null;
+      return;
+    }
+    touchStartY.current = e.touches[0].clientY;
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY.current === null || isRefreshing || !scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0) {
+      touchStartY.current = null;
+      setIsPulling(false);
+      setPullDistance(0);
+      return;
+    }
+    const currentY = e.touches[0].clientY;
+    const currentX = e.touches[0].clientX;
+    const diffY = currentY - touchStartY.current;
+    const diffX = currentX - (touchStartX.current ?? currentX);
+
+    if (Math.abs(diffX) > Math.abs(diffY)) return;
+
+    if (diffY > 0) {
+      const damped = Math.min(Math.pow(diffY, 0.82) * 1.6, 90);
+      setPullDistance(damped);
+      setIsPulling(true);
+    } else {
+      setPullDistance(0);
+      setIsPulling(false);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPulling || isRefreshing) {
+      touchStartY.current = null;
+      return;
+    }
+    touchStartY.current = null;
+
+    if (pullDistance >= 48) {
+      setIsRefreshing(true);
+      setPullDistance(46);
+      setIsPulling(false);
+
+      if (typeof window !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate(25);
+        } catch {}
+      }
+
+      refresh();
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      toast.success("Refreshed");
+      setIsRefreshing(false);
+      setPullDistance(0);
+    } else {
+      setIsPulling(false);
+      setPullDistance(0);
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0 || isRefreshing) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    touchStartY.current = e.clientY;
+    touchStartX.current = e.clientX;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (touchStartY.current === null || isRefreshing || !scrollRef.current) return;
+    if (scrollRef.current.scrollTop > 0) {
+      touchStartY.current = null;
+      setIsPulling(false);
+      setPullDistance(0);
+      return;
+    }
+    const diffY = e.clientY - touchStartY.current;
+    const diffX = e.clientX - (touchStartX.current ?? e.clientX);
+    if (Math.abs(diffX) > Math.abs(diffY)) return;
+
+    if (diffY > 8) {
+      const damped = Math.min(Math.pow(diffY - 8, 0.82) * 1.6, 90);
+      setPullDistance(damped);
+      setIsPulling(true);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (touchStartY.current !== null) {
+      handleTouchEnd();
+    }
+  };
 
   const [allLabels, setAllLabels] = useState<
     Array<{ id: string; name: string }>
@@ -669,13 +866,22 @@ export default function MailListPane() {
           {selected.length > 0 ? (
             <>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="h-6 w-6 md:hidden text-muted-foreground hover:text-foreground"
+                  onClick={() => setSelected([])}
+                  aria-label="Clear selection"
+                >
+                  <X className="size-3.5" />
+                </Button>
                 <Checkbox
                   checked={
                     selected.length === visible.length && visible.length > 0
                   }
                   onCheckedChange={selectAll}
                   aria-label="Select all conversations"
-                  className="size-3.5"
+                  className="size-3.5 hidden md:inline-flex"
                 />
                 <span className="text-xs font-medium text-foreground">
                   {selected.length} selected
@@ -784,7 +990,7 @@ export default function MailListPane() {
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        className={`h-7 w-7 text-muted-foreground hover:text-foreground ${
+                        className={`hidden md:inline-flex h-7 w-7 text-muted-foreground hover:text-foreground ${
                           isFetching ? "animate-spin" : ""
                         }`}
                         onClick={() => {
@@ -804,8 +1010,44 @@ export default function MailListPane() {
           )}
         </div>
 
+        {/* Pull to refresh indicator on mobile */}
+        <div
+          className="pull-refresh-container flex md:hidden items-center justify-center overflow-hidden transition-all pointer-events-none"
+          style={{
+            height: `${pullDistance}px`,
+            opacity: pullDistance > 8 || isRefreshing ? 1 : 0,
+            transition: isPulling ? "none" : "height 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease",
+          }}
+          aria-hidden={!isRefreshing}
+        >
+          <div className="size-8 rounded-full bg-card border border-border shadow-xs flex items-center justify-center text-primary">
+            <RefreshCw
+              className={`size-3.5 ${
+                isRefreshing ? "animate-spin text-brand" : "text-muted-foreground"
+              }`}
+              style={{
+                transform: isRefreshing
+                  ? undefined
+                  : `rotate(${Math.min(360, pullDistance * 6)}deg)`,
+                transition: isRefreshing ? undefined : "transform 0.05s linear",
+              }}
+            />
+          </div>
+        </div>
+
         {/* Email list */}
-        <div className={`email-list ${isFetching ? "fetching" : ""}`}>
+        <div
+          ref={scrollRef}
+          className={`email-list ${isFetching ? "fetching" : ""}`}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
           {initialLoading && <SkeletonRows />}
 
           {!initialLoading && error && (
@@ -825,6 +1067,7 @@ export default function MailListPane() {
                 isSelected={selected.includes(item.id)}
                 isActioning={actioning === item.id}
                 primaryActions={primaryActions}
+                isSelectionMode={selected.length > 0}
                 onOpen={handleOpen}
                 onToggleSelect={toggleSelect}
                 onStarToggle={handleStarToggle}

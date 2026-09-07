@@ -398,7 +398,7 @@ export function AutomationBuilder({
       </div>
 
       {/* Main Builder Area: Node Palette (Left) + Full Canvas (Center) + Floating Overlay Config */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex w-full overflow-hidden relative">
         <NodePicker
           onSelectNode={handleAddNodeFromPicker}
           customTools={customTools}

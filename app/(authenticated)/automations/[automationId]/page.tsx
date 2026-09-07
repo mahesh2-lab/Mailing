@@ -167,7 +167,7 @@ export default function AutomationEditorPage() {
       <SiteNav current="automations" className="!mb-0 px-4 !min-h-12 border-b border-border bg-background z-20 shrink-0" />
 
       {/* Editor Component */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex w-full overflow-hidden">
         <AutomationBuilder
           automation={automation}
           customTools={customTools}
