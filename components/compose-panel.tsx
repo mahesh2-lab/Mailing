@@ -25,6 +25,7 @@ import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { toast } from "sonner";
 import { generateId } from "@/lib/utils";
+import { compressImage, formatFileSize } from "@/lib/image-compressor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -359,26 +360,70 @@ export default function ComposePanel() {
   }
 
   async function handleFiles(files: File[]) {
+    const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB safe limit for serverless request payload
+    let currentTotal = attachments.reduce((acc, a) => acc + a.size, 0);
+
     const newItems: AttachedFile[] = [];
-    for (const file of files) {
+    for (const rawFile of files) {
+      let fileToAttach = rawFile;
+      let wasCompressed = false;
+      const originalSize = rawFile.size;
+
+      // Check single non-image file size limit
+      if (!rawFile.type.startsWith("image/") && rawFile.size > 3.5 * 1024 * 1024) {
+        toast.error(`${rawFile.name} exceeds 3.5 MB attachment limit.`);
+        continue;
+      }
+
+      // If image is larger than 1MB, automatically compress client-side while preserving aspect ratio
+      if (rawFile.type.startsWith("image/") && rawFile.size > 1024 * 1024) {
+        try {
+          const compResult = await compressImage(rawFile, {
+            maxWidth: 1920,
+            maxHeight: 1920,
+            quality: 0.85,
+            cropToSquare: false,
+            outputType: "image/jpeg",
+            maxOutputSizeBytes: 800 * 1024,
+          });
+          fileToAttach = compResult.file;
+          wasCompressed = true;
+        } catch {
+          // If compression fails, proceed with original file
+        }
+      }
+
+      if (currentTotal + fileToAttach.size > MAX_TOTAL_SIZE) {
+        toast.error(`Cannot attach ${rawFile.name}: Total attachments exceed 4 MB limit.`);
+        continue;
+      }
+
       try {
-        const base64 = await fileToBase64(file);
+        const base64 = await fileToBase64(fileToAttach);
         newItems.push({
           id: generateId(),
-          name: file.name,
-          size: file.size,
-          type: file.type || "application/octet-stream",
+          name: fileToAttach.name,
+          size: fileToAttach.size,
+          type: fileToAttach.type || "application/octet-stream",
           base64,
-          url: URL.createObjectURL(file),
+          url: URL.createObjectURL(fileToAttach),
         });
+        currentTotal += fileToAttach.size;
+
+        if (wasCompressed) {
+          toast.info(`Optimized ${rawFile.name} (${formatFileSize(originalSize)} → ${formatFileSize(fileToAttach.size)})`);
+        }
       } catch {
-        toast.error(`Failed to attach ${file.name}`);
+        toast.error(`Failed to attach ${rawFile.name}`);
       }
     }
-    setAttachments((prev) => [...prev, ...newItems]);
-    toast.success(
-      `Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`,
-    );
+
+    if (newItems.length > 0) {
+      setAttachments((prev) => [...prev, ...newItems]);
+      toast.success(
+        `Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`,
+      );
+    }
   }
 
   function removeAttachment(id: string) {

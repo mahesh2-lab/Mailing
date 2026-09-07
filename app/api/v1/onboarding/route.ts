@@ -4,6 +4,8 @@ import { userApiKeys, userSettings } from "@/src/db/schema";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { encrypt } from "@/src/lib/crypto";
 import { eq, and } from "drizzle-orm";
+import { verifyResendCredentials } from "@/lib/resend-verify";
+import { validateProfileImagePayload } from "@/lib/image-compressor";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +19,34 @@ export async function POST(req: NextRequest) {
 
     if (!senderName || !senderEmail || !resendApiKey) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // Validate profile image payload restrictions
+    if (profileImage) {
+      const imageValidation = validateProfileImagePayload(profileImage);
+      if (!imageValidation.valid) {
+        return NextResponse.json(
+          { error: imageValidation.error || "Profile image exceeds size limits." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify Resend API Key and Webhook Secret before proceeding
+    const verification = await verifyResendCredentials({
+      apiKey: resendApiKey,
+      webhookSecret: resendWebhookSecret,
+      senderEmail,
+    });
+
+    if (!verification.valid) {
+      return NextResponse.json(
+        {
+          error: verification.error || "Resend verification failed",
+          field: verification.field,
+        },
+        { status: 400 }
+      );
     }
 
     // Update user profile

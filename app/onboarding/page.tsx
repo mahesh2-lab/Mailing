@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/src/lib/auth-client";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, ShieldCheck, AlertCircle, Sparkles, Image as ImageIcon, X } from "lucide-react";
+import { compressImage, validateImageFile, formatFileSize, validateProfileImagePayload } from "@/lib/image-compressor";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -11,7 +12,26 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [verifyStatus, setVerifyStatus] = useState<string | null>(null);
+  const [verificationResult, setVerificationResult] = useState<{
+    valid: boolean;
+    domains?: Array<{ id: string; name: string; status: string }>;
+    webhooksCount?: number;
+    domainMatch?: { domain: string; verified: boolean; warning?: string };
+    message?: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Image upload and compression states
+  const [compressingImage, setCompressingImage] = useState(false);
+  const [imageStats, setImageStats] = useState<{
+    originalSize: string;
+    compressedSize: string;
+    savedPercentage: number;
+  } | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const [formData, setFormData] = useState({
     profileName: "",
@@ -21,6 +41,48 @@ export default function OnboardingPage() {
     resendApiKey: "",
     resendWebhookSecret: "",
   });
+
+  const handleProcessImage = async (file: File) => {
+    setImageError(null);
+    setError(null);
+
+    // 1. Validate input file restrictions
+    const validation = validateImageFile(file, {
+      maxSizeBytes: 15 * 1024 * 1024, // 15MB input limit
+    });
+    if (!validation.valid) {
+      setImageError(validation.error || "Invalid image file");
+      return;
+    }
+
+    try {
+      setCompressingImage(true);
+      // 2. Client-side canvas compression: resize & center-crop to 400x400 WebP
+      const result = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.82,
+        cropToSquare: true,
+        maxOutputSizeBytes: 150 * 1024, // Guaranteed < 150KB
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        profileImage: result.dataUrl,
+      }));
+
+      setImageStats({
+        originalSize: result.formattedOriginalSize,
+        compressedSize: result.formattedCompressedSize,
+        savedPercentage: result.savedPercentage,
+      });
+    } catch (err: any) {
+      console.error("Image processing error:", err);
+      setImageError(err.message || "Failed to process image");
+    } finally {
+      setCompressingImage(false);
+    }
+  };
 
   // Pre-fill profile info if available
   useEffect(() => {
@@ -53,6 +115,52 @@ export default function OnboardingPage() {
     setStep((prev) => prev - 1);
   };
 
+  const handleCheckConnection = async (): Promise<boolean> => {
+    if (!formData.resendApiKey.trim()) {
+      setError("Please enter your Resend API Key to test connection");
+      return false;
+    }
+
+    setChecking(true);
+    setError(null);
+    setVerifyStatus("Checking Resend API key and webhook secret...");
+
+    try {
+      const res = await fetch("/api/v1/resend/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: formData.resendApiKey,
+          webhookSecret: formData.resendWebhookSecret || undefined,
+          senderEmail: formData.senderEmail,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Resend API key or webhook check failed");
+        setVerificationResult(null);
+        return false;
+      }
+
+      setVerificationResult({
+        valid: true,
+        domains: data.domains,
+        webhooksCount: data.webhooksCount,
+        domainMatch: data.domainMatch,
+        message: data.message,
+      });
+      return true;
+    } catch (err: any) {
+      setError(err.message || "Failed to reach verification service");
+      setVerificationResult(null);
+      return false;
+    } finally {
+      setChecking(false);
+      setVerifyStatus(null);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.resendApiKey) {
@@ -62,6 +170,26 @@ export default function OnboardingPage() {
 
     setLoading(true);
     setError(null);
+    setVerifyStatus("Verifying Resend API and webhook credentials before proceeding...");
+
+    // Mandatory Resend API and Webhook check before proceeding
+    const isValid = await handleCheckConnection();
+    if (!isValid) {
+      setLoading(false);
+      setVerifyStatus(null);
+      return;
+    }
+
+    // Safety check on profile image payload size before dispatch
+    if (formData.profileImage) {
+      const imgCheck = validateProfileImagePayload(formData.profileImage);
+      if (!imgCheck.valid) {
+        setError(imgCheck.error || "Profile image exceeds size limits. Please select a compressed image.");
+        setLoading(false);
+        setVerifyStatus(null);
+        return;
+      }
+    }
 
     try {
       const res = await fetch("/api/v1/onboarding", {
@@ -90,6 +218,7 @@ export default function OnboardingPage() {
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
+      setVerifyStatus(null);
     }
   };
 
@@ -111,7 +240,7 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white selection:bg-zinc-900 selection:text-white flex-col relative overflow-hidden">
         {/* Animated background subtle glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-zinc-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-zinc-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
         
         <div className="relative z-10 flex flex-col items-center">
           {/* Animated icon / loader */}
@@ -119,7 +248,7 @@ export default function OnboardingPage() {
             <svg className="absolute inset-0 w-full h-full text-zinc-100" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="6" />
             </svg>
-            <svg className="absolute inset-0 w-full h-full text-(--brand) animate-spin" viewBox="0 0 100 100">
+            <svg className="absolute inset-0 w-full h-full text-brand animate-spin" viewBox="0 0 100 100">
               <circle 
                 cx="50" 
                 cy="50" 
@@ -169,7 +298,7 @@ export default function OnboardingPage() {
       `}} />
       <div className="min-h-screen flex flex-col md:flex-row overflow-x-hidden font-sans selection:bg-zinc-900 selection:text-white">
         {/* BEGIN: LeftSidebar */}
-        <aside className="w-full md:w-[380px] lg:w-[420px] shrink-0 border-b md:border-b-0 md:border-r border-zinc-200/80 bg-[#FAFAFA] flex flex-col justify-between p-8 lg:p-12">
+        <aside className="w-full md:w-95 lg:w-105 shrink-0 border-b md:border-b-0 md:border-r border-zinc-200/80 bg-[#FAFAFA] flex flex-col justify-between p-8 lg:p-12">
           <div className="space-y-12">
             {/* App Brand / Logo */}
             <div className="flex items-center gap-2.5">
@@ -208,7 +337,7 @@ export default function OnboardingPage() {
                 {/* Continuous connecting line */}
                 <div
                   aria-hidden="true"
-                  className="absolute left-[13px] top-3 bottom-3 w-[1.5px] bg-zinc-200"
+                  className="absolute left-3.25 top-3 bottom-3 w-[1.5px] bg-zinc-200"
                 ></div>
                 
                 {steps.map((s) => {
@@ -267,7 +396,7 @@ export default function OnboardingPage() {
 
         {/* BEGIN: MainContent */}
         <main className="flex-1 flex items-center justify-center p-6 md:p-12 lg:p-16 overflow-y-auto bg-white">
-          <div className="w-full max-w-[500px] py-4">
+          <div className="w-full max-w-125 py-4">
             
             {/* Form Header */}
             <header className="mb-8">
@@ -324,7 +453,7 @@ export default function OnboardingPage() {
                       </div>
                     </div>
 
-                    {/* Field 2: Profile Image Elevated UX Zone */}
+                    {/* Field 2: Profile Image Elevated UX Zone with Client-side Compression */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="block text-xs font-medium text-zinc-700 uppercase tracking-wide">
@@ -333,16 +462,45 @@ export default function OnboardingPage() {
                             (optional)
                           </span>
                         </label>
-                        <span className="text-xs text-zinc-400">Max 5MB</span>
+                        <span className="text-xs text-zinc-400">Auto-compressed (Max 15MB)</span>
                       </div>
 
                       {/* Elevated Drag & Drop Card Container */}
-                      <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-4 sm:p-5 transition hover:bg-zinc-50/70">
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingOver(true);
+                        }}
+                        onDragEnter={(e) => {
+                          e.preventDefault();
+                          setIsDraggingOver(true);
+                        }}
+                        onDragLeave={(e) => {
+                          e.preventDefault();
+                          setIsDraggingOver(false);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingOver(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleProcessImage(file);
+                        }}
+                        className={`rounded-xl border transition-all duration-200 p-4 sm:p-5 ${
+                          isDraggingOver
+                            ? "border-zinc-900 bg-zinc-100/90 shadow-sm ring-2 ring-zinc-900/10"
+                            : "border-zinc-200/90 bg-zinc-50/40 hover:bg-zinc-50/70"
+                        }`}
+                      >
                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5">
                           {/* Avatar Preview with quick hover badge */}
                           <div className="relative group shrink-0">
                             <div className="relative h-20 w-20 rounded-full border-2 border-dashed border-zinc-300 bg-white flex items-center justify-center overflow-hidden shadow-sm transition-all duration-200 group-hover:border-zinc-400">
-                              {formData.profileImage ? (
+                              {compressingImage ? (
+                                <div className="flex flex-col items-center justify-center gap-1 text-zinc-600">
+                                  <Loader2 className="w-6 h-6 animate-spin text-zinc-900" />
+                                  <span className="text-[9px] font-medium uppercase tracking-tight">Optimizing</span>
+                                </div>
+                              ) : formData.profileImage ? (
                                 <img
                                   src={formData.profileImage}
                                   alt="Avatar preview"
@@ -364,28 +522,31 @@ export default function OnboardingPage() {
                               )}
                               
                               {/* Subtle overlay edit on hover */}
-                              <div
-                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full cursor-pointer"
-                                onClick={() => document.getElementById("file-upload")?.click()}
-                              >
-                                <svg
-                                  className="w-5 h-5 text-white"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  viewBox="0 0 24 24"
+                              {!compressingImage && (
+                                <div
+                                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full cursor-pointer"
+                                  onClick={() => document.getElementById("file-upload")?.click()}
+                                  title="Change photo"
                                 >
-                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                  <polyline points="17 8 12 3 7 8"></polyline>
-                                  <line x1="12" x2="12" y1="3" y2="15"></line>
-                                </svg>
-                              </div>
+                                  <svg
+                                    className="w-5 h-5 text-white"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" x2="12" y1="3" y2="15"></line>
+                                  </svg>
+                                </div>
+                              )}
                             </div>
 
                             {/* Verified status indicator / small badge */}
-                            {formData.profileImage && (
+                            {formData.profileImage && !compressingImage && (
                               <span
                                 className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 ring-2 ring-white"
                                 title="Ready to upload"
@@ -394,25 +555,29 @@ export default function OnboardingPage() {
                           </div>
 
                           {/* Drag & Drop / Details Area */}
-                          <div className="flex-1 text-center sm:text-left min-w-0">
+                          <div className="flex-1 text-center sm:text-left min-w-0 w-full">
                             {/* Dropzone trigger area */}
                             <label className="cursor-pointer block" htmlFor="file-upload">
                               <div className="custom-dashed-border rounded-xl p-3.5 sm:p-4 bg-white hover:border-zinc-400 transition text-center sm:text-left">
                                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 justify-center sm:justify-start">
                                   <div className="h-7 w-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 shrink-0">
-                                    <svg
-                                      className="w-4 h-4"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth="2"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
-                                      <path d="M12 12v9"></path>
-                                      <path d="m16 16-4-4-4 4"></path>
-                                    </svg>
+                                    {compressingImage ? (
+                                      <Loader2 className="w-4 h-4 animate-spin text-zinc-900" />
+                                    ) : (
+                                      <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path>
+                                        <path d="M12 12v9"></path>
+                                        <path d="m16 16-4-4-4 4"></path>
+                                      </svg>
+                                    )}
                                   </div>
                                   <div>
                                     <p className="text-xs font-semibold text-zinc-900">
@@ -422,7 +587,7 @@ export default function OnboardingPage() {
                                       or drag & drop
                                     </p>
                                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                                      PNG, JPG, or WebP (square recommended)
+                                      PNG, JPG, or WebP (client-side compressed to &lt;150KB)
                                     </p>
                                   </div>
                                 </div>
@@ -430,50 +595,64 @@ export default function OnboardingPage() {
                               <input
                                 id="file-upload"
                                 type="file"
-                                accept="image/*"
+                                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
                                 className="sr-only"
+                                disabled={compressingImage}
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        profileImage: ev.target?.result as string,
-                                      }));
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
+                                  if (file) handleProcessImage(file);
+                                  e.target.value = "";
                                 }}
                               />
                               <input
                                 id="camera-upload"
                                 type="file"
-                                accept="image/*"
+                                accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
                                 capture="user"
                                 className="sr-only"
+                                disabled={compressingImage}
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        profileImage: ev.target?.result as string,
-                                      }));
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
+                                  if (file) handleProcessImage(file);
+                                  e.target.value = "";
                                 }}
                               />
                             </label>
 
-                            {/* Micro Action Buttons: Upload & Camera */}
+                            {/* Compression success badge or error notice */}
+                            {imageStats && !imageError && (
+                              <div className="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50/80 border border-emerald-200/60 rounded-md px-2.5 py-1">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>
+                                  Optimized: <strong>{imageStats.compressedSize}</strong>{" "}
+                                  <span className="text-emerald-600">(-{imageStats.savedPercentage}% saved from {imageStats.originalSize})</span>
+                                </span>
+                              </div>
+                            )}
+
+                            {imageError && (
+                              <div className="mt-2.5 flex items-center justify-between gap-1.5 text-xs text-red-700 bg-red-50/80 border border-red-200/60 rounded-md px-2.5 py-1">
+                                <div className="flex items-center gap-1.5">
+                                  <AlertCircle className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                                  <span>{imageError}</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setImageError(null)}
+                                  className="text-red-500 hover:text-red-700 p-0.5"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Micro Action Buttons: Upload & Camera & Remove */}
                             <div className="flex items-center justify-center sm:justify-start gap-2 mt-3">
                               <button
                                 type="button"
+                                disabled={compressingImage}
                                 onClick={() => document.getElementById("file-upload")?.click()}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition disabled:opacity-50"
                                 style={{
                                   fontSize:"12px"
                                 }}
@@ -495,8 +674,9 @@ export default function OnboardingPage() {
                               </button>
                               <button
                                 type="button"
+                                disabled={compressingImage}
                                 onClick={() => document.getElementById("camera-upload")?.click()}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition disabled:opacity-50"
                                 style={{fontSize:"12px"}}
                               >
                                 <svg
@@ -516,8 +696,13 @@ export default function OnboardingPage() {
                               {formData.profileImage && (
                                 <button
                                   type="button"
-                                  onClick={() => setFormData(prev => ({ ...prev, profileImage: "" }))}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none transition"
+                                  disabled={compressingImage}
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, profileImage: "" }));
+                                    setImageStats(null);
+                                    setImageError(null);
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none transition disabled:opacity-50"
                                   style={{fontSize:"12px"}}
                                 >
                                   Remove
@@ -558,7 +743,6 @@ export default function OnboardingPage() {
                       <input
                         type="email"
                         required
-                        value={formData.senderEmail}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
@@ -578,49 +762,139 @@ export default function OnboardingPage() {
 
               {step === 3 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                  <div className="space-y-7">
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1.5 uppercase tracking-wide">
-                        Resend API Key
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-medium text-zinc-700 uppercase tracking-wide">
+                          Resend API Key
+                        </label>
+                        <span className="text-[11px] text-zinc-400">
+                          Format: <code className="font-mono text-zinc-600">re_...</code>
+                        </span>
+                      </div>
                       <input
                         type="password"
                         autoFocus
                         required
                         value={formData.resendApiKey}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setFormData({
                             ...formData,
                             resendApiKey: e.target.value,
-                          })
-                        }
+                          });
+                          setVerificationResult(null);
+                          setError(null);
+                        }}
                         placeholder="re_..."
-                        className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm font-mono"
                       />
+                      <p className="text-[11px] text-zinc-500 mt-1.5">
+                        Found in your <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="underline hover:text-zinc-900">Resend dashboard &rarr; API Keys</a>.
+                      </p>
                     </div>
+
                     <div>
-                      <label className="block text-xs font-medium text-zinc-700 mb-1.5 uppercase tracking-wide">
-                        Resend Webhook Secret{" "}
-                        <span className="text-zinc-400 font-normal lowercase">
-                          (optional)
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-medium text-zinc-700 uppercase tracking-wide">
+                          Resend Webhook Secret{" "}
+                          <span className="text-zinc-400 font-normal lowercase">
+                            (optional)
+                          </span>
+                        </label>
+                        <span className="text-[11px] text-zinc-400">
+                          Format: <code className="font-mono text-zinc-600">whsec_...</code>
                         </span>
-                      </label>
+                      </div>
                       <input
                         type="password"
                         value={formData.resendWebhookSecret}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setFormData({
                             ...formData,
                             resendWebhookSecret: e.target.value,
-                          })
-                        }
+                          });
+                          setVerificationResult(null);
+                          setError(null);
+                        }}
                         placeholder="whsec_..."
-                        className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm"
+                        className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm font-mono"
                       />
                       <p className="text-[11px] text-zinc-500 mt-1.5">
-                        Required if you want to receive incoming emails to Mailing.
+                        Signing secret generated by Resend Webhooks to receive inbound mail in real-time.
                       </p>
                     </div>
+
+                    {/* Pre-flight Connection Test Button */}
+                    <div className="pt-1 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={handleCheckConnection}
+                        disabled={checking || loading || !formData.resendApiKey.trim()}
+                        className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-800 hover:text-zinc-950 px-3.5 py-2 rounded-lg border border-zinc-200 bg-zinc-50/70 hover:bg-zinc-100 transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
+                      >
+                        {checking ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-600" />
+                            <span>Checking Resend credentials...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-zinc-700" />
+                            <span>Test API & Webhook Connection</span>
+                          </>
+                        )}
+                      </button>
+
+                      {verificationResult?.valid && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Ready to proceed
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Verification Card Result */}
+                    {verificationResult?.valid && (
+                      <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/70 p-4 text-xs text-emerald-950 space-y-2 animate-in fade-in duration-200 shadow-2xs">
+                        <div className="flex items-center gap-2 font-semibold text-emerald-900">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>Resend API Key verified successfully</span>
+                        </div>
+
+                        {verificationResult.domains && verificationResult.domains.length > 0 ? (
+                          <div className="text-[11px] text-emerald-800 pl-6 space-y-1">
+                            <p>
+                              <span className="font-medium">Detected sending domains:</span>{" "}
+                              <span className="font-mono bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/70">
+                                {verificationResult.domains.map((d) => d.name).join(", ")}
+                              </span>
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-emerald-700 pl-6">
+                            Connected with active sending permissions.
+                          </p>
+                        )}
+
+                        {formData.resendWebhookSecret ? (
+                          <div className="flex items-center gap-2 text-[11px] text-emerald-800 pl-6">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Webhook signing secret format validated (Svix compatible).</span>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-zinc-500 pl-6">
+                            Webhook secret omitted (inbound emails will rely on periodic sync).
+                          </p>
+                        )}
+
+                        {verificationResult.domainMatch?.warning && (
+                          <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <span>{verificationResult.domainMatch.warning}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -630,22 +904,25 @@ export default function OnboardingPage() {
                   <button
                     type="button"
                     onClick={handleBack}
-                    disabled={loading}
-                    className="h-12 px-5 rounded-lg border border-zinc-200 bg-white text-zinc-700 font-semibold text-sm flex items-center justify-center hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                    disabled={loading || checking}
+                    className="h-12 px-5 rounded-lg border border-zinc-200 bg-white text-zinc-700 font-semibold text-sm flex items-center justify-center hover:bg-zinc-50 transition-colors disabled:opacity-50 cursor-pointer"
                   >
                      Back
                   </button>
                 )}
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="group flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-950 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 active:scale-[0.99] transition duration-150 disabled:opacity-70 disabled:pointer-events-none"
+                  disabled={loading || checking}
+                  className="group flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-950 py-3 px-4 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 active:scale-[0.99] transition duration-150 disabled:opacity-70 disabled:pointer-events-none cursor-pointer"
                 >
                   {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{verifyStatus || "Verifying credentials..."}</span>
+                    </div>
                   ) : (
                     <>
-                      <span>{step === 3 ? "Complete Setup" : "Next"}</span>
+                      <span>{step === 3 ? "Complete Setup & Proceed" : "Next"}</span>
                       {step < 3 && (
                         <svg
                           className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5"

@@ -165,7 +165,7 @@ export default function AutomationEditorPage() {
   return (
     <main className="h-screen w-full flex flex-col overflow-hidden bg-background text-foreground select-none">
       {/* Site Navigation Bar */}
-      <SiteNav current="automations" className="!mb-0 px-4 !min-h-12 border-b border-border bg-background z-20 shrink-0" />
+      <SiteNav current="automations" className="mb-0! px-4 min-h-12! border-b border-border bg-background z-20 shrink-0" />
 
       {/* Editor Component */}
       <div className="flex-1 flex w-full overflow-hidden">

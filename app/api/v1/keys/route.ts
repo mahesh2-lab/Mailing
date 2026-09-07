@@ -5,6 +5,8 @@ import { userApiKeys } from "@/src/db/schema";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { verifyResendCredentials, verifyResendWebhookSecret } from "@/lib/resend-verify";
+import { decrypt } from "@/src/lib/crypto";
 
 const KeyPostSchema = z.object({
   provider: z.string().min(1, "Provider is required"),
@@ -33,6 +35,20 @@ export async function POST(request: Request) {
     }
 
     const { provider, apiKey, webhookKey, domain } = parseResult.data;
+
+    // Verify Resend credentials before proceed
+    if (provider === "Resend") {
+      const check = await verifyResendCredentials({
+        apiKey,
+        webhookSecret: webhookKey,
+      });
+      if (!check.valid) {
+        return Response.json(
+          { error: check.error || "Resend API key or webhook check failed" },
+          { status: 400 }
+        );
+      }
+    }
 
     const existing = await db.query.userApiKeys.findFirst({
       where: and(
@@ -175,6 +191,37 @@ export async function PATCH(request: Request) {
 
     if (!existing) {
       return Response.json({ error: "Key not found for this provider" }, { status: 404 });
+    }
+
+    // Verify Resend credentials before proceed
+    if (provider === "Resend" && (apiKey || webhookKey)) {
+      let keyToTest = apiKey;
+      if (!keyToTest && existing.encryptedKey) {
+        try {
+          keyToTest = await decrypt(existing.encryptedKey);
+        } catch {}
+      }
+
+      if (keyToTest) {
+        const check = await verifyResendCredentials({
+          apiKey: keyToTest,
+          webhookSecret: webhookKey,
+        });
+        if (!check.valid) {
+          return Response.json(
+            { error: check.error || "Resend API key or webhook check failed" },
+            { status: 400 }
+          );
+        }
+      } else if (webhookKey) {
+        const whCheck = verifyResendWebhookSecret(webhookKey);
+        if (!whCheck.valid) {
+          return Response.json(
+            { error: whCheck.error || "Invalid Resend webhook secret" },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const updates: any = {

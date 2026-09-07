@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { logger } from "./lib/logger";
-import { processMailFetchJob } from "./lib/mail-fetch-processor";
+import { logger } from "../lib/logger";
+import { processMailFetchJob } from "../lib/mail-fetch-processor";
 
 const connection = new IORedis(
   process.env.REDIS_URL || "redis://localhost:6379",
@@ -13,7 +13,7 @@ const connection = new IORedis(
 
 logger.info("Starting Mail Fetch Worker...");
 
-const worker = new Worker(
+export const mailWorker = new Worker(
   "mail-fetch-queue",
   async (job) => {
     logger.info({ jobId: job.id, name: job.name }, "Processing mail fetch job");
@@ -25,22 +25,22 @@ const worker = new Worker(
   },
 );
 
-worker.on("completed", (job) => {
+mailWorker.on("completed", (job) => {
   logger.info({ jobId: job.id }, "Mail fetch job completed successfully");
 });
 
-worker.on("failed", (job, err) => {
+mailWorker.on("failed", (job, err) => {
   logger.error({ jobId: job?.id, err: err.message }, "Mail fetch job failed");
 });
 
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received. Shutting down mail worker...");
-  await worker.close();
+  await mailWorker.close();
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
   logger.info("SIGINT received. Shutting down mail worker...");
-  await worker.close();
+  await mailWorker.close();
   process.exit(0);
 });

@@ -30,6 +30,8 @@ import { SiteNav } from "./site-nav";
 
 
 
+import { compressImage, validateImageFile } from "@/lib/image-compressor";
+
 function getInitials(name: string | null | undefined) {
   if (!name) return "?";
   const parts = name.trim().split(" ").filter(Boolean);
@@ -89,22 +91,35 @@ function ProfilePanel() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-    if (file.size > MAX_SIZE) {
-      setProfileError("Image must be under 2 MB.");
+    // Validate restrictions
+    const validation = validateImageFile(file, {
+      maxSizeBytes: 15 * 1024 * 1024, // 15MB input limit
+    });
+    if (!validation.valid) {
+      setProfileError(validation.error || "Please upload a valid image under 15 MB.");
       return;
     }
 
     try {
       setAvatarUploading(true);
       setProfileError("");
-      const dataUrl = await readFileAsDataUrl(file);
-      setAvatarPreview(dataUrl);
 
-      const { error } = await authClient.updateUser({ image: dataUrl });
+      // Client-side canvas compression: 400x400 square WebP (< 150KB)
+      const result = await compressImage(file, {
+        maxWidth: 400,
+        maxHeight: 400,
+        quality: 0.82,
+        cropToSquare: true,
+        maxOutputSizeBytes: 150 * 1024,
+      });
+
+      setAvatarPreview(result.dataUrl);
+
+      const { error } = await authClient.updateUser({ image: result.dataUrl });
       if (error) throw new Error(error.message ?? "Failed to update avatar");
       await refetch();
       flashSaved();
+      toast.success(`Avatar updated (${result.formattedCompressedSize}, -${result.savedPercentage}%)`);
     } catch (err: any) {
       setProfileError(err.message ?? "Failed to upload image");
       setAvatarPreview(null);
@@ -477,6 +492,8 @@ function ApiKeysPanel() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showWebhookKey, setShowWebhookKey] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -531,6 +548,43 @@ function ApiKeysPanel() {
       setError(err.message ?? "Something went wrong");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTestConnection() {
+    if (!apiKey && !editingKeyId) {
+      setError("Please enter an API key to test");
+      return;
+    }
+    setError("");
+    setTestResult(null);
+    setTesting(true);
+
+    try {
+      const res = await fetch("/api/v1/resend/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: apiKey || undefined,
+          webhookSecret: webhookKey || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Verification failed");
+      }
+      toast.success("Resend credentials verified successfully!");
+      setTestResult(
+        `✓ Connection verified! ${
+          data.domains?.length
+            ? `Found ${data.domains.length} verified domain(s): ${data.domains.map((d: any) => d.name).join(", ")}`
+            : "Active API key."
+        }`
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to verify connection");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -648,16 +702,42 @@ function ApiKeysPanel() {
             </label>
           </div>
 
+          {testResult && (
+            <p style={{ fontSize: 12, color: "#059669", marginTop: 8, fontWeight: 500 }}>
+              {testResult}
+            </p>
+          )}
+
           {error && <p className="profile-error">{error}</p>}
 
-          <div className="profile-actions">
+          <div className="profile-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              type="button"
+              className="button-secondary"
+              disabled={testing || saving || (!apiKey && !editingKeyId)}
+              onClick={handleTestConnection}
+              style={{ cursor: "pointer" }}
+            >
+              {testing ? (
+                <>
+                  <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
+                  Testing...
+                </>
+              ) : (
+                <>
+                  <Shield style={{ width: 14, height: 14 }} />
+                  Test Connection
+                </>
+              )}
+            </button>
             <button
               type="submit"
               className={`button-primary${saving ? " auth-btn-loading" : ""}`}
-              disabled={saving}
+              disabled={saving || testing}
+              style={{ cursor: "pointer" }}
             >
               {!saving && (success ? <Check /> : <KeyRound />)}
-              {saving ? "Saving…" : success ? "Saved!" : "Save key"}
+              {saving ? "Verifying & Saving…" : success ? "Saved!" : "Save key"}
             </button>
           </div>
         </form>
@@ -968,11 +1048,11 @@ export function SitePage({ type }: { type: PageKey }) {
           <p>{data.description}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <a className="button-secondary min-h-[40px]" href="/inbox">
+          <a className="button-secondary min-h-10" href="/inbox">
             <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
           </a>
           {type === "automation" && (
-            <button className="button-primary min-h-[40px]" onClick={notify}>
+            <button className="button-primary min-h-10" onClick={notify}>
               <Check /> Save changes
             </button>
           )}
