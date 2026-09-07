@@ -58,7 +58,8 @@ emails.db-journal
 *.swp
 *~
 
-# project documentation
-AGENTS.md
-SECURITY.md
-certificates
+# local TLS certificates
+certificates/
+
+# scratch / local artifacts
+/scratch/

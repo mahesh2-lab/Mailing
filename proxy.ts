@@ -11,7 +11,7 @@ const PROTECTED_PREFIXES = [
   "/archive",
   "/labels",
   "/contacts",
-  "/automation",
+  "/automations",
   "/settings",
   "/profile",
   "/help",

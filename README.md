@@ -71,8 +71,8 @@ Follow these instructions to get a local copy of the project up and running.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/mailing.git
-   cd mailing
+   git clone https://github.com/mahesh2-lab/Mailing.git
+   cd Mailing
    ```
 
 2. **Install dependencies:**
@@ -133,7 +133,6 @@ For more detailed information on configuring and contributing to the project, pl
 - [Webhook Configuration Guide](docs/webhooks.md) - Learn how to connect Resend webhooks to Mailing.
 - [Security Policy](SECURITY.md) - Learn more about our encryption and key management.
 - [Contributing Guidelines](CONTRIBUTING.md) - How to run tests and submit Pull Requests.
-- [Changelog](CHANGELOG.md) - Version history and updates.
 
 ---
 

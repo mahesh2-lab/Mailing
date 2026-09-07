@@ -267,13 +267,13 @@ export function AutomationBuilder({
             <ArrowLeft className="size-4" />
           </Button>
 
-          <div className="w-[1px] h-5 bg-border/80" />
+          <div className="w-px h-5 bg-border/80" />
 
           <div className="flex items-center gap-2.5 min-w-0">
             <Input
               value={automation.name}
               onChange={(e) => handleNameChange(e.target.value)}
-              className="h-8 text-sm font-semibold tracking-tight max-w-[240px] sm:max-w-xs border-transparent hover:border-border/60 focus:border-brand/50 focus:bg-background/80 px-2.5 rounded-lg transition-all bg-transparent"
+              className="h-8 text-sm font-semibold tracking-tight max-w-60 sm:max-w-xs border-transparent hover:border-border/60 focus:border-brand/50 focus:bg-background/80 px-2.5 rounded-lg transition-all bg-transparent"
               placeholder="Workflow Name"
             />
 

@@ -19,8 +19,8 @@ First off, thanks for taking the time to contribute!
 
 ## Pull Request Process
 
-1. Create a feature branch from `master` (e.g., `feature/add-new-provider`).
+1. Create a feature branch from `main` (e.g., `feature/add-new-provider`).
 2. Keep your commits clean and descriptive.
-3. Push to your fork and submit a PR against the `master` branch.
+3. Push to your fork and submit a PR against the `main` branch.
 4. Ensure all CI checks (linting, typechecking, testing) pass.
 5. Provide a clear PR description outlining the "why" and "what" of your changes.
