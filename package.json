@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@better-auth/infra": "^0.4.5",
     "@google/genai": "^2.21.0",
     "@lottiefiles/dotlottie-react": "^0.19.16",
     "@xyflow/react": "^12.11.6",
