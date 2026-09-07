@@ -138,30 +138,34 @@ export function WorkflowNodeCard({
       }`}
     >
       {/* Left Colored Icon Block */}
-      <div className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}>
+      <div
+        className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}
+      >
         <Icon className="size-5" />
       </div>
 
       {/* Right Content Area */}
       <div className="flex-1 flex flex-col justify-center min-w-0 p-2.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-semibold text-foreground truncate">{node.title}</div>
-          
+          <div className="text-xs font-semibold text-foreground truncate">
+            {node.title}
+          </div>
+
           {/* Action Menu (Visible on hover or selected) */}
           <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    className="size-5 rounded-sm grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  />
-                }
-              >
-                <MoreHorizontal className="size-3.5" />
+              <DropdownMenuTrigger>
+                <button
+                  type="button"
+                  className="size-5 rounded-sm grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 text-xs p-1 rounded-sm">
+              <DropdownMenuContent
+                align="end"
+                className="w-36 text-xs p-1 rounded-sm"
+              >
                 <DropdownMenuItem onClick={() => onSelect(node.id)}>
                   <Settings className="size-3.5 mr-2" /> Configure
                 </DropdownMenuItem>
@@ -180,7 +184,7 @@ export function WorkflowNodeCard({
             </DropdownMenu>
           </div>
         </div>
-        
+
         {configSummary && (
           <div className="text-[10px] text-muted-foreground truncate mt-0.5 leading-snug">
             {configSummary}

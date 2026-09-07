@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteNav } from "@/components/site-nav";
 import { AutomationBuilder } from "@/components/automations/automation-builder";
 import { ExecutionDetails } from "@/components/automations/execution-details";
 import { Automation, CustomTool, ExecutionRun } from "@/components/automations/automation-types";
@@ -164,40 +164,7 @@ export default function AutomationEditorPage() {
   return (
     <main className="h-screen w-full flex flex-col overflow-hidden bg-background text-foreground select-none">
       {/* Site Navigation Bar */}
-      <nav className="h-12 min-h-12 border-b border-border flex items-center justify-between px-4 bg-background z-20 shrink-0">
-        <Link href="/inbox" className="site-brand" title="Go to Inbox">
-          <span className="site-brand-mark" aria-hidden="true">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="2" y="4" width="20" height="16" rx="3" />
-              <path d="M2 7l10 7 10-7" />
-            </svg>
-          </span>
-          Mailing
-        </Link>
-
-        <div className="site-links items-center flex">
-          <Link href="/inbox">Inbox</Link>
-          <Link href="/contacts">Contacts</Link>
-          <Link href="/automations" className="text-foreground font-semibold">
-            Automations
-          </Link>
-          <Link href="/help">Help</Link>
-          <Link href="/profile">Profile</Link>
-          <Link href="/settings">Settings</Link>
-          <div className="ml-2">
-            <ThemeToggle />
-          </div>
-        </div>
-      </nav>
+      <SiteNav current="automations" className="!mb-0 px-4 !min-h-12 border-b border-border bg-background z-20 shrink-0" />
 
       {/* Editor Component */}
       <div className="flex-1 flex overflow-hidden">

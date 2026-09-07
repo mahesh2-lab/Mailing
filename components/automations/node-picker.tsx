@@ -305,7 +305,7 @@ export function NodePicker({
 
   if (isCollapsed) {
     return (
-      <div className="w-12 border-r border-border bg-card/40 flex flex-col items-center py-3 select-none shrink-0 transition-all">
+      <div className="w-10 sm:w-12 border-r border-border bg-card/40 flex flex-col items-center py-3 select-none shrink-0 transition-all z-10">
         <Button
           type="button"
           variant="ghost"
@@ -326,7 +326,7 @@ export function NodePicker({
   }
 
   return (
-    <div className="w-72 border-r border-border bg-card/20 flex flex-col h-full select-none shrink-0 transition-all">
+    <div className="w-72 max-w-[85vw] border-r border-border bg-card/95 backdrop-blur-md md:bg-card/20 flex flex-col h-full select-none shrink-0 transition-all z-20 absolute md:relative inset-y-0 left-0 shadow-xl md:shadow-none">
       {/* Header & Search */}
       <div className="p-3 border-b border-border space-y-2.5">
         <div className="flex items-center justify-between gap-2">

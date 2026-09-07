@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Archive,
+  CircleHelp,
   FileText,
   Inbox,
   Link,
@@ -14,6 +15,7 @@ import {
   Star,
   Tag,
   Trash2,
+  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -427,18 +429,56 @@ export default function MailSidebar() {
         </nav>
 
         <div className="sidebar-spacer" />
-        <button className="nav-item" onClick={() => router.push("/automations")}>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setMobileNavOpen(false);
+            router.push("/contacts");
+          }}
+        >
+          <Users className="size-3.5" />
+          <span>Contacts</span>
+        </button>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setMobileNavOpen(false);
+            router.push("/automations");
+          }}
+        >
           <Zap className="size-3.5" />
           <span>Automations</span>
         </button>
-        <button className="nav-item" onClick={() => router.push("/settings")}>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setMobileNavOpen(false);
+            router.push("/settings");
+          }}
+        >
           <Settings className="size-3.5" />
           <span>Settings</span>
+        </button>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setMobileNavOpen(false);
+            router.push("/help");
+          }}
+        >
+          <CircleHelp className="size-3.5" />
+          <span>Help</span>
         </button>
 
         <div className="h-px bg-border my-2 mx-2" />
 
-        <button className="nav-item" onClick={() => router.push("/docs")}>
+        <button
+          className="nav-item"
+          onClick={() => {
+            setMobileNavOpen(false);
+            router.push("/docs");
+          }}
+        >
           <FileText className="size-3.5" />
           <span>Docs</span>
         </button>

@@ -56,7 +56,7 @@ const userGuideItems = [
   },
 ];
 
-export function DocsSidebar() {
+export function DocsSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
 
   const renderNavGroup = (title: string, items: { title: string; href: string; icon: any }[]) => (
@@ -71,17 +71,18 @@ export function DocsSidebar() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                onClick={() => onNavigate?.()}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-zinc-100/80 text-(--brand)"
+                    ? "bg-zinc-100/80 text-brand font-semibold"
                     : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
                 )}
               >
                 <item.icon
                   className={cn(
                     "w-4 h-4",
-                    isActive ? "text-(--brand)" : "text-zinc-400"
+                    isActive ? "text-brand" : "text-zinc-400"
                   )}
                 />
                 {item.title}
@@ -98,6 +99,7 @@ export function DocsSidebar() {
       <div className="mb-8 px-2">
         <Link
           href="/"
+          onClick={() => onNavigate?.()}
           className="flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
         >
           <Home className="w-4 h-4 text-zinc-400" />

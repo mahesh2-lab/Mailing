@@ -88,16 +88,16 @@ export function AutomationCard({
       className="p-5 rounded-xl border border-border bg-card hover:border-foreground/25 hover:shadow-xs transition-all duration-200 cursor-pointer group space-y-4"
     >
       {/* Top Header: Title, Status, Native Toggle, and Actions */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h3 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors truncate">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors break-words">
               {automation.name}
             </h3>
 
             {/* Status Pill */}
             <span
-              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors shrink-0 ${
                 automation.enabled
                   ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                   : "bg-muted text-muted-foreground border-border"
@@ -112,7 +112,7 @@ export function AutomationCard({
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground line-clamp-1">
+          <p className="text-xs text-muted-foreground line-clamp-2">
             {automation.description || "Triggered on inbound message"}
           </p>
         </div>
@@ -133,24 +133,25 @@ export function AutomationCard({
             <i />
           </button>
 
-          {/* Test Action */}
-          <button
-            type="button"
-            onClick={() => onTestRun(automation)}
-            className="button-secondary text-xs py-1 px-2.5 h-7"
-            title="Run test execution"
-          >
-            <Play className="size-3 text-brand mr-1 fill-brand" /> Test
-          </button>
+          {/* Test & Edit Action buttons - visible on tablet/desktop */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onTestRun(automation)}
+              className="button-secondary text-xs py-1 px-2.5 h-7"
+              title="Run test execution"
+            >
+              <Play className="size-3 text-brand mr-1 fill-brand" /> Test
+            </button>
 
-          {/* Edit Action */}
-          <button
-            type="button"
-            onClick={() => onEdit(automation)}
-            className="button-secondary text-xs py-1 px-2.5 h-7"
-          >
-            <Edit className="size-3 mr-1" /> Edit
-          </button>
+            <button
+              type="button"
+              onClick={() => onEdit(automation)}
+              className="button-secondary text-xs py-1 px-2.5 h-7"
+            >
+              <Edit className="size-3 mr-1" /> Edit
+            </button>
+          </div>
 
           {/* Action Menu */}
           <DropdownMenu>

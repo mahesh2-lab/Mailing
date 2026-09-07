@@ -1989,103 +1989,47 @@ button:disabled:not([data-loading="true"]) {
     padding-right: 6%;
   }
 }
-@media (max-width: 700px) {
-  .topbar {
-    padding: 0 14px;
-    gap: 12px;
-  }
-  .mobile-only {
-    display: grid;
-  }
-  .wordmark {
-    min-width: auto;
-  }
-  .wordmark > span:last-child {
-    display: none;
-  }
-  .top-search {
-    order: 3;
-    flex-basis: 100%;
-    max-width: none;
-  }
-  .topbar {
-    flex-wrap: wrap;
-    height: 110px;
-    padding-top: 14px;
-  }
-  .workspace {
-    display: block;
-    height: calc(100vh - 110px);
-    overflow: auto;
-  }
-  .sidebar {
-    display: none;
-    position: fixed;
-    inset: 110px auto 0 0;
-    width: 220px;
-    background: var(--background);
-    z-index: 3;
-    box-shadow: 5px 0 20px rgba(0, 0, 0, 0.08);
-  }
-  .sidebar.nav-open {
-    display: flex;
-  }
-  .list-pane {
-    border-right: 0;
-  }
-  .detail-pane {
-    display: none;
-  }
-  .detail-pane.detail-visible {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    inset: 110px 0 0;
-    background: var(--background);
-    z-index: 2;
-    height: auto;
-  }
-  .detail-scroll-area {
-    flex: 1;
-    overflow-y: auto;
-  }
-  .back-button {
-    display: grid;
-  }
-  .compose-panel {
-    inset: 110px 0 0;
-    width: auto;
-    box-shadow: none;
-  }
-  .compose-panel textarea {
-    flex: 1;
-    height: calc(100vh - 250px);
-  }
-  .detail-content {
-    padding: 28px 20px;
-  }
-  .detail-heading h2 {
-    font-size: 27px;
-  }
-  .email-row {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
+@media (max-width: 768px) {
   .site-page {
-    padding: 0 20px 32px;
+    padding: 0 16px 32px;
   }
   .site-nav {
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-    padding: 14px 0;
+    margin-bottom: 24px;
+    padding: 12px 0;
+    min-height: 56px;
   }
   .site-links {
-    gap: 12px;
-    flex-wrap: wrap;
+    display: none !important;
   }
   .page-header {
     align-items: start;
     flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .panel-title {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .setting-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .profile-hero {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .profile-hero h2 {
+    font-size: 22px;
+    word-break: break-word;
+  }
+  .profile-hero p {
+    word-break: break-all;
+  }
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    font-size: 16px; /* Prevents mobile browser auto-zoom on focus */
   }
   .page-grid,
   .help-cards {
@@ -3076,34 +3020,64 @@ a.wordmark:hover .mark {
 
   /* Floating Action Button for compose */
   .fab-compose {
-    position: absolute;
-    bottom: 24px;
-    right: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    background: var(--primary);
-    color: var(--primary-fg);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    border: none;
-    z-index: 20;
-    cursor: pointer;
-    transition: transform 0.2s;
+    position: fixed !important;
+    bottom: max(24px, calc(16px + env(safe-area-inset-bottom))) !important;
+    right: max(20px, calc(16px + env(safe-area-inset-right))) !important;
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 27px !important;
+    background: var(--primary) !important;
+    color: var(--primary-foreground) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25) !important;
+    border: none !important;
+    z-index: 40 !important;
+    cursor: pointer !important;
+    transition: transform 0.2s, opacity 0.2s !important;
   }
   .fab-compose:active {
-    transform: scale(0.95);
+    transform: scale(0.95) !important;
   }
   .fab-compose svg {
-    width: 24px;
-    height: 24px;
+    width: 22px !important;
+    height: 22px !important;
   }
 
-  /* Detail pane adjustments to match Gmail */
+  /* When email is open on mobile/tablet, hide topbar and FAB compose so reading experience is clean */
+  .mail-app.has-email-open .topbar {
+    display: none !important;
+  }
+  .mail-app.has-email-open .fab-compose {
+    display: none !important;
+  }
+
+  /* Detail pane adjustments */
   .detail-pane {
-    padding-top: 0;
+    padding-top: 0 !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+  }
+  .detail-toolbar {
+    height: 52px !important;
+    min-height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 12px !important;
+    background: var(--header-bg) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 30 !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .back-button {
+    display: inline-flex !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
   .toolbar-reply-group {
     display: none !important; /* Hide reply/forward from top bar on mobile */
@@ -3223,6 +3197,24 @@ a.wordmark:hover .mark {
   .compose-resize-handle {
     display: none !important;
   }
+  .compose-foot {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+  }
+  .compose-foot-left {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .compose-foot-actions {
+    width: 100% !important;
+    overflow-x: auto !important;
+    max-width: 100% !important;
+    padding-bottom: 2px !important;
+    justify-content: space-between !important;
+  }
 }
 
 /* Hide mobile-only elements on desktop by default */
@@ -3231,6 +3223,9 @@ a.wordmark:hover .mark {
     display: none !important;
   }
   .sidebar-backdrop {
+    display: none !important;
+  }
+  .back-button {
     display: none !important;
   }
 }

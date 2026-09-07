@@ -101,7 +101,7 @@ function AppShell() {
   }
 
   return (
-    <main className="mail-app">
+    <main className={`mail-app ${openId ? "has-email-open" : ""}`}>
       <header className="topbar">
         <Button
           variant="ghost"
@@ -148,31 +148,35 @@ function AppShell() {
         </div>
 
         <div className="top-actions">
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="icon-button text-muted-foreground hover:text-foreground"
-                  aria-label="Notifications"
-                />
-              }
-            >
-              <Bell className="size-4.5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 p-2">
-              <div className="px-2 py-1.5 font-semibold text-sm">Notifications</div>
-              <div className="px-2 py-1 text-xs text-muted-foreground">
-                You&apos;re all caught up.
-              </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push("/settings")}>
-                Notification settings
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="hidden sm:flex items-center">
+            <ThemeToggle />
+          </div>
+          <div className="hidden sm:flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="icon-button text-muted-foreground hover:text-foreground"
+                    aria-label="Notifications"
+                  />
+                }
+              >
+                <Bell className="size-4.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-2">
+                <div className="px-2 py-1.5 font-semibold text-sm">Notifications</div>
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  You&apos;re all caught up.
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/settings")}>
+                  Notification settings
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger

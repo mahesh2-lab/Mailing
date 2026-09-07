@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { authClient } from "@/src/lib/auth-client";
 import ConfirmDialog from "./confirm-dialog";
+import { SiteNav } from "./site-nav";
 
 
 
@@ -959,45 +960,19 @@ export function SitePage({ type }: { type: PageKey }) {
 
   return (
     <main className="site-page">
-      <nav className="site-nav">
-        <a className="site-brand" href="/inbox">
-          <span className="site-brand-mark">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="2" y="4" width="20" height="16" rx="3" />
-              <path d="M2 7l10 7 10-7" />
-            </svg>
-          </span>
-          Mailing
-        </a>
-        <div className="site-links">
-          <a href="/inbox">Inbox</a>
-          <a href="/contacts">Contacts</a>
-          <a href="/automations">Automations</a>
-          <a href="/help">Help</a>
-          <a href="/profile">Profile</a>
-        </div>
-      </nav>
+      <SiteNav current={type} />
       <header className="page-header">
         <div>
           <span className="eyebrow">{data.eyebrow}</span>
           <h1>{data.title}</h1>
           <p>{data.description}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <a className="button-secondary" href="/inbox">
+        <div className="flex flex-wrap items-center gap-2">
+          <a className="button-secondary min-h-[40px]" href="/inbox">
             <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
           </a>
-          {type !== "profile" && (
-            <button className="button-primary" onClick={notify}>
+          {type === "automation" && (
+            <button className="button-primary min-h-[40px]" onClick={notify}>
               <Check /> Save changes
             </button>
           )}
