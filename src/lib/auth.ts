@@ -1,8 +1,7 @@
 import { betterAuth } from "better-auth";
-import { dash } from "@better-auth/infra";
+import { dash, sentinel } from "@better-auth/infra";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../index";
-
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -12,7 +11,8 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
-  plugins:[
-    dash()
-  ]
+  plugins: [
+    dash(),
+    sentinel(),
+  ],
 });
