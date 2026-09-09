@@ -3,8 +3,21 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/src/lib/auth-client";
-import { Loader2, CheckCircle2, ShieldCheck, AlertCircle, Sparkles, Image as ImageIcon, X } from "lucide-react";
-import { compressImage, validateImageFile, formatFileSize, validateProfileImagePayload } from "@/lib/image-compressor";
+import {
+  Loader2,
+  CheckCircle2,
+  ShieldCheck,
+  AlertCircle,
+  Sparkles,
+  Image as ImageIcon,
+  X,
+} from "lucide-react";
+import {
+  compressImage,
+  validateImageFile,
+  formatFileSize,
+  validateProfileImagePayload,
+} from "@/lib/image-compressor";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -170,7 +183,9 @@ export default function OnboardingPage() {
 
     setLoading(true);
     setError(null);
-    setVerifyStatus("Verifying Resend API and webhook credentials before proceeding...");
+    setVerifyStatus(
+      "Verifying Resend API and webhook credentials before proceeding...",
+    );
 
     // Mandatory Resend API and Webhook check before proceeding
     const isValid = await handleCheckConnection();
@@ -184,7 +199,10 @@ export default function OnboardingPage() {
     if (formData.profileImage) {
       const imgCheck = validateProfileImagePayload(formData.profileImage);
       if (!imgCheck.valid) {
-        setError(imgCheck.error || "Profile image exceeds size limits. Please select a compressed image.");
+        setError(
+          imgCheck.error ||
+            "Profile image exceeds size limits. Please select a compressed image.",
+        );
         setLoading(false);
         setVerifyStatus(null);
         return;
@@ -205,14 +223,14 @@ export default function OnboardingPage() {
 
       // Move to the full-page sync state
       setStep(4);
-      
+
       // Call the sync API in the background
       try {
         await fetch("/api/sync", { method: "POST" });
       } catch (syncErr) {
         console.error("Sync failed:", syncErr);
       }
-      
+
       // Finally redirect to the app
       router.push("/");
     } catch (err: any) {
@@ -241,46 +259,74 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-white selection:bg-zinc-900 selection:text-white flex-col relative overflow-hidden">
         {/* Animated background subtle glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-zinc-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-        
+
         <div className="relative z-10 flex flex-col items-center">
           {/* Animated icon / loader */}
           <div className="relative w-20 h-20 mb-8">
-            <svg className="absolute inset-0 w-full h-full text-zinc-100" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="6" />
+            <svg
+              className="absolute inset-0 w-full h-full text-zinc-100"
+              viewBox="0 0 100 100"
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="46"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="6"
+              />
             </svg>
-            <svg className="absolute inset-0 w-full h-full text-brand animate-spin" viewBox="0 0 100 100">
-              <circle 
-                cx="50" 
-                cy="50" 
-                r="46" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="6" 
-                strokeDasharray="289" 
-                strokeDashoffset="216" 
-                strokeLinecap="round" 
+            <svg
+              className="absolute inset-0 w-full h-full text-brand animate-spin"
+              viewBox="0 0 100 100"
+            >
+              <circle
+                cx="50"
+                cy="50"
+                r="46"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="6"
+                strokeDasharray="289"
+                strokeDashoffset="216"
+                strokeLinecap="round"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <svg 
-                className="w-7 h-7 text-zinc-900 animate-pulse" 
-                style={{ animationDuration: '2s' }}
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="1.5" 
+              <svg
+                className="w-7 h-7 text-zinc-900 animate-pulse"
+                style={{ animationDuration: "2s" }}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 1 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"></path>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 1 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"
+                ></path>
               </svg>
             </div>
           </div>
-          
+
           <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-zinc-950 mb-3 animate-in slide-in-from-bottom-2 fade-in duration-500">
             Syncing your workspace
           </h2>
           <p className="text-sm text-zinc-500 max-w-sm text-center animate-in slide-in-from-bottom-3 fade-in duration-700 delay-150 fill-mode-both">
-            We're securely connecting to Resend and downloading your recent emails. This usually takes just a few moments.
+            We're securely connecting to Resend and downloading your recent
+            emails. This usually takes just a few moments.
           </p>
+
+          {/*Animated Background Elements*/}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 left-1/4 w-32 h-32 bg-zinc-200/50 rounded-full animate-pulse" />
+            <div
+              className="absolute bottom-1/4 right-1/4 w-32 h-32 bg-brand/10 rounded-full animate-pulse"
+              style={{ animationDelay: "1s" }}
+            />
+            <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-zinc-100 rounded-full blur-3xl animate-slow-float" />
+          </div>
         </div>
       </div>
     );
@@ -288,14 +334,18 @@ export default function OnboardingPage() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .custom-dashed-border {
           background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23E4E4E7' stroke-width='1.5' stroke-dasharray='4%2c 4' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
         }
         .custom-dashed-border:hover {
           background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%23A1A1AA' stroke-width='1.5' stroke-dasharray='4%2c 4' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
         }
-      `}} />
+      `,
+        }}
+      />
       <div className="min-h-screen flex flex-col md:flex-row overflow-x-hidden font-sans selection:bg-zinc-900 selection:text-white">
         {/* BEGIN: LeftSidebar */}
         <aside className="w-full md:w-95 lg:w-105 shrink-0 border-b md:border-b-0 md:border-r border-zinc-200/80 bg-[#FAFAFA] flex flex-col justify-between p-8 lg:p-12">
@@ -327,7 +377,9 @@ export default function OnboardingPage() {
             {/* Section Title */}
             <div>
               <h1 className="text-2xl lg:text-[28px] font-semibold tracking-tight text-zinc-950 leading-tight">
-                Configure your<br />workspace settings.
+                Configure your
+                <br />
+                workspace settings.
               </h1>
             </div>
 
@@ -339,14 +391,17 @@ export default function OnboardingPage() {
                   aria-hidden="true"
                   className="absolute left-3.25 top-3 bottom-3 w-[1.5px] bg-zinc-200"
                 ></div>
-                
+
                 {steps.map((s) => {
                   const isCurrent = step === s.id;
                   const isCompleted = step > s.id;
                   const isPending = step < s.id;
 
                   return (
-                    <li key={s.id} className={`relative flex items-start gap-3.5 group ${isPending ? 'opacity-75' : ''}`}>
+                    <li
+                      key={s.id}
+                      className={`relative flex items-start gap-3.5 group ${isPending ? "opacity-75" : ""}`}
+                    >
                       {isCurrent && (
                         <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white border border-zinc-900 shadow-sm">
                           <span className="h-2 w-2 rounded-full bg-zinc-900"></span>
@@ -354,8 +409,18 @@ export default function OnboardingPage() {
                       )}
                       {isCompleted && (
                         <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 shadow-sm">
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          <svg
+                            className="w-4 h-4 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M5 13l4 4L19 7"
+                            />
                           </svg>
                         </span>
                       )}
@@ -366,7 +431,9 @@ export default function OnboardingPage() {
                       )}
 
                       <div className="pt-0.5">
-                        <p className={`text-sm ${isCurrent ? 'font-semibold text-zinc-950' : 'font-medium text-zinc-700'} flex items-center gap-2`}>
+                        <p
+                          className={`text-sm ${isCurrent ? "font-semibold text-zinc-950" : "font-medium text-zinc-700"} flex items-center gap-2`}
+                        >
                           {s.title}
                           {isCurrent && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-100 text-zinc-700 border border-zinc-200">
@@ -374,7 +441,9 @@ export default function OnboardingPage() {
                             </span>
                           )}
                         </p>
-                        <p className={`text-xs mt-0.5 leading-relaxed ${isCurrent ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                        <p
+                          className={`text-xs mt-0.5 leading-relaxed ${isCurrent ? "text-zinc-500" : "text-zinc-400"}`}
+                        >
                           {s.desc}
                         </p>
                       </div>
@@ -397,7 +466,6 @@ export default function OnboardingPage() {
         {/* BEGIN: MainContent */}
         <main className="flex-1 flex items-center justify-center p-6 md:p-12 lg:p-16 overflow-y-auto bg-white">
           <div className="w-full max-w-125 py-4">
-            
             {/* Form Header */}
             <header className="mb-8">
               <h2 className="text-2xl font-bold tracking-tight text-zinc-950">
@@ -407,7 +475,8 @@ export default function OnboardingPage() {
               </h2>
               <p className="text-sm text-zinc-500 mt-1">
                 {step === 1 && "Let's personalize your Mailing experience."}
-                {step === 2 && "These will be the default sender details for your campaigns."}
+                {step === 2 &&
+                  "These will be the default sender details for your campaigns."}
                 {step === 3 && "You need a Resend API key to send emails."}
               </p>
             </header>
@@ -420,7 +489,14 @@ export default function OnboardingPage() {
             )}
 
             <form
-              onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); handleNext(); }}
+              onSubmit={
+                step === 3
+                  ? handleSubmit
+                  : (e) => {
+                      e.preventDefault();
+                      handleNext();
+                    }
+              }
               className="space-y-7"
             >
               {step === 1 && (
@@ -462,7 +538,9 @@ export default function OnboardingPage() {
                             (optional)
                           </span>
                         </label>
-                        <span className="text-xs text-zinc-400">Auto-compressed (Max 15MB)</span>
+                        <span className="text-xs text-zinc-400">
+                          Auto-compressed (Max 15MB)
+                        </span>
                       </div>
 
                       {/* Elevated Drag & Drop Card Container */}
@@ -498,7 +576,9 @@ export default function OnboardingPage() {
                               {compressingImage ? (
                                 <div className="flex flex-col items-center justify-center gap-1 text-zinc-600">
                                   <Loader2 className="w-6 h-6 animate-spin text-zinc-900" />
-                                  <span className="text-[9px] font-medium uppercase tracking-tight">Optimizing</span>
+                                  <span className="text-[9px] font-medium uppercase tracking-tight">
+                                    Optimizing
+                                  </span>
                                 </div>
                               ) : formData.profileImage ? (
                                 <img
@@ -520,12 +600,16 @@ export default function OnboardingPage() {
                                   <circle cx="12" cy="7" r="4"></circle>
                                 </svg>
                               )}
-                              
+
                               {/* Subtle overlay edit on hover */}
                               {!compressingImage && (
                                 <div
                                   className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full cursor-pointer"
-                                  onClick={() => document.getElementById("file-upload")?.click()}
+                                  onClick={() =>
+                                    document
+                                      .getElementById("file-upload")
+                                      ?.click()
+                                  }
                                   title="Change photo"
                                 >
                                   <svg
@@ -557,7 +641,10 @@ export default function OnboardingPage() {
                           {/* Drag & Drop / Details Area */}
                           <div className="flex-1 text-center sm:text-left min-w-0 w-full">
                             {/* Dropzone trigger area */}
-                            <label className="cursor-pointer block" htmlFor="file-upload">
+                            <label
+                              className="cursor-pointer block"
+                              htmlFor="file-upload"
+                            >
                               <div className="custom-dashed-border rounded-xl p-3.5 sm:p-4 bg-white hover:border-zinc-400 transition text-center sm:text-left">
                                 <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 justify-center sm:justify-start">
                                   <div className="h-7 w-7 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 shrink-0">
@@ -587,7 +674,8 @@ export default function OnboardingPage() {
                                       or drag & drop
                                     </p>
                                     <p className="text-[11px] text-zinc-500 mt-0.5">
-                                      PNG, JPG, or WebP (client-side compressed to &lt;150KB)
+                                      PNG, JPG, or WebP (client-side compressed
+                                      to &lt;150KB)
                                     </p>
                                   </div>
                                 </div>
@@ -624,8 +712,12 @@ export default function OnboardingPage() {
                               <div className="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50/80 border border-emerald-200/60 rounded-md px-2.5 py-1">
                                 <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                 <span>
-                                  Optimized: <strong>{imageStats.compressedSize}</strong>{" "}
-                                  <span className="text-emerald-600">(-{imageStats.savedPercentage}% saved from {imageStats.originalSize})</span>
+                                  Optimized:{" "}
+                                  <strong>{imageStats.compressedSize}</strong>{" "}
+                                  <span className="text-emerald-600">
+                                    (-{imageStats.savedPercentage}% saved from{" "}
+                                    {imageStats.originalSize})
+                                  </span>
                                 </span>
                               </div>
                             )}
@@ -651,10 +743,14 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 disabled={compressingImage}
-                                onClick={() => document.getElementById("file-upload")?.click()}
+                                onClick={() =>
+                                  document
+                                    .getElementById("file-upload")
+                                    ?.click()
+                                }
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition disabled:opacity-50"
                                 style={{
-                                  fontSize:"12px"
+                                  fontSize: "12px",
                                 }}
                               >
                                 <svg
@@ -675,9 +771,13 @@ export default function OnboardingPage() {
                               <button
                                 type="button"
                                 disabled={compressingImage}
-                                onClick={() => document.getElementById("camera-upload")?.click()}
+                                onClick={() =>
+                                  document
+                                    .getElementById("camera-upload")
+                                    ?.click()
+                                }
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 hover:text-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-900 transition disabled:opacity-50"
-                                style={{fontSize:"12px"}}
+                                style={{ fontSize: "12px" }}
                               >
                                 <svg
                                   className="w-3.5 h-3.5 text-zinc-500"
@@ -698,12 +798,15 @@ export default function OnboardingPage() {
                                   type="button"
                                   disabled={compressingImage}
                                   onClick={() => {
-                                    setFormData(prev => ({ ...prev, profileImage: "" }));
+                                    setFormData((prev) => ({
+                                      ...prev,
+                                      profileImage: "",
+                                    }));
                                     setImageStats(null);
                                     setImageError(null);
                                   }}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 focus:outline-none transition disabled:opacity-50"
-                                  style={{fontSize:"12px"}}
+                                  style={{ fontSize: "12px" }}
                                 >
                                   Remove
                                 </button>
@@ -730,7 +833,10 @@ export default function OnboardingPage() {
                         required
                         value={formData.senderName}
                         onChange={(e) =>
-                          setFormData({ ...formData, senderName: e.target.value })
+                          setFormData({
+                            ...formData,
+                            senderName: e.target.value,
+                          })
                         }
                         placeholder="e.g. Acme Corp"
                         className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm"
@@ -769,7 +875,10 @@ export default function OnboardingPage() {
                           Resend API Key
                         </label>
                         <span className="text-[11px] text-zinc-400">
-                          Format: <code className="font-mono text-zinc-600">re_...</code>
+                          Format:{" "}
+                          <code className="font-mono text-zinc-600">
+                            re_...
+                          </code>
                         </span>
                       </div>
                       <input
@@ -789,7 +898,16 @@ export default function OnboardingPage() {
                         className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm font-mono"
                       />
                       <p className="text-[11px] text-zinc-500 mt-1.5">
-                        Found in your <a href="https://resend.com/api-keys" target="_blank" rel="noreferrer" className="underline hover:text-zinc-900">Resend dashboard &rarr; API Keys</a>.
+                        Found in your{" "}
+                        <a
+                          href="https://resend.com/api-keys"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline hover:text-zinc-900"
+                        >
+                          Resend dashboard &rarr; API Keys
+                        </a>
+                        .
                       </p>
                     </div>
 
@@ -802,7 +920,10 @@ export default function OnboardingPage() {
                           </span>
                         </label>
                         <span className="text-[11px] text-zinc-400">
-                          Format: <code className="font-mono text-zinc-600">whsec_...</code>
+                          Format:{" "}
+                          <code className="font-mono text-zinc-600">
+                            whsec_...
+                          </code>
                         </span>
                       </div>
                       <input
@@ -820,7 +941,8 @@ export default function OnboardingPage() {
                         className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2.5 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-950 focus:outline-none focus:ring-1 focus:ring-zinc-950 transition duration-150 shadow-sm font-mono"
                       />
                       <p className="text-[11px] text-zinc-500 mt-1.5">
-                        Signing secret generated by Resend Webhooks to receive inbound mail in real-time.
+                        Signing secret generated by Resend Webhooks to receive
+                        inbound mail in real-time.
                       </p>
                     </div>
 
@@ -829,7 +951,9 @@ export default function OnboardingPage() {
                       <button
                         type="button"
                         onClick={handleCheckConnection}
-                        disabled={checking || loading || !formData.resendApiKey.trim()}
+                        disabled={
+                          checking || loading || !formData.resendApiKey.trim()
+                        }
                         className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-800 hover:text-zinc-950 px-3.5 py-2 rounded-lg border border-zinc-200 bg-zinc-50/70 hover:bg-zinc-100 transition-all disabled:opacity-50 cursor-pointer shadow-2xs"
                       >
                         {checking ? (
@@ -861,12 +985,17 @@ export default function OnboardingPage() {
                           <span>Resend API Key verified successfully</span>
                         </div>
 
-                        {verificationResult.domains && verificationResult.domains.length > 0 ? (
+                        {verificationResult.domains &&
+                        verificationResult.domains.length > 0 ? (
                           <div className="text-[11px] text-emerald-800 pl-6 space-y-1">
                             <p>
-                              <span className="font-medium">Detected sending domains:</span>{" "}
+                              <span className="font-medium">
+                                Detected sending domains:
+                              </span>{" "}
                               <span className="font-mono bg-emerald-100/90 px-1.5 py-0.5 rounded border border-emerald-200/70">
-                                {verificationResult.domains.map((d) => d.name).join(", ")}
+                                {verificationResult.domains
+                                  .map((d) => d.name)
+                                  .join(", ")}
                               </span>
                             </p>
                           </div>
@@ -879,18 +1008,24 @@ export default function OnboardingPage() {
                         {formData.resendWebhookSecret ? (
                           <div className="flex items-center gap-2 text-[11px] text-emerald-800 pl-6">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>Webhook signing secret format validated (Svix compatible).</span>
+                            <span>
+                              Webhook signing secret format validated (Svix
+                              compatible).
+                            </span>
                           </div>
                         ) : (
                           <p className="text-[11px] text-zinc-500 pl-6">
-                            Webhook secret omitted (inbound emails will rely on periodic sync).
+                            Webhook secret omitted (inbound emails will rely on
+                            periodic sync).
                           </p>
                         )}
 
                         {verificationResult.domainMatch?.warning && (
                           <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 flex items-start gap-2">
                             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                            <span>{verificationResult.domainMatch.warning}</span>
+                            <span>
+                              {verificationResult.domainMatch.warning}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -907,7 +1042,7 @@ export default function OnboardingPage() {
                     disabled={loading || checking}
                     className="h-12 px-5 rounded-lg border border-zinc-200 bg-white text-zinc-700 font-semibold text-sm flex items-center justify-center hover:bg-zinc-50 transition-colors disabled:opacity-50 cursor-pointer"
                   >
-                     Back
+                    Back
                   </button>
                 )}
                 <button
@@ -922,7 +1057,9 @@ export default function OnboardingPage() {
                     </div>
                   ) : (
                     <>
-                      <span>{step === 3 ? "Complete Setup & Proceed" : "Next"}</span>
+                      <span>
+                        {step === 3 ? "Complete Setup & Proceed" : "Next"}
+                      </span>
                       {step < 3 && (
                         <svg
                           className="w-4 h-4 transition-transform duration-150 group-hover:translate-x-0.5"
@@ -941,9 +1078,10 @@ export default function OnboardingPage() {
                   )}
                 </button>
               </div>
-              
+
               <p className="text-center text-[11px] text-zinc-400 mt-3">
-                You can always update this from your workspace preferences later.
+                You can always update this from your workspace preferences
+                later.
               </p>
             </form>
           </div>
