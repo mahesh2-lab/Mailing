@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  ArrowLeft,
   Camera,
   Check,
   ChevronRight,
@@ -22,31 +21,45 @@ import {
   UserPlus,
   Users,
   Zap,
-  Loader2,
 } from "lucide-react";
 import { authClient } from "@/src/lib/auth-client";
 import ConfirmDialog from "./confirm-dialog";
 import { SiteNav } from "./site-nav";
-
-
-
+import { AuthenticatedPageShell } from "./authenticated-page-shell";
 import { compressImage, validateImageFile } from "@/lib/image-compressor";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
+import { getInitials, avatarColor, cn } from "@/lib/utils";
 
-function getInitials(name: string | null | undefined) {
-  if (!name) return "?";
-  const parts = name.trim().split(" ").filter(Boolean);
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+// ── Profile Panel ────────────────────────────────────────────────────────────
 
 function ProfilePanel() {
   const { data: session, refetch } = authClient.useSession();
@@ -58,12 +71,9 @@ function ProfilePanel() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [bio, setBio] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState("");
 
-  // Sync name from session once it arrives
   useEffect(() => {
     if (!user?.name) return;
     const parts = user.name.trim().split(" ").filter(Boolean);
@@ -71,7 +81,6 @@ function ProfilePanel() {
     setLastName(parts.slice(1).join(" ") ?? "");
   }, [user?.name]);
 
-  // password section
   const [showPwSection, setShowPwSection] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -79,21 +88,17 @@ function ProfilePanel() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
-  const [pwSaved, setPwSaved] = useState(false);
   const [pwError, setPwError] = useState("");
 
   const displayImage = avatarPreview ?? user?.image ?? null;
   const displayName = user?.name ?? "";
 
-  // ── avatar upload ────────────────────────────────────────────────────────
-
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate restrictions
     const validation = validateImageFile(file, {
-      maxSizeBytes: 15 * 1024 * 1024, // 15MB input limit
+      maxSizeBytes: 15 * 1024 * 1024,
     });
     if (!validation.valid) {
       setProfileError(validation.error || "Please upload a valid image under 15 MB.");
@@ -104,7 +109,6 @@ function ProfilePanel() {
       setAvatarUploading(true);
       setProfileError("");
 
-      // Client-side canvas compression: 400x400 square WebP (< 150KB)
       const result = await compressImage(file, {
         maxWidth: 400,
         maxHeight: 400,
@@ -118,8 +122,7 @@ function ProfilePanel() {
       const { error } = await authClient.updateUser({ image: result.dataUrl });
       if (error) throw new Error(error.message ?? "Failed to update avatar");
       await refetch();
-      flashSaved();
-      toast.success(`Avatar updated (${result.formattedCompressedSize}, -${result.savedPercentage}%)`);
+      toast.success(`Avatar updated (${result.formattedCompressedSize})`);
     } catch (err: any) {
       setProfileError(err.message ?? "Failed to upload image");
       setAvatarPreview(null);
@@ -128,8 +131,6 @@ function ProfilePanel() {
       if (fileRef.current) fileRef.current.value = "";
     }
   }
-
-  // ── profile save ─────────────────────────────────────────────────────────
 
   async function handleProfileSave(e: React.FormEvent) {
     e.preventDefault();
@@ -146,19 +147,19 @@ function ProfilePanel() {
       if (error) throw new Error(error.message ?? "Failed to save");
       toast.success("Profile updated successfully");
       await refetch();
-      flashSaved();
     } catch (err: any) {
-      setProfileError(err.message ?? "Failed to save profile");
-      toast.error("Failed to update profile");
+      setProfileError(err.message ?? "Failed to update profile");
     } finally {
       setProfileSaving(false);
     }
   }
 
-  async function handlePasswordChange(e: React.FormEvent) {
+  async function handlePasswordSave(e: React.FormEvent) {
     e.preventDefault();
-    setPwError("");
-
+    if (!currentPw) {
+      setPwError("Current password is required.");
+      return;
+    }
     if (newPw.length < 8) {
       setPwError("New password must be at least 8 characters.");
       return;
@@ -169,6 +170,7 @@ function ProfilePanel() {
     }
 
     setPwSaving(true);
+    setPwError("");
     try {
       const { error } = await authClient.changePassword({
         currentPassword: currentPw,
@@ -176,1025 +178,1009 @@ function ProfilePanel() {
         revokeOtherSessions: false,
       });
       if (error) throw new Error(error.message ?? "Failed to change password");
-      setPwSaved(true);
-      toast.success("Password updated successfully");
+      toast.success("Password changed successfully");
       setCurrentPw("");
       setNewPw("");
       setConfirmPw("");
-      setTimeout(() => setPwSaved(false), 3000);
+      setShowPwSection(false);
     } catch (err: any) {
       setPwError(err.message ?? "Failed to change password");
-      toast.error("Failed to change password");
     } finally {
       setPwSaving(false);
     }
   }
 
-  function flashSaved() {
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
-  }
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 24,
-        maxWidth: 720,
-      }}
-    >
-      {}
-      <section className="panel profile-card">
-        {}
-        <div className="profile-hero">
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <div className="profile-avatar-wrap">
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* Profile Header */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Profile Settings</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your personal account details, avatar, and security credentials.
+        </p>
+      </div>
+
+      {/* Avatar Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile Photo</CardTitle>
+          <CardDescription>
+            Your picture will appear on outgoing messages and within your workspace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-6">
+          <div className="relative group/avatar">
+            <Avatar className="size-20 border-2 border-border shadow-xs">
               {displayImage ? (
-                <img
-                  src={displayImage}
-                  alt="Profile"
-                  className="profile-avatar-img"
-                />
-              ) : (
-                <div className="profile-avatar-initials">
-                  {getInitials(displayName)}
-                </div>
-              )}
-              {avatarUploading && (
-                <div className="profile-avatar-overlay">
-                  <span className="spinner" aria-hidden="true" />
-                </div>
-              )}
-            </div>
+                <AvatarImage src={displayImage} alt={displayName} />
+              ) : null}
+              <AvatarFallback
+                className="text-lg font-bold bg-primary text-primary-foreground"
+                style={
+                  !displayImage && displayName
+                    ? { background: avatarColor(displayName), color: "#ffffff" }
+                    : undefined
+                }
+              >
+                {getInitials(displayName)}
+              </AvatarFallback>
+            </Avatar>
 
             <button
-              className="profile-avatar-edit-btn"
-              title="Change profile photo"
-              aria-label="Change profile photo"
+              type="button"
               onClick={() => fileRef.current?.click()}
               disabled={avatarUploading}
+              className="absolute -bottom-1 -right-1 size-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
+              aria-label="Upload profile image"
             >
-              <Camera />
+              {avatarUploading ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <Camera className="size-3.5" />
+              )}
             </button>
             <input
               ref={fileRef}
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              style={{ display: "none" }}
+              accept="image/*"
+              className="hidden"
               onChange={handleAvatarChange}
             />
           </div>
 
-          <div style={{ flex: 1 }}>
-            <span className="eyebrow">PERSONAL PROFILE</span>
-            <h2 style={{ marginTop: 4 }}>{displayName || "Your Name"}</h2>
-            <p style={{ marginTop: 2 }}>{user?.email}</p>
-          </div>
-        </div>
-
-        {}
-        <form onSubmit={handleProfileSave}>
-          <div className="profile-form">
-            <label className="form-field">
-              First name
-              <input
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="First name"
-                autoComplete="given-name"
-              />
-            </label>
-            <label className="form-field">
-              Last name
-              <input
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Last name"
-                autoComplete="family-name"
-              />
-            </label>
-            <label className="form-field full">
-              Bio
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="A short bio about yourself…"
-                rows={3}
-              />
-            </label>
-          </div>
-
-          {profileError && <p className="profile-error">{profileError}</p>}
-
-          <div className="profile-actions">
-            <button
-              type="submit"
-              className={`button-primary${profileSaving ? " auth-btn-loading" : ""}`}
-              disabled={profileSaving}
-            >
-              {!profileSaving && <Check />}
-              {profileSaving
-                ? "Saving…"
-                : profileSaved
-                  ? "Saved!"
-                  : "Save profile"}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {}
-      <section className="panel">
-        <div
-          className="panel-title"
-          style={{ marginBottom: showPwSection ? 0 : 0 }}
-        >
-          <div>
-            <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Lock style={{ width: 18, opacity: 0.7 }} />
-              Password
-            </h2>
-            <p>Update your login password.</p>
-          </div>
-          <button
-            className="button-secondary"
-            onClick={() => {
-              setShowPwSection((v) => !v);
-              setPwError("");
-            }}
-          >
-            <KeyRound />
-            {showPwSection ? "Cancel" : "Change password"}
-          </button>
-        </div>
-
-        {showPwSection && (
-          <form onSubmit={handlePasswordChange} style={{ marginTop: 20 }}>
-            <label className="form-field">
-              Current password
-              <div className="pw-input-wrap">
-                <input
-                  type={showCurrent ? "text" : "password"}
-                  value={currentPw}
-                  onChange={(e) => setCurrentPw(e.target.value)}
-                  placeholder="Enter current password"
-                  autoComplete="current-password"
-                  required
-                />
-                <button
-                  type="button"
-                  className="pw-toggle-btn"
-                  onClick={() => setShowCurrent((v) => !v)}
-                  aria-label={showCurrent ? "Hide password" : "Show password"}
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                disabled={avatarUploading}
+                className="text-xs"
+              >
+                Upload image
+              </Button>
+              {displayImage && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    setAvatarPreview(null);
+                    await authClient.updateUser({ image: null });
+                    await refetch();
+                    toast.success("Avatar removed");
+                  }}
+                  className="text-xs text-destructive hover:text-destructive"
                 >
-                  {showCurrent ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-            </label>
-            <label className="form-field">
-              New password
-              <div className="pw-input-wrap">
-                <input
-                  type={showNew ? "text" : "password"}
-                  value={newPw}
-                  onChange={(e) => setNewPw(e.target.value)}
-                  placeholder="At least 8 characters"
-                  autoComplete="new-password"
-                  required
-                />
-                <button
-                  type="button"
-                  className="pw-toggle-btn"
-                  onClick={() => setShowNew((v) => !v)}
-                  aria-label={showNew ? "Hide password" : "Show password"}
-                >
-                  {showNew ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-            </label>
-            <label className="form-field">
-              Confirm new password
-              <input
-                type="password"
-                value={confirmPw}
-                onChange={(e) => setConfirmPw(e.target.value)}
-                placeholder="Repeat new password"
-                autoComplete="new-password"
-                required
-              />
-            </label>
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Square WebP or PNG recommended. Max 15 MB.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-            {}
-            {newPw.length > 0 && (
-              <div className="pw-strength">
-                <div
-                  className="pw-strength-bar"
-                  data-strength={
-                    newPw.length < 6
-                      ? "weak"
-                      : newPw.length < 10
-                        ? "fair"
-                        : "strong"
-                  }
-                />
-                <span>
-                  {newPw.length < 6
-                    ? "Weak"
-                    : newPw.length < 10
-                      ? "Fair"
-                      : "Strong"}
-                </span>
+      {/* Basic Info Card */}
+      <form onSubmit={handleProfileSave}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>
+              Update your name and contact email address.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profileError && (
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
+                {profileError}
               </div>
             )}
 
-            {pwError && <p className="profile-error">{pwError}</p>}
-
-            <div className="profile-actions">
-              <button
-                type="submit"
-                className={`button-primary${pwSaving ? " auth-btn-loading" : ""}`}
-                disabled={pwSaving}
-              >
-                {!pwSaving && (pwSaved ? <Check /> : <KeyRound />)}
-                {pwSaving
-                  ? "Updating…"
-                  : pwSaved
-                    ? "Password updated!"
-                    : "Update password"}
-              </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">First name</label>
+                <Input
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="John"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Last name</label>
+                <Input
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Doe"
+                />
+              </div>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Email address</label>
+              <Input value={user?.email ?? ""} disabled className="bg-muted/50 opacity-80" />
+              <p className="text-[11px] text-muted-foreground">
+                Email address is managed through your authentication provider.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="justify-end border-t border-border pt-4">
+            <Button type="submit" disabled={profileSaving} className="text-xs">
+              {profileSaving ? <Spinner className="size-3.5" /> : "Save Changes"}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+
+      {/* Security / Password Card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Password & Security</CardTitle>
+            <CardDescription>
+              Keep your account secure with a strong password.
+            </CardDescription>
+          </div>
+          {!showPwSection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPwSection(true)}
+              className="text-xs"
+            >
+              Change password
+            </Button>
+          )}
+        </CardHeader>
+
+        {showPwSection && (
+          <form onSubmit={handlePasswordSave}>
+            <CardContent className="space-y-4 border-t border-border pt-4">
+              {pwError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
+                  {pwError}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Current password</label>
+                <div className="relative">
+                  <Input
+                    type={showCurrent ? "text" : "password"}
+                    value={currentPw}
+                    onChange={(e) => setCurrentPw(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrent(!showCurrent)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showCurrent ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">New password</label>
+                  <div className="relative">
+                    <Input
+                      type={showNew ? "text" : "password"}
+                      value={newPw}
+                      onChange={(e) => setNewPw(e.target.value)}
+                      placeholder="Min 8 characters"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(!showNew)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showNew ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Confirm new password</label>
+                  <Input
+                    type="password"
+                    value={confirmPw}
+                    onChange={(e) => setConfirmPw(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </CardContent>
+
+            <CardFooter className="justify-between border-t border-border pt-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowPwSection(false);
+                  setPwError("");
+                }}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pwSaving} className="text-xs">
+                {pwSaving ? <Spinner className="size-3.5" /> : "Update Password"}
+              </Button>
+            </CardFooter>
           </form>
         )}
-      </section>
-
-      {}
-      <section className="panel" style={{ borderColor: "rgba(239,68,68,0.3)" }}>
-        <div className="panel-title">
-          <div>
-            <h2 style={{ color: "var(--destructive)" }}>Danger zone</h2>
-            <p>These actions cannot be undone.</p>
-          </div>
-        </div>
-        <div className="setting-row">
-          <div>
-            <strong>Delete account</strong>
-            <span>
-              Permanently remove your account and all associated data.
-            </span>
-          </div>
-          <button
-            className="button-secondary"
-            style={{
-              borderColor: "var(--destructive)",
-              color: "var(--destructive)",
-              flexShrink: 0,
-            }}
-            onClick={() =>
-              window.alert("Please contact support to delete your account.")
-            }
-          >
-            Delete account
-          </button>
-        </div>
-      </section>
+      </Card>
     </div>
   );
 }
 
-const PROVIDERS = [
-  "Resend",
-  "SendGrid",
-  "Postmark",
-  "Mailgun",
-  "Custom",
-] as const;
+// ── Contacts Panel ───────────────────────────────────────────────────────────
 
-type SavedKey = {
+interface Contact {
   id: string;
-  provider: string;
-  domain: string | null;
-  keyLastFour: string;
-  webhookKeyLastFour: string | null;
+  name: string;
+  email: string;
+  notes?: string | null;
   createdAt: string;
-  updatedAt: string | null;
-};
+}
 
-function ApiKeysPanel() {
-  const [keys, setKeys] = useState<SavedKey[]>([]);
+function ContactsPanel() {
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const [provider, setProvider] = useState(PROVIDERS[0]);
-  const [domain, setDomain] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [webhookKey, setWebhookKey] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showWebhookKey, setShowWebhookKey] = useState(false);
+  // New Contact Form State
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [editingKeyId, setEditingKeyId] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<{
-    id: string;
-    provider: string;
-  } | null>(null);
 
-  async function fetchKeys() {
+  // Delete Target
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+
+  async function loadContacts() {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/keys");
-      const data = await res.json();
-      if (data.keys) setKeys(data.keys);
+      const res = await fetch("/api/v1/contacts").then((r) => r.json());
+      if (res?.data) setContacts(res.data);
+    } catch {
+      toast.error("Failed to load contacts");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchKeys();
+    loadContacts();
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleCreateContact(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    if (!name.trim() || !email.trim()) return;
+
     setSaving(true);
     try {
-      const isEditing = editingKeyId !== null;
-      const res = await fetch("/api/v1/keys", {
-        method: isEditing ? "PATCH" : "POST",
+      const res = await fetch("/api/v1/contacts", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          provider,
-          apiKey: apiKey || undefined,
-          webhookKey: webhookKey || undefined,
-          domain: domain || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to save");
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 2500);
-      setShowForm(false);
-      setEditingKeyId(null);
-      setApiKey("");
-      setWebhookKey("");
-      setDomain("");
-      await fetchKeys();
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), notes: notes.trim() }),
+      }).then((r) => r.json());
+
+      if (res?.data) {
+        toast.success(`Contact "${name}" added`);
+        setDialogOpen(false);
+        setName("");
+        setEmail("");
+        setNotes("");
+        loadContacts();
+      } else {
+        toast.error(res?.error || "Failed to add contact");
+      }
+    } catch {
+      toast.error("Failed to add contact");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleTestConnection() {
-    if (!apiKey && !editingKeyId) {
-      setError("Please enter an API key to test");
+  async function handleDeleteContact() {
+    if (!deleteTarget) return;
+    try {
+      await fetch(`/api/v1/contacts/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success(`Contact "${deleteTarget.name}" deleted`);
+      setDeleteTarget(null);
+      loadContacts();
+    } catch {
+      toast.error("Failed to delete contact");
+    }
+  }
+
+  const filtered = contacts.filter(
+    (c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.email.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Address Book</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage personal and professional contacts to auto-complete recipients in compose.
+          </p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-1.5 self-start">
+          <UserPlus className="size-4" data-icon="inline-start" />
+          <span>Add Contact</span>
+        </Button>
+      </div>
+
+      {/* Search Filter */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or email..."
+          className="pl-9 h-9 bg-card"
+        />
+      </div>
+
+      {/* Contacts List / Table */}
+      {loading ? (
+        <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <Spinner className="size-6 text-primary" />
+          <p className="text-xs text-muted-foreground">Loading your address book...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
+          <div className="size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+            <Users className="size-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-sm text-foreground">
+              {search ? "No contacts found" : "No contacts yet"}
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              {search
+                ? `No contact matches your query "${search}"`
+                : "Add your frequently emailed contacts for rapid access and auto-complete."}
+            </p>
+          </div>
+          {!search && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDialogOpen(true)}
+              className="mt-2 text-xs"
+            >
+              Add first contact
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {filtered.map((c) => (
+            <Card key={c.id} className="p-4 flex items-center justify-between gap-3 hover:border-border/80 transition-colors">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="size-10 border border-border shrink-0">
+                  <AvatarFallback
+                    style={{ background: avatarColor(c.name), color: "#ffffff" }}
+                    className="text-xs font-semibold"
+                  >
+                    {getInitials(c.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-sm text-foreground truncate">
+                    {c.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {c.email}
+                  </span>
+                  {c.notes && (
+                    <span className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                      {c.notes}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                onClick={() => setDeleteTarget(c)}
+                aria-label={`Delete ${c.name}`}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Add Contact Modal Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleCreateContact}>
+            <DialogHeader>
+              <DialogTitle>Add Contact</DialogTitle>
+              <DialogDescription>
+                Add a new recipient to your Mailing address book.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Full Name</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Jane Smith"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Email Address</label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="jane@company.com"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">Notes / Tags (Optional)</label>
+                <Input
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="e.g. Design lead, Acme Corp"
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setDialogOpen(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !name.trim() || !email.trim()} className="text-xs">
+                {saving ? <Spinner className="size-3.5" /> : "Save Contact"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Contact Confirmation */}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title={`Delete contact "${deleteTarget?.name}"?`}
+        description={`This will permanently remove ${deleteTarget?.email} from your address book.`}
+        confirmLabel="Delete"
+        onConfirm={handleDeleteContact}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
+  );
+}
+
+// ── Settings Panel ───────────────────────────────────────────────────────────
+
+function SettingsPanel() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false);
+
+  const [settings, setSettings] = useState({
+    senderName: "",
+    senderEmail: "",
+    resendApiKey: "",
+    resendWebhookSecret: "",
+    replyToEmail: "",
+  });
+
+  const [verification, setVerification] = useState<{
+    valid: boolean;
+    domains?: Array<{ id: string; name: string; status: string }>;
+    message?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    async function loadSettings() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/v1/settings").then((r) => r.json());
+        const data = res?.data || res;
+        if (data && typeof data === "object") {
+          setSettings((prev) => ({
+            ...prev,
+            senderName: data.senderName || prev.senderName || "",
+            senderEmail: data.senderEmail || prev.senderEmail || "",
+            replyToEmail: data.replyToEmail || data.senderEmail || prev.replyToEmail || "",
+            resendApiKey: data.resendApiKey || prev.resendApiKey || "",
+            resendWebhookSecret: data.resendWebhookSecret || prev.resendWebhookSecret || "",
+          }));
+        }
+      } catch {
+        toast.error("Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadSettings();
+  }, []);
+
+  async function handleSaveSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch("/api/v1/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      }).then((r) => r.json());
+
+      if (res?.success || res?.data) {
+        toast.success("Settings saved successfully");
+      } else {
+        toast.error(res?.error || "Failed to save settings");
+      }
+    } catch {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleVerifyResend() {
+    if (!settings.resendApiKey.trim()) {
+      toast.error("Please enter a Resend API key first");
       return;
     }
-    setError("");
-    setTestResult(null);
-    setTesting(true);
-
+    setVerifying(true);
     try {
       const res = await fetch("/api/v1/resend/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey: apiKey || undefined,
-          webhookSecret: webhookKey || undefined,
+          apiKey: settings.resendApiKey,
+          webhookSecret: settings.resendWebhookSecret,
+          senderEmail: settings.senderEmail,
         }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Verification failed");
-      }
-      toast.success("Resend credentials verified successfully!");
-      setTestResult(
-        `✓ Connection verified! ${
-          data.domains?.length
-            ? `Found ${data.domains.length} verified domain(s): ${data.domains.map((d: any) => d.name).join(", ")}`
-            : "Active API key."
-        }`
-      );
-    } catch (err: any) {
-      setError(err.message || "Failed to verify connection");
-    } finally {
-      setTesting(false);
-    }
-  }
+      }).then((r) => r.json());
 
-  async function handleDelete(keyProvider: string, id: string) {
-    setDeletingId(id);
-    try {
-      await fetch("/api/v1/keys", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: keyProvider }),
-      });
-      await fetchKeys();
+      setVerification(res);
+      if (res.valid || res.success) {
+        toast.success("Resend credentials verified successfully!");
+      } else {
+        toast.error(res.error || res.message || "Verification failed");
+      }
+    } catch {
+      toast.error("Failed to verify credentials");
     } finally {
-      setDeletingId(null);
-      setConfirmDelete(null);
+      setVerifying(false);
     }
   }
 
   return (
-    <section className="panel" style={{ gridColumn: "1 / -1" }}>
-      <div className="panel-title">
-        <div>
-          <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <KeyRound style={{ width: 18, opacity: 0.7 }} />
-            API Keys
-          </h2>
-          <p>Connect email providers to send and receive mail.</p>
-        </div>
-        <button
-          className="button-secondary"
-          onClick={() => {
-            if (showForm && editingKeyId) {
-              setEditingKeyId(null);
-              setProvider(PROVIDERS[0]);
-              setDomain("");
-              setApiKey("");
-              setWebhookKey("");
-            }
-            setShowForm((v) => !v);
-            setError("");
-          }}
-        >
-          <Plus />
-          {showForm ? "Cancel" : "Add key"}
-        </button>
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Preferences & Integration</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Configure default sending profiles, API connections, and inbox preferences.
+        </p>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
-          <div className="profile-form">
-            <label className="form-field">
-              Provider
-              <select
-                value={provider}
-                onChange={(e) => setProvider(e.target.value as typeof provider)}
-                disabled={!!editingKeyId}
-              >
-                {PROVIDERS.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
-            </label>
-            <label className="form-field">
-              Sending domain{" "}
-              <span style={{ opacity: 0.5, fontWeight: 400 }}>(optional)</span>
-              <input
-                type="text"
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-                placeholder="mail.example.com"
-              />
-            </label>
-            <label className="form-field full">
-              API key
-              {editingKeyId && <span style={{ opacity: 0.5, fontWeight: 400 }}>(leave blank to keep unchanged)</span>}
-              <div className="pw-input-wrap">
-                <input
-                  type={showApiKey ? "text" : "password"}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Paste your API key here"
-                  required={!editingKeyId}
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  className="pw-toggle-btn"
-                  onClick={() => setShowApiKey((v) => !v)}
-                  aria-label={showApiKey ? "Hide key" : "Show key"}
-                >
-                  {showApiKey ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-            </label>
-            <label className="form-field full">
-              Webhook signing secret{" "}
-              <span style={{ opacity: 0.5, fontWeight: 400 }}>(optional)</span>
-              <div className="pw-input-wrap">
-                <input
-                  type={showWebhookKey ? "text" : "password"}
-                  value={webhookKey}
-                  onChange={(e) => setWebhookKey(e.target.value)}
-                  placeholder="Paste webhook secret"
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  className="pw-toggle-btn"
-                  onClick={() => setShowWebhookKey((v) => !v)}
-                  aria-label={showWebhookKey ? "Hide secret" : "Show secret"}
-                >
-                  {showWebhookKey ? <EyeOff /> : <Eye />}
-                </button>
-              </div>
-            </label>
-          </div>
+      <Tabs defaultValue="sending" className="space-y-6">
+        <TabsList className="bg-muted/80 h-9 p-1">
+          <TabsTrigger value="sending">
+            <SlidersHorizontal className="size-3.5" />
+            <span>Sending Defaults</span>
+          </TabsTrigger>
+          <TabsTrigger value="integration">
+            <Zap className="size-3.5" />
+            <span>Resend Infrastructure</span>
+          </TabsTrigger>
+          <TabsTrigger value="danger" className="text-destructive hover:text-destructive data-active:text-destructive">
+            <Shield className="size-3.5" />
+            <span>Danger Zone</span>
+          </TabsTrigger>
+        </TabsList>
 
-          {testResult && (
-            <p style={{ fontSize: 12, color: "#059669", marginTop: 8, fontWeight: 500 }}>
-              {testResult}
-            </p>
-          )}
-
-          {error && <p className="profile-error">{error}</p>}
-
-          <div className="profile-actions" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button
-              type="button"
-              className="button-secondary"
-              disabled={testing || saving || (!apiKey && !editingKeyId)}
-              onClick={handleTestConnection}
-              style={{ cursor: "pointer" }}
-            >
-              {testing ? (
-                <>
-                  <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />
-                  Testing...
-                </>
-              ) : (
-                <>
-                  <Shield style={{ width: 14, height: 14 }} />
-                  Test Connection
-                </>
-              )}
-            </button>
-            <button
-              type="submit"
-              className={`button-primary${saving ? " auth-btn-loading" : ""}`}
-              disabled={saving || testing}
-              style={{ cursor: "pointer" }}
-            >
-              {!saving && (success ? <Check /> : <KeyRound />)}
-              {saving ? "Verifying & Saving…" : success ? "Saved!" : "Save key"}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {loading ? (
-        <p style={{ marginTop: 16, opacity: 0.5 }}>Loading…</p>
-      ) : keys.length === 0 ? (
-        <div className="empty-page-state" style={{ marginTop: 16 }}>
-          <KeyRound />
-          <strong>No API keys saved</strong>
-          <span>Add a provider key to start sending mail.</span>
-        </div>
-      ) : (
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-          }}
-        >
-          {keys.map((k) => (
-            <div className="setting-row" key={k.id}>
-              <div>
-                <strong>{k.provider}</strong>
-                <span>
-                  ···· {k.keyLastFour}
-                  {k.domain && <> · {k.domain}</>}
-                  {k.webhookKeyLastFour && (
-                    <> · webhook ···· {k.webhookKeyLastFour}</>
+        {/* Sending Tab */}
+        <TabsContent value="sending">
+          <form onSubmit={handleSaveSettings}>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Default Outbound Identity</CardTitle>
+                    <CardDescription>
+                      These values pre-populate new compose drafts and automated workflows.
+                    </CardDescription>
+                  </div>
+                  {settings.senderEmail && (
+                    <Badge variant="secondary" className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
+                      Configured in DB
+                    </Badge>
                   )}
-                </span>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="button-secondary"
-                  style={{ flexShrink: 0 }}
-                  disabled={deletingId === k.id}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Default Sender Name</label>
+                  <Input
+                    value={settings.senderName}
+                    onChange={(e) => setSettings({ ...settings, senderName: e.target.value })}
+                    placeholder="e.g. Alex at Acme Corp"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Default From Email</label>
+                  <Input
+                    type="email"
+                    value={settings.senderEmail}
+                    onChange={(e) => setSettings({ ...settings, senderEmail: e.target.value })}
+                    placeholder="alex@verified-domain.com"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Must belong to a domain verified in your Resend account.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Default Reply-To Email</label>
+                  <Input
+                    type="email"
+                    value={settings.replyToEmail}
+                    onChange={(e) => setSettings({ ...settings, replyToEmail: e.target.value })}
+                    placeholder="replies@verified-domain.com"
+                  />
+                </div>
+              </CardContent>
+              <CardFooter className="justify-end border-t border-border pt-4">
+                <Button type="submit" disabled={saving} className="text-xs">
+                  {saving ? <Spinner className="size-3.5" /> : "Save Sending Defaults"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
+        </TabsContent>
+
+        {/* Integration Tab */}
+        <TabsContent value="integration">
+          <form onSubmit={handleSaveSettings}>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Resend API Connection</CardTitle>
+                    <CardDescription>
+                      Configure your API key and inbound webhook secret for sending and receiving messages.
+                    </CardDescription>
+                  </div>
+                  {settings.resendApiKey && (
+                    <Badge variant="secondary" className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
+                      Credentials Active
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Resend API Key</label>
+                  <div className="relative">
+                    <Input
+                      type={showApiKey ? "text" : "password"}
+                      value={settings.resendApiKey}
+                      onChange={(e) => setSettings({ ...settings, resendApiKey: e.target.value })}
+                      placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                      className="pr-10 font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowApiKey(!showApiKey)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground size-7"
+                      aria-label={showApiKey ? "Hide API Key" : "Show API Key"}
+                    >
+                      {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Loaded from encrypted storage in your database.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Resend Webhook Secret</label>
+                  <div className="relative">
+                    <Input
+                      type={showWebhookSecret ? "text" : "password"}
+                      value={settings.resendWebhookSecret}
+                      onChange={(e) => setSettings({ ...settings, resendWebhookSecret: e.target.value })}
+                      placeholder="whsec_xxxxxxxxxxxxxxxx"
+                      className="pr-10 font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowWebhookSecret(!showWebhookSecret)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground size-7"
+                      aria-label={showWebhookSecret ? "Hide Webhook Secret" : "Show Webhook Secret"}
+                    >
+                      {showWebhookSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Required to cryptographically verify inbound email webhooks from Resend.
+                  </p>
+                </div>
+
+                {verification && (
+                  <div className={cn(
+                    "p-4 rounded-xl border text-xs space-y-2",
+                    verification.valid
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      : "bg-destructive/10 border-destructive/30 text-destructive"
+                  )}>
+                    <span className="font-semibold block">
+                      {verification.valid ? "Verified & Operational" : "Verification Failed"}
+                    </span>
+                    <p>{verification.message}</p>
+                    {verification.domains && verification.domains.length > 0 && (
+                      <div className="pt-2 border-t border-current/20 flex flex-wrap gap-1.5">
+                        {verification.domains.map((d) => (
+                          <Badge key={d.id} variant="secondary" className="text-[10px]">
+                            {d.name} ({d.status})
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="justify-between border-t border-border pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleVerifyResend}
+                  disabled={verifying || !settings.resendApiKey.trim()}
+                  className="text-xs gap-1.5"
+                >
+                  {verifying ? <Spinner className="size-3.5" /> : <Shield className="size-3.5" />}
+                  <span>Verify Connection</span>
+                </Button>
+                <Button type="submit" disabled={saving} className="text-xs">
+                  {saving ? <Spinner className="size-3.5" /> : "Save API Credentials"}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
+        </TabsContent>
+
+        {/* Danger Zone Tab */}
+        <TabsContent value="danger">
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              <CardDescription>
+                Irreversible account operations and workspace resets.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-destructive/20 bg-destructive/5">
+                <div className="space-y-0.5">
+                  <span className="text-xs font-semibold text-foreground">Reset Local Cache</span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Clears temporary local browser indexed storage and refreshes all folders.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => {
-                    setEditingKeyId(k.id);
-                    setProvider(k.provider as any);
-                    setDomain(k.domain || "");
-                    setApiKey("");
-                    setWebhookKey("");
-                    setShowForm(true);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
+                    localStorage.clear();
+                    toast.success("Cache cleared");
+                    window.location.reload();
                   }}
+                  className="text-xs"
                 >
-                  Edit
-                </button>
-                <button
-                  className="button-secondary"
-                  style={{
-                    color: "var(--destructive)",
-                    borderColor: "rgba(239,68,68,0.4)",
-                    flexShrink: 0,
-                  }}
-                  disabled={deletingId === k.id}
-                  onClick={() =>
-                    setConfirmDelete({ id: k.id, provider: k.provider })
-                  }
-                  aria-label={`Remove ${k.provider} key`}
-                >
-                  <Trash2 style={{ width: 14 }} />
-                  {deletingId === k.id ? "Removing…" : "Remove"}
-                </button>
+                  Clear Cache
+                </Button>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <ConfirmDialog
-        isOpen={!!confirmDelete}
-        title="Remove API Key"
-        description={`Are you sure you want to remove the ${confirmDelete?.provider} API key? This action cannot be undone and mail sending/receiving may stop working.`}
-        confirmLabel="Remove key"
-        onConfirm={() => {
-          if (confirmDelete)
-            handleDelete(confirmDelete.provider, confirmDelete.id);
-        }}
-        onCancel={() => setConfirmDelete(null)}
-      />
-    </section>
-  );
-}
-
-const pageData = {
-  automation: {
-    eyebrow: "WORKFLOWS",
-    title: "Automation",
-    description: "Let Mailing handle the repetitive parts of your inbox.",
-  },
-  settings: {
-    eyebrow: "ACCOUNT",
-    title: "Settings",
-    description: "Tune your workspace, notifications, and security.",
-  },
-  profile: {
-    eyebrow: "ACCOUNT",
-    title: "Profile",
-    description: "Your identity and personal preferences.",
-  },
-  contacts: {
-    eyebrow: "PEOPLE",
-    title: "Contacts",
-    description: "Keep your most important correspondents close.",
-  },
-  help: {
-    eyebrow: "SUPPORT",
-    title: "Help center",
-    description: "Answers for getting more from Mailing.",
-  },
-} as const;
-
-type PageKey = keyof typeof pageData;
-
-function SettingsPanel() {
-  const [senderName, setSenderName] = useState("");
-  const [senderEmail, setSenderEmail] = useState("");
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-
-  useEffect(() => {
-
-    // Load sender details from API
-    fetch("/api/v1/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.senderName) setSenderName(data.senderName);
-        if (data.senderEmail) setSenderEmail(data.senderEmail);
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  const handleSave = async () => {
-    setSaving(true);
-    toast.loading("Saving settings...", { id: "settings" });
-    try {
-      const res = await fetch("/api/v1/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderName, senderEmail }),
-      });
-
-      if (!res.ok) throw new Error("Failed to save settings");
-      toast.success("Settings saved", { id: "settings" });
-    } catch (err: any) {
-      toast.error(err.message, { id: "settings" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
-    return <div style={{ opacity: 0.5 }}>Loading settings…</div>;
-  }
-
-  return (
-    <div className="page-grid">
-      <section className="panel">
-        <div className="panel-title">
-          <div>
-            <h2>General</h2>
-            <p>How Mailing behaves for you.</p>
-          </div>
-          <SlidersHorizontal />
-        </div>
-        <label className="form-field">
-          Display name
-          <input
-            value={senderName}
-            onChange={(e) => setSenderName(e.target.value)}
-            placeholder="Enter your display name"
-          />
-        </label>
-        <label className="form-field">
-          Email address
-          <input
-            type="email"
-            value={senderEmail}
-            onChange={(e) => setSenderEmail(e.target.value)}
-            placeholder="Enter your email address"
-          />
-        </label>
-        <div className="profile-actions" style={{ marginTop: "1rem" }}>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="button-primary"
-          >
-            <Check />
-            {saving ? "Saving…" : "Save settings"}
-          </button>
-        </div>
-      </section>
-
-      
-      <section className="panel">
-        <div className="panel-title">
-          <div>
-            <h2>Data Sync</h2>
-            <p>Manually sync emails with the server.</p>
-          </div>
-          <Mail />
-        </div>
-        <div className="setting-row" style={{ flexWrap: "wrap", gap: 12 }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            <strong>Sync Emails</strong>
-            <span>Fetch the latest sent and received emails</span>
-          </div>
-            <button
-              className="button-secondary"
-              disabled={syncing}
-              style={{ minWidth: 100, display: "flex", justifyContent: "center", alignItems: "center", gap: 6 }}
-              onClick={async () => {
-                setSyncing(true);
-                toast.loading("Syncing emails...", { id: "sync" });
-                try {
-                  const res = await fetch("/api/sync", { method: "POST" });
-                  const data = await res.json().catch(() => ({}));
-                  
-                  if (!res.ok) {
-                    if (res.status === 429) {
-                      throw new Error(data.message || "Please wait before syncing again.");
-                    }
-                    throw new Error(data.message || "Sync failed");
-                  }
-                  
-                  const totalNew = data.stats?.totalNew || 0;
-                  if (totalNew > 0) {
-                    toast.success(`Sync complete: ${totalNew} new emails found!`, { id: "sync" });
-                  } else {
-                    toast.success("Sync complete: No new emails found.", { id: "sync" });
-                  }
-                } catch (e: any) {
-                  toast.error(e.message || "Failed to sync emails", { id: "sync" });
-                } finally {
-                  setSyncing(false);
-                }
-              }}
-            >
-              {syncing ? (
-                <>
-                  <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} /> Syncing...
-                </>
-              ) : (
-                "Sync Now"
-              )}
-            </button>
-          {syncing && (
-            <div style={{ position: "relative", height: 4, width: "100%", backgroundColor: "#f4f4f5", borderRadius: 2, overflow: "hidden", marginTop: 4 }}>
-              <style>{`
-                @keyframes indeterminateProgress {
-                  0% { transform: translateX(-100%); }
-                  50% { transform: translateX(100%); }
-                  100% { transform: translateX(300%); }
-                }
-              `}</style>
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: 0,
-                  width: "40%",
-                  backgroundColor: "#09090b",
-                  borderRadius: 2,
-                  animation: "indeterminateProgress 1.5s infinite linear",
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </section>
-      <ApiKeysPanel />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-export function SitePage({ type }: { type: PageKey }) {
-  const [saved, setSaved] = useState(false);
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({
-    receipts: true,
-    newsletter: false,
-    followups: true,
-  });
-  const [query, setQuery] = useState("");
-  const data = pageData[type];
+// ── Help Panel ───────────────────────────────────────────────────────────────
 
-  const notify = () => {
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2200);
-  };
-  const toggle = (key: string) =>
-    setEnabled((state) => ({ ...state, [key]: !state[key] }));
+function HelpPanel() {
+  const shortcuts = [
+    { key: "⌘ K / Ctrl K", action: "Focus Global Search" },
+    { key: "⌘ N / Ctrl N", action: "Open Compose Window" },
+    { key: "C", action: "Compose (when outside inputs)" },
+    { key: "⌘ Enter", action: "Send Email in Compose" },
+    { key: "Esc", action: "Close Compose / Clear Email Viewer" },
+  ];
 
   return (
-    <main className="site-page">
-      <SiteNav current={type} />
-      <header className="page-header">
-        <div>
-          <span className="eyebrow">{data.eyebrow}</span>
-          <h1>{data.title}</h1>
-          <p>{data.description}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <a className="button-secondary min-h-10" href="/inbox">
-            <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
-          </a>
-          {type === "automation" && (
-            <button className="button-primary min-h-10" onClick={notify}>
-              <Check /> Save changes
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="space-y-6 max-w-3xl mx-auto">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Help & Resources</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Keyboard shortcuts, setup documentation, and quick reference guides.
+        </p>
+      </div>
 
-      {type === "automation" && (
-        <div className="page-grid">
-          <section className="panel">
-            <div className="panel-title">
-              <div>
-                <h2>Rules</h2>
-                <p>Automations run quietly in the background.</p>
-              </div>
-              <Zap />
-            </div>
-            {[
-              [
-                "receipts",
-                "Receipts to Finance",
-                "Move receipts and invoices to Finance",
-              ],
-              [
-                "newsletter",
-                "Newsletter digest",
-                "Bundle newsletters into a daily digest",
-              ],
-              [
-                "followups",
-                "Follow-up reminders",
-                "Remind me when a thread needs a reply",
-              ],
-            ].map(([key, title, copy]) => (
-              <div className="setting-row" key={key}>
-                <div>
-                  <strong>{title}</strong>
-                  <span>{copy}</span>
-                </div>
-                <button
-                  className={`toggle ${enabled[key] ? "on" : ""}`}
-                  onClick={() => toggle(key)}
-                  aria-label={`Toggle ${title}`}
-                >
-                  <i />
-                </button>
+      {/* Keyboard Shortcuts Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Keyboard Shortcuts</CardTitle>
+          <CardDescription>
+            Mailing is designed for speed. Use shortcuts to navigate without lifting your hands from the keyboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="divide-y divide-border/60">
+            {shortcuts.map((s) => (
+              <div key={s.key} className="py-2.5 flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">{s.action}</span>
+                <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border border-border bg-muted px-2 font-mono text-[11px] font-medium text-muted-foreground">
+                  {s.key}
+                </kbd>
               </div>
             ))}
-          </section>
-          <section className="panel accent-panel">
-            <Mail />
-            <h2>Build a rule</h2>
-            <p>
-              Start with a sender, subject, or attachment. Mailing will suggest
-              the next step.
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Setup Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="p-4 space-y-2">
+          <h4 className="font-semibold text-sm text-foreground">Documentation Portal</h4>
+          <p className="text-xs text-muted-foreground">
+            Explore step-by-step guides on domain DNS verification, Resend webhooks, and automated workflows.
+          </p>
+          <Link
+            href="/docs"
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "text-xs mt-2 self-start",
+            })}
+          >
+            View Documentation
+          </Link>
+        </Card>
+
+        <Card className="p-4 space-y-2 flex flex-col justify-between">
+          <div>
+            <h4 className="font-semibold text-sm text-foreground">Workflow Automations</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Build reactive visual automation flows that filter, label, forward, or reply to incoming emails.
             </p>
-            <button className="text-button" onClick={notify}>
-              Create automation <ChevronRight />
-            </button>
-          </section>
-        </div>
-      )}
+          </div>
+          <Link
+            href="/automations"
+            className={buttonVariants({
+              variant: "outline",
+              size: "sm",
+              className: "text-xs mt-2 self-start",
+            })}
+          >
+            Open Automations
+          </Link>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
-      {type === "settings" && <SettingsPanel />}
+// ── Master SitePage Wrapper ──────────────────────────────────────────────────
 
+export function SitePage({
+  type,
+}: {
+  type: "profile" | "contacts" | "settings" | "help";
+}) {
+  const meta = {
+    profile: {
+      title: "Profile Details",
+      description: "Manage your credentials, display name, and avatar.",
+    },
+    contacts: {
+      title: "Contacts",
+      description: "Address book, frequent correspondents, and recipient groups.",
+    },
+    settings: {
+      title: "Settings",
+      description: "Configure Resend API credentials, webhook endpoints, and app preferences.",
+    },
+    help: {
+      title: "Help & Support",
+      description: "Frequently asked questions, troubleshooting, and documentation.",
+    },
+  }[type];
+
+  return (
+    <AuthenticatedPageShell
+      title={meta.title}
+      description={meta.description}
+    >
       {type === "profile" && <ProfilePanel />}
-
-      {type === "contacts" && (
-        <section className="panel">
-          <div className="panel-title">
-            <div>
-              <h2>People you email</h2>
-              <p>Connect an account to sync your contacts.</p>
-            </div>
-            <button className="button-secondary" onClick={notify}>
-              <UserPlus /> Add contact
-            </button>
-          </div>
-          <div className="empty-page-state">
-            <Users />
-            <strong>No contacts connected</strong>
-            <span>Add an account connection to see people you email.</span>
-          </div>
-        </section>
-      )}
-
-      {type === "help" && (
-        <div className="help-layout">
-          <section className="help-search">
-            <Search />
-            <input
-              placeholder="Search help articles"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </section>
-          <div className="help-cards">
-            {[
-              ["Getting started", "Learn the basics of your new inbox."],
-              ["Keyboard shortcuts", "Move faster with quick actions."],
-              ["Privacy & security", "Understand how your mail is protected."],
-            ]
-              .filter(([title, copy]) =>
-                `${title} ${copy}`.toLowerCase().includes(query.toLowerCase()),
-              )
-              .map(([title, copy]) => (
-                <button className="help-card" key={title} onClick={notify}>
-                  <div>
-                    <strong>{title}</strong>
-                    <span>{copy}</span>
-                  </div>
-                  <ChevronRight />
-                </button>
-              ))}
-          </div>
-          <div className="panel support-panel">
-            <Shield />
-            <div>
-              <h2>Still need a hand?</h2>
-              <p>Our support team is here to help with anything unusual.</p>
-            </div>
-            <button className="text-button" onClick={notify}>
-              Contact support <ChevronRight />
-            </button>
-          </div>
-        </div>
-      )}
-    </main>
+      {type === "contacts" && <ContactsPanel />}
+      {type === "settings" && <SettingsPanel />}
+      {type === "help" && <HelpPanel />}
+    </AuthenticatedPageShell>
   );
 }
 
 export function NotFoundPage() {
   return (
-    <main className="site-page not-found">
-      <span className="eyebrow">404 / NOT FOUND</span>
-      <h1>That page is missing.</h1>
-      <p>
-        The link may have moved, but your inbox is still right where you left
-        it.
+    <main className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground text-center space-y-4">
+      <div className="flex size-14 items-center justify-center rounded-2xl bg-muted text-foreground border border-border shadow-xs">
+        <span className="text-xl font-bold">404</span>
+      </div>
+      <h1 className="text-2xl font-bold tracking-tight">Page Not Found</h1>
+      <p className="text-xs text-muted-foreground max-w-sm">
+        The page you are looking for doesn&apos;t exist or has been moved.
       </p>
-      <a className="button-primary" href="/inbox">
-        Return to inbox
-      </a>
+      <div className="pt-2">
+        <Link
+          href="/inbox"
+          className={buttonVariants({ variant: "default", size: "sm" })}
+        >
+          Return to Inbox
+        </Link>
+      </div>
     </main>
   );
 }

@@ -22,6 +22,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Automation, NodeCategory } from "./automation-types";
 
 interface AutomationCardProps {
@@ -122,44 +124,62 @@ export function AutomationCard({
           className="flex items-center gap-2 shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Native Mailing Toggle Switch */}
+          {/* Toggle Switch */}
           <button
             type="button"
-            className={`toggle ${automation.enabled ? "on" : ""}`}
+            role="switch"
+            aria-checked={automation.enabled}
+            className={cn(
+              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              automation.enabled ? "bg-primary" : "bg-muted"
+            )}
             onClick={() => onToggleEnabled(automation.id, !automation.enabled)}
             title={automation.enabled ? "Pause workflow" : "Activate workflow"}
             aria-label="Toggle workflow status"
           >
-            <i />
+            <span
+              className={cn(
+                "pointer-events-none block size-4 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                automation.enabled ? "translate-x-4" : "translate-x-0"
+              )}
+            />
           </button>
 
-          {/* Test & Edit Action buttons - visible on tablet/desktop */}
-          <div className="hidden sm:flex items-center gap-2">
-            <button
+          {/* Test & Edit Action buttons */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <Button
               type="button"
+              variant="outline"
+              size="xs"
               onClick={() => onTestRun(automation)}
-              className="button-secondary text-xs py-1 px-2.5 h-7"
+              className="text-xs h-7 gap-1"
               title="Run test execution"
             >
-              <Play className="size-3 text-brand mr-1 fill-brand" /> Test
-            </button>
+              <Play className="size-3 text-primary fill-primary" />
+              <span>Test</span>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="xs"
               onClick={() => onEdit(automation)}
-              className="button-secondary text-xs py-1 px-2.5 h-7"
+              className="text-xs h-7 gap-1"
             >
-              <Edit className="size-3 mr-1" /> Edit
-            </button>
+              <Edit className="size-3" />
+              <span>Edit</span>
+            </Button>
           </div>
 
           {/* Action Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
-                <button
-                  type="button"
-                  className="size-7 rounded-md grid place-items-center border border-border/80 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="size-7 text-muted-foreground hover:text-foreground"
+                  aria-label="More options"
                 />
               }
             >

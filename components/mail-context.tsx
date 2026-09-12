@@ -25,6 +25,9 @@ interface MailContextValue {
   openCompose: (defaults?: ComposeDefaults) => void;
   mobileNavOpen: boolean;
   setMobileNavOpen: (open: boolean) => void;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (c: boolean | ((prev: boolean) => boolean)) => void;
+  toggleSidebar: () => void;
   refreshTick: number;
   refresh: () => void;
 }
@@ -101,7 +104,55 @@ export function MailProvider({
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeDefaults, setComposeDefaults] = useState<ComposeDefaults | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+
+  // Initialize from localStorage on client
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("mailing:sidebar_collapsed");
+      if (stored === "true") {
+        setSidebarCollapsedState(true);
+      }
+    }
+  }, []);
+
+  const setSidebarCollapsed = (value: boolean | ((prev: boolean) => boolean)) => {
+    setSidebarCollapsedState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("mailing:sidebar_collapsed", String(next));
+      }
+      return next;
+    });
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
+  // Keyboard shortcut to collapse/expand sidebar: '[' or 'Cmd/Ctrl + B'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.isContentEditable
+      ) {
+        return;
+      }
+      if (
+        e.key === "[" ||
+        ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b")
+      ) {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   function openCompose(defaults?: ComposeDefaults) {
     setComposeDefaults(defaults ?? null);
@@ -179,6 +230,9 @@ export function MailProvider({
         openCompose,
         mobileNavOpen,
         setMobileNavOpen,
+        sidebarCollapsed,
+        setSidebarCollapsed,
+        toggleSidebar,
         refreshTick,
         refresh,
       }}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(request: Request) {
@@ -9,17 +9,24 @@ export async function POST(request: Request) {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { messageIds, label, action } = await request.json();
+    const body = await request.json();
+    const rawIds = body.messageIds || body.ids;
+    const label = body.label;
+    const action = body.action || "add";
 
-    if (!Array.isArray(messageIds) || messageIds.length === 0 || !label) {
+    if (!Array.isArray(rawIds) || rawIds.length === 0 || !label || typeof label !== "string") {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
     }
 
     const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      return NextResponse.json({ error: "Label cannot be empty" }, { status: 400 });
+    }
+
     const rows = await db
       .select({ id: emails.id, labels: emails.labels })
       .from(emails)
-      .where(inArray(emails.id, messageIds));
+      .where(and(inArray(emails.id, rawIds), eq(emails.userId, session.user.id)));
 
     for (const row of rows) {
       let current: string[] = Array.isArray(row.labels) ? [...row.labels] : [];
@@ -29,7 +36,7 @@ export async function POST(request: Request) {
           await db
             .update(emails)
             .set({ labels: current })
-            .where(inArray(emails.id, [row.id]));
+            .where(and(eq(emails.id, row.id), eq(emails.userId, session.user.id)));
         }
       } else if (action === "remove") {
         if (current.includes(trimmedLabel)) {
@@ -37,7 +44,7 @@ export async function POST(request: Request) {
           await db
             .update(emails)
             .set({ labels: current })
-            .where(inArray(emails.id, [row.id]));
+            .where(and(eq(emails.id, row.id), eq(emails.userId, session.user.id)));
         }
       }
     }

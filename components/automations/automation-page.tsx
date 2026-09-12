@@ -12,8 +12,8 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SiteNav } from "@/components/site-nav";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import {
   Automation,
   CustomTool,
@@ -25,9 +25,11 @@ import { AutomationList } from "./automation-list";
 import { ExecutionHistory } from "./execution-history";
 import { toast } from "sonner";
 import { generateId } from "@/lib/utils";
+import { authClient } from "@/src/lib/auth-client";
 
 export function AutomationPage() {
   const router = useRouter();
+  const { data: session } = authClient.useSession();
   const [view, setView] = useState<"list" | "history">("list");
 
   // State synced with backend database
@@ -198,9 +200,9 @@ export function AutomationPage() {
           email: {
             id: generateId(),
             from: "Billing Department <billing@acme.corp>",
-            to: ["mahesh@heymahesh.in"],
+            to: [session?.user?.email || "user@example.com"],
             subject: "Invoice #9021 for Professional Services",
-            text: "Hi Mahesh, please find attached our invoice #9021 for billing and review.",
+            text: `Hi ${session?.user?.name?.split(" ")[0] || "there"}, please find attached our invoice #9021 for billing and review.`,
           },
         }),
       }).then((r) => r.json());
@@ -281,83 +283,88 @@ export function AutomationPage() {
   }
 
   return (
-    <main className="site-page">
-      {/* Site Navigation Bar */}
-      <SiteNav current="automations" />
-
-      {/* Standard Site Page Header */}
-      <header className="page-header">
-        <div>
-          <span className="eyebrow">
-            {view === "list" ? "AUTOMATION / WORKFLOW ENGINE" : "AUTOMATION / EXECUTION AUDIT"}
-          </span>
-          <h1>{view === "list" ? "Automations" : "Execution History"}</h1>
-          <p>
+    <AuthenticatedPageShell
+      title="Automations"
+      description="Build automated rules and intelligent workflows triggered by incoming emails."
+      actions={
+        <div className="flex items-center gap-1.5">
+          {view === "list" ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => setView("history")}
+                className="text-xs gap-1.5 h-8"
+              >
+                <History className="size-3.5" />
+                <span>History {history.length > 0 && `(${history.length})`}</span>
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                onClick={handleCreateNew}
+                className="text-xs gap-1.5 h-8 font-medium shadow-xs"
+              >
+                <Plus className="size-3.5" />
+                <span>New workflow</span>
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => setView("list")}
+              className="text-xs gap-1.5 h-8"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back to Workflows</span>
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        {/* Page Title & Subtitle Banner */}
+        <div className="border-b border-border pb-5">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            {view === "list" ? "Automations" : "Execution History"}
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">
             {view === "list"
               ? "Build automated rules and intelligent AI workflows triggered by incoming emails."
               : "Audit logs, execution traces, and performance metrics for all automated inbox actions."}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {view === "list" ? (
-            <>
-              <Link href="/inbox" className="button-secondary">
-                <ArrowLeft className="size-4 mr-1.5" /> Back to Inbox
-              </Link>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={() => setView("history")}
-              >
-                <History className="size-4 mr-1.5" /> History {history.length > 0 && `(${history.length})`}
-              </button>
-              <button
-                type="button"
-                className="button-primary"
-                onClick={handleCreateNew}
-              >
-                <Plus className="size-4 mr-1.5" /> New workflow
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="button-secondary"
-              onClick={() => setView("list")}
-            >
-              <ArrowLeft className="size-4 mr-1.5" /> Back to Workflows
-            </button>
-          )}
-        </div>
-      </header>
+        {/* Main View Switcher */}
+        {view === "list" && (
+          <AutomationList
+            automations={automations}
+            history={history}
+            onCreateNew={handleCreateNew}
+            onCreateFromTemplate={handleCreateFromTemplate}
+            onOpenHistory={() => setView("history")}
+            onEdit={handleEdit}
+            onToggleEnabled={handleToggleEnabled}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+            onTestRun={handleTestRun}
+            onViewHistoryForAutomation={(autoId) => setView("history")}
+          />
+        )}
 
-      {/* Main View Switcher */}
-      {view === "list" && (
-        <AutomationList
-          automations={automations}
-          history={history}
-          onCreateNew={handleCreateNew}
-          onCreateFromTemplate={handleCreateFromTemplate}
-          onOpenHistory={() => setView("history")}
-          onEdit={handleEdit}
-          onToggleEnabled={handleToggleEnabled}
-          onDuplicate={handleDuplicate}
-          onDelete={handleDelete}
-          onTestRun={handleTestRun}
-          onViewHistoryForAutomation={(autoId) => setView("history")}
-        />
-      )}
-
-      {view === "history" && (
-        <ExecutionHistory
-          history={history}
-          onRetryRun={(run) => {
-            const auto = automations.find((a) => a.id === run.automationId);
-            if (auto) handleTestRun(auto);
-          }}
-        />
-      )}
-    </main>
+        {view === "history" && (
+          <ExecutionHistory
+            history={history}
+            onRetryRun={(run) => {
+              const auto = automations.find((a) => a.id === run.automationId);
+              if (auto) handleTestRun(auto);
+            }}
+          />
+        )}
+      </div>
+    </AuthenticatedPageShell>
   );
 }

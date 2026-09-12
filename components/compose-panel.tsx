@@ -19,17 +19,18 @@ import {
   FileImage,
   FileArchive,
   CheckCircle2,
-  Loader2,
 } from "lucide-react";
 import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { toast } from "sonner";
-import { generateId } from "@/lib/utils";
+import { generateId, cn, escapeHtml } from "@/lib/utils";
 import { compressImage, formatFileSize } from "@/lib/image-compressor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +39,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -118,7 +120,6 @@ export default function ComposePanel() {
     width: number;
     height: number;
   } | null>(null);
-  const [isResizing, setIsResizing] = useState(false);
 
   const startResize = useCallback(
     (direction: "top" | "left" | "corner", e: React.PointerEvent) => {
@@ -134,7 +135,6 @@ export default function ComposePanel() {
       const startWidth = el.offsetWidth;
       const startHeight = el.offsetHeight;
 
-      setIsResizing(true);
       document.body.style.userSelect = "none";
       if (direction === "top") document.body.style.cursor = "ns-resize";
       else if (direction === "left") document.body.style.cursor = "ew-resize";
@@ -164,7 +164,6 @@ export default function ComposePanel() {
       };
 
       const onPointerUp = () => {
-        setIsResizing(false);
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
         window.removeEventListener("pointermove", onPointerMove);
@@ -182,7 +181,6 @@ export default function ComposePanel() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Seed fields from composeDefaults when panel opens
   useEffect(() => {
     if (composeDefaults) {
       if (composeDefaults.draftId) setDraftId(composeDefaults.draftId);
@@ -198,10 +196,8 @@ export default function ComposePanel() {
         setShowCc(true);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [composeDefaults]);
 
-  // Debounced auto-save drafts in background
   useEffect(() => {
     if (!to.trim() && !subject.trim() && !body.trim()) return;
 
@@ -258,203 +254,73 @@ export default function ComposePanel() {
     composeDefaults?.subject?.startsWith("Fwd:");
   const isReplying =
     !isEditingDraft &&
-    !!composeDefaults?.to?.length &&
-    composeDefaults?.subject?.startsWith("Re:");
+    !isForwarding &&
+    !!composeDefaults?.subject?.startsWith("Re:");
+
   const panelTitle = isEditingDraft
-    ? "Edit draft"
+    ? "Edit Draft"
     : isForwarding
-      ? "Forward message"
+      ? "Forward Message"
       : isReplying
         ? "Reply"
-        : "New message";
+        : "New Message";
 
-  function hasUnsavedChanges(): boolean {
-    return !!(
-      to.trim() ||
-      subject.trim() ||
-      body.trim() ||
-      cc.trim() ||
-      bcc.trim() ||
-      attachments.length > 0
-    );
-  }
+  const handleSend = async () => {
+    const recipients = to
+      .split(",")
+      .map((e) => e.trim())
+      .filter(Boolean);
 
-  function handleRequestClose() {
-    if (hasUnsavedChanges()) {
-      setShowClosePrompt(true);
-    } else {
-      close();
-    }
-  }
-
-  function close() {
-    setComposeOpen(false);
-    setMaximized(false);
-    setDraftId(null);
-    setTo("");
-    setSubject("");
-    setBody("");
-    setShowCc(false);
-    setCc("");
-    setBcc("");
-    setAttachments([]);
-    setShowClosePrompt(false);
-  }
-
-  // Formatting actions
-  function applyFormatting(
-    format: "bold" | "italic" | "link" | "list" | "quote" | "code",
-  ) {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = body.substring(start, end);
-    let replacement = "";
-    let newCursorPos = start;
-
-    if (format === "bold") {
-      replacement = selectedText ? `**${selectedText}**` : "**bold text**";
-      newCursorPos = start + (selectedText ? replacement.length : 2);
-    } else if (format === "italic") {
-      replacement = selectedText ? `*${selectedText}*` : "*italic text*";
-      newCursorPos = start + (selectedText ? replacement.length : 1);
-    } else if (format === "link") {
-      const url = prompt("Enter link URL:", "https://");
-      if (url === null) return;
-      replacement = selectedText
-        ? `[${selectedText}](${url})`
-        : `[Link text](${url})`;
-      newCursorPos = start + replacement.length;
-    } else if (format === "list") {
-      if (selectedText) {
-        replacement = selectedText
-          .split("\n")
-          .map((line) => (line.startsWith("- ") ? line : `- ${line}`))
-          .join("\n");
-      } else {
-        replacement = "\n- First item\n- Second item\n";
-      }
-      newCursorPos = start + replacement.length;
-    } else if (format === "quote") {
-      replacement = selectedText
-        ? `> ${selectedText.replace(/\n/g, "\n> ")}`
-        : "> Quoted text";
-      newCursorPos = start + replacement.length;
-    } else if (format === "code") {
-      replacement = selectedText.includes("\n")
-        ? `\`\`\`\n${selectedText || "// code snippet"}\n\`\`\``
-        : `\`${selectedText || "code"}\``;
-      newCursorPos = start + replacement.length;
-    }
-
-    const newBody =
-      body.substring(0, start) + replacement + body.substring(end);
-    setBody(newBody);
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  }
-
-  async function handleFiles(files: File[]) {
-    const MAX_TOTAL_SIZE = 4 * 1024 * 1024; // 4MB safe limit for serverless request payload
-    let currentTotal = attachments.reduce((acc, a) => acc + a.size, 0);
-
-    const newItems: AttachedFile[] = [];
-    for (const rawFile of files) {
-      let fileToAttach = rawFile;
-      let wasCompressed = false;
-      const originalSize = rawFile.size;
-
-      // Check single non-image file size limit
-      if (!rawFile.type.startsWith("image/") && rawFile.size > 3.5 * 1024 * 1024) {
-        toast.error(`${rawFile.name} exceeds 3.5 MB attachment limit.`);
-        continue;
-      }
-
-      // If image is larger than 1MB, automatically compress client-side while preserving aspect ratio
-      if (rawFile.type.startsWith("image/") && rawFile.size > 1024 * 1024) {
-        try {
-          const compResult = await compressImage(rawFile, {
-            maxWidth: 1920,
-            maxHeight: 1920,
-            quality: 0.85,
-            cropToSquare: false,
-            outputType: "image/jpeg",
-            maxOutputSizeBytes: 800 * 1024,
-          });
-          fileToAttach = compResult.file;
-          wasCompressed = true;
-        } catch {
-          // If compression fails, proceed with original file
-        }
-      }
-
-      if (currentTotal + fileToAttach.size > MAX_TOTAL_SIZE) {
-        toast.error(`Cannot attach ${rawFile.name}: Total attachments exceed 4 MB limit.`);
-        continue;
-      }
-
-      try {
-        const base64 = await fileToBase64(fileToAttach);
-        newItems.push({
-          id: generateId(),
-          name: fileToAttach.name,
-          size: fileToAttach.size,
-          type: fileToAttach.type || "application/octet-stream",
-          base64,
-          url: URL.createObjectURL(fileToAttach),
-        });
-        currentTotal += fileToAttach.size;
-
-        if (wasCompressed) {
-          toast.info(`Optimized ${rawFile.name} (${formatFileSize(originalSize)} → ${formatFileSize(fileToAttach.size)})`);
-        }
-      } catch {
-        toast.error(`Failed to attach ${rawFile.name}`);
-      }
-    }
-
-    if (newItems.length > 0) {
-      setAttachments((prev) => [...prev, ...newItems]);
-      toast.success(
-        `Attached ${newItems.length} file${newItems.length > 1 ? "s" : ""}`,
-      );
-    }
-  }
-
-  function removeAttachment(id: string) {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      if (!sending && to.trim()) {
-        handleSend();
-      }
-    } else if ((e.metaKey || e.ctrlKey) && (e.key === "b" || e.key === "B")) {
-      e.preventDefault();
-      applyFormatting("bold");
-    } else if ((e.metaKey || e.ctrlKey) && (e.key === "i" || e.key === "I")) {
-      e.preventDefault();
-      applyFormatting("italic");
-    } else if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
-      e.preventDefault();
-      applyFormatting("link");
-    } else if (e.key === "Escape") {
-      handleRequestClose();
-    }
-  }
-
-  async function handleSaveDraft(andClose = false) {
-    if (!to.trim() && !subject.trim() && !body.trim()) {
-      toast.error("Cannot save an empty draft");
+    if (recipients.length === 0) {
+      toast.error("Please add at least one recipient");
       return;
     }
+
+    try {
+      const ccList = cc
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      const bccList = bcc
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      const formattedHtml = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6;">
+        ${body
+          .split("\n")
+          .map((line) => `<p style="margin: 0 0 8px;">${escapeHtml(line) || "&nbsp;"}</p>`)
+          .join("")}
+      </div>`;
+
+      await sendMail({
+        to: recipients,
+        cc: ccList,
+        bcc: bccList,
+        subject: subject.trim() || "(No subject)",
+        html: formattedHtml,
+        text: body,
+        attachments: attachments.map((a) => ({
+          filename: a.name,
+          content: a.base64 || "",
+        })),
+      });
+
+      if (draftId) {
+        try {
+          await axios.delete(`/api/v1/drafts/${draftId}`);
+        } catch {}
+      }
+
+      toast.success("Email sent successfully");
+      setComposeOpen(false);
+      refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send email");
+    }
+  };
+
+  const handleSaveDraft = async (closeAfter = false) => {
     setSavingDraft(true);
     try {
       const recipients = to
@@ -484,11 +350,10 @@ export default function ComposePanel() {
         toast.success("Draft updated");
       } else {
         const res = await axios.post("/api/v1/drafts", payload);
-        if (res.data?.id) {
-          setDraftId(res.data.id);
-        }
-        toast.success("Draft saved");
+        if (res.data?.id) setDraftId(res.data.id);
+        toast.success("Saved to Drafts");
       }
+
       setLastSavedTime(
         new Date().toLocaleTimeString([], {
           hour: "2-digit",
@@ -496,100 +361,178 @@ export default function ComposePanel() {
         }),
       );
       refresh();
-      if (andClose) {
-        close();
-      }
+      if (closeAfter) setComposeOpen(false);
     } catch {
       toast.error("Failed to save draft");
     } finally {
       setSavingDraft(false);
     }
-  }
+  };
 
-  async function handleDiscardDraft() {
+  const handleDiscardDraft = async () => {
     if (draftId) {
       try {
         await axios.delete(`/api/v1/drafts/${draftId}`);
         toast.success("Draft discarded");
         refresh();
       } catch {
-        toast.error("Failed to discard draft");
+        toast.error("Failed to delete draft");
       }
-    } else {
-      toast.success("Draft discarded");
     }
-    close();
-  }
+    setComposeOpen(false);
+  };
 
-  async function handleSend() {
-    const recipients = to
-      .split(",")
-      .map((e) => e.trim())
-      .filter(Boolean);
-    const ccList = cc
-      .split(",")
-      .map((e) => e.trim())
-      .filter(Boolean);
-    const bccList = bcc
-      .split(",")
-      .map((e) => e.trim())
-      .filter(Boolean);
+  const handleClose = () => {
+    const hasContent = !!(to.trim() || subject.trim() || body.trim());
+    if (hasContent && !lastSavedTime) {
+      setShowClosePrompt(true);
+    } else {
+      setComposeOpen(false);
+    }
+  };
 
-    try {
-      const emailPayload = {
-        to: recipients,
-        cc: ccList,
-        bcc: bccList,
-        subject: subject || "(No Subject)",
-        html: `<p>${body.replace(/\n/g, "<br/>")}</p>`,
-        text: body,
-        attachments: attachments.map((a) => ({
-          id: a.id,
-          filename: a.name,
-          size: a.size,
-          type: a.type,
-          content: a.base64,
-          url: a.url,
-        })),
-      };
+  const handleFileAttach = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
-      await sendMail(emailPayload);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-      if (draftId) {
+      if (file.type.startsWith("image/")) {
         try {
-          await axios.delete(`/api/v1/drafts/${draftId}`);
+          const compResult = await compressImage(file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            quality: 0.85,
+            maxOutputSizeBytes: 1024 * 1024,
+          });
+          const rawBase64 = compResult.dataUrl.split(",")[1];
+          setAttachments((prev) => [
+            ...prev,
+            {
+              id: generateId(),
+              name: file.name.replace(/\.[^/.]+$/, "") + ".webp",
+              size: compResult.compressedSize,
+              type: "image/webp",
+              base64: rawBase64,
+            },
+          ]);
+          toast.success(
+            `Image compressed (${formatFileSize(compResult.originalSize)} → ${compResult.formattedCompressedSize})`,
+          );
+          continue;
         } catch {}
       }
-      close();
-      toast.success("Message sent successfully!");
-      refresh();
-    } catch {
-      toast.error("Failed to send message.");
-    }
-  }
 
-  function insertSignature() {
-    const signature = "\n\n--\nBest regards,\nMahesh";
-    setBody((prev) => prev + signature);
-    toast.success("Signature inserted");
-  }
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error(`File "${file.name}" exceeds 15 MB limit`);
+        continue;
+      }
+
+      try {
+        const base64 = await fileToBase64(file);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            name: file.name,
+            size: file.size,
+            type: file.type || "application/octet-stream",
+            base64,
+          },
+        ]);
+      } catch {
+        toast.error(`Failed to attach ${file.name}`);
+      }
+    }
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const applyFormatting = (
+    type: "bold" | "italic" | "link" | "list" | "quote" | "code",
+  ) => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = body.substring(start, end);
+
+    let prefix = "";
+    let suffix = "";
+    let defaultText = "text";
+
+    switch (type) {
+      case "bold":
+        prefix = "**";
+        suffix = "**";
+        defaultText = "bold text";
+        break;
+      case "italic":
+        prefix = "*";
+        suffix = "*";
+        defaultText = "italic text";
+        break;
+      case "link":
+        prefix = "[";
+        suffix = "](https://example.com)";
+        defaultText = selected || "link title";
+        break;
+      case "list":
+        prefix = "\n• ";
+        suffix = "";
+        defaultText = selected || "list item";
+        break;
+      case "quote":
+        prefix = "\n> ";
+        suffix = "";
+        defaultText = selected || "quoted text";
+        break;
+      case "code":
+        prefix = "`";
+        suffix = "`";
+        defaultText = selected || "code";
+        break;
+    }
+
+    const replacement = `${prefix}${selected || defaultText}${suffix}`;
+    const newBody = body.substring(0, start) + replacement + body.substring(end);
+    setBody(newBody);
+
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(
+        start + prefix.length,
+        start + prefix.length + (selected ? selected.length : defaultText.length),
+      );
+    }, 0);
+  };
+
+  const insertSignature = () => {
+    setBody((prev) =>
+      prev ? `${prev}\n\n--\nBest regards,\nSent from Mailing` : `--\nBest regards,\nSent from Mailing`,
+    );
+  };
 
   return (
     <>
       <div
         ref={panelRef}
         style={
-          !maximized && panelSize
-            ? {
-                width: `${panelSize.width}px`,
-                height: `${panelSize.height}px`,
-              }
-            : undefined
+          maximized
+            ? undefined
+            : panelSize
+              ? { width: `${panelSize.width}px`, height: `${panelSize.height}px` }
+              : undefined
         }
-        className={`compose-panel ${maximized ? "compose-maximized" : ""} ${
-          isDraggingOver ? "drag-over" : ""
-        } ${isResizing ? "resizing" : ""}`}
-        onKeyDown={handleKeyDown}
+        className={cn(
+          "fixed z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden rounded-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-6 duration-200 ease-out motion-reduce:animate-none transition-all",
+          maximized
+            ? "inset-4 md:inset-8"
+            : "bottom-0 right-4 md:right-8 w-full max-w-xl h-140"
+        )}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDraggingOver(true);
@@ -598,109 +541,74 @@ export default function ComposePanel() {
         onDrop={(e) => {
           e.preventDefault();
           setIsDraggingOver(false);
-          if (e.dataTransfer.files?.length) {
-            handleFiles(Array.from(e.dataTransfer.files));
-          }
+          handleFileAttach(e.dataTransfer.files);
         }}
       >
+        {/* Resize Handles */}
         {!maximized && (
           <>
             <div
-              className="compose-resize-handle compose-resize-top"
               onPointerDown={(e) => startResize("top", e)}
-              title="Drag to resize height"
+              className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-20"
             />
             <div
-              className="compose-resize-handle compose-resize-left"
               onPointerDown={(e) => startResize("left", e)}
-              title="Drag to resize width"
+              className="absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize z-20"
             />
             <div
-              className="compose-resize-handle compose-resize-corner"
               onPointerDown={(e) => startResize("corner", e)}
-              title="Drag to resize"
-            >
-              <div className="corner-grip" />
-            </div>
+              className="absolute top-0 left-0 size-3 cursor-nwse-resize z-30"
+            />
           </>
         )}
 
-        {}
-        <input
-          type="file"
-          ref={fileInputRef}
-          multiple
-          style={{ display: "none" }}
-          onChange={(e) => {
-            if (e.target.files?.length) {
-              handleFiles(Array.from(e.target.files));
-              e.target.value = "";
-            }
-          }}
-        />
-
-        {/* Drag overlay */}
+        {/* Drag over overlay */}
         {isDraggingOver && (
-          <div className="compose-drag-overlay">
-            <Paperclip style={{ width: 32, height: 32, marginBottom: 8 }} />
-            <strong>Drop files here to attach</strong>
+          <div className="absolute inset-0 z-30 bg-primary/10 backdrop-blur-xs border-2 border-dashed border-primary flex items-center justify-center pointer-events-none">
+            <div className="bg-card px-4 py-2 rounded-lg shadow-sm border border-border flex items-center gap-2 text-sm font-medium text-foreground">
+              <Paperclip className="size-4 text-primary" />
+              <span>Drop files here to attach</span>
+            </div>
           </div>
         )}
 
-        <div
-          className="compose-head cursor-pointer select-none"
-          onDoubleClick={() => setMaximized((prev) => !prev)}
-          title="Double-click to toggle maximize"
-        >
-          <strong>{panelTitle}</strong>
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="icon-button small"
-                    onClick={() => setMaximized(!maximized)}
-                    aria-label={
-                      maximized ? "Minimize compose" : "Maximize compose"
-                    }
-                  />
-                }
-              >
-                {maximized ? (
-                  <Minimize2 className="size-3.5" />
-                ) : (
-                  <Maximize2 className="size-3.5" />
-                )}
-              </TooltipTrigger>
-              <TooltipContent>
-                {maximized ? "Restore window" : "Maximize window"}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="icon-button small"
-                    onClick={handleRequestClose}
-                    aria-label="Close compose"
-                  />
-                }
-              >
-                <X className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>Close compose (Esc)</TooltipContent>
-            </Tooltip>
+        {/* Window Title Header */}
+        <div className="h-11 px-4 border-b border-border flex items-center justify-between bg-muted/40 text-sm font-semibold select-none">
+          <span className="text-foreground tracking-tight">{panelTitle}</span>
+          <div className="flex items-center gap-0.5">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              onClick={() => setMaximized((m) => !m)}
+              aria-label={maximized ? "Restore window" : "Maximize window"}
+            >
+              {maximized ? (
+                <Minimize2 className="size-3.5" />
+              ) : (
+                <Maximize2 className="size-3.5" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              onClick={handleClose}
+              aria-label="Close composer"
+            >
+              <X className="size-3.5" />
+            </Button>
           </div>
         </div>
 
-        <div className="compose-fields">
-          <div className="to-row">
+        {/* Header Input Fields */}
+        <div className="flex flex-col border-b border-border/40 text-sm">
+          <div className="flex items-center px-3 border-b border-border/40">
+            <span className="text-xs font-semibold text-muted-foreground w-12 shrink-0 select-none">
+              To
+            </span>
             <Input
-              className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent"
+              className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
               placeholder="Recipients (comma separated)"
               value={to}
               onChange={(e) => setTo(e.target.value)}
@@ -710,73 +618,95 @@ export default function ComposePanel() {
               <Button
                 variant="ghost"
                 size="xs"
-                className="cc-bcc-toggle text-xs text-muted-foreground hover:text-foreground h-6 px-2 mr-2"
+                className="text-xs text-muted-foreground hover:text-foreground h-6 px-2"
                 onClick={() => setShowCc(true)}
                 type="button"
               >
-                Cc/Bcc
+                Cc / Bcc
               </Button>
             )}
           </div>
+
           {showCc && (
             <>
-              <Input
-                className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
-                placeholder="Cc (comma separated)"
-                value={cc}
-                onChange={(e) => setCc(e.target.value)}
-              />
-              <Input
-                className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
-                placeholder="Bcc (comma separated)"
-                value={bcc}
-                onChange={(e) => setBcc(e.target.value)}
-              />
+              <div className="flex items-center px-3 border-b border-border/40">
+                <span className="text-xs font-semibold text-muted-foreground w-12 shrink-0 select-none">
+                  Cc
+                </span>
+                <Input
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
+                  placeholder="Cc recipients (comma separated)"
+                  value={cc}
+                  onChange={(e) => setCc(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center px-3 border-b border-border/40">
+                <span className="text-xs font-semibold text-muted-foreground w-12 shrink-0 select-none">
+                  Bcc
+                </span>
+                <Input
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
+                  placeholder="Bcc recipients (comma separated)"
+                  value={bcc}
+                  onChange={(e) => setBcc(e.target.value)}
+                />
+              </div>
             </>
           )}
-          <Input
-            className="border-none shadow-none focus-visible:ring-0 px-3 h-9 text-sm rounded-none bg-transparent border-t border-border/40"
-            placeholder="Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
+
+          <div className="flex items-center px-3">
+            <span className="text-xs font-semibold text-muted-foreground w-12 shrink-0 select-none">
+              Subject
+            </span>
+            <Input
+              className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1 font-medium"
+              placeholder="Subject"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
         </div>
 
+        {/* Textarea message surface */}
         <Textarea
           ref={textareaRef}
-          className="border-none shadow-none focus-visible:ring-0 p-3 text-sm rounded-none bg-transparent flex-1 resize-none"
-          placeholder="Write your message... (Ctrl+Enter to send, Ctrl+B for bold)"
+          className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 p-4 text-sm rounded-none bg-transparent flex-1 resize-none leading-relaxed font-sans"
+          placeholder="Write your email message... (Ctrl+Enter to send)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
         />
 
+        {/* Attachments chip list */}
         {attachments.length > 0 && (
-          <div className="compose-attachments-list flex flex-wrap gap-1.5 p-2.5 border-t border-border/40 bg-muted/20">
+          <div className="flex flex-wrap gap-1.5 p-3 border-t border-border/40 bg-muted/20">
             {attachments.map((att) => {
               const Icon = getFileIcon(att.type);
               return (
                 <Badge
                   key={att.id}
                   variant="secondary"
-                  className="compose-attachment-chip gap-1.5 py-1 px-2 text-xs font-normal"
+                  className="gap-1.5 py-1 px-2 text-xs font-normal rounded-full"
                 >
-                  <Icon className="compose-att-icon size-3.5 text-muted-foreground" />
-                  <span
-                    className="compose-att-name truncate max-w-40"
-                    title={att.name}
-                  >
+                  <Icon className="size-3.5 text-muted-foreground" />
+                  <span className="truncate max-w-40" title={att.name}>
                     {att.name}
                   </span>
-                  <span className="compose-att-size text-muted-foreground text-[11px]">
+                  <span className="text-muted-foreground text-[10px]">
                     ({formatBytes(att.size)})
                   </span>
                   <button
                     type="button"
-                    className="compose-att-remove hover:bg-muted/80 rounded p-0.5 cursor-pointer ml-0.5"
+                    className="hover:opacity-70 rounded p-0.5 ml-0.5"
                     onClick={() => removeAttachment(att.id)}
                     aria-label={`Remove ${att.name}`}
                   >
-                    <X className="size-3 text-muted-foreground hover:text-foreground" />
+                    <X className="size-3 text-muted-foreground" />
                   </button>
                 </Badge>
               );
@@ -784,47 +714,44 @@ export default function ComposePanel() {
           </div>
         )}
 
-        <div className="compose-foot">
-          <div className="compose-foot-left">
+        {/* Footer actions */}
+        <div className="flex items-center justify-between p-3 border-t border-border bg-muted/20">
+          <div className="flex items-center gap-3">
             <Button
-              className="send-button gap-1.5"
+              className="gap-1.5 h-8 px-3 text-xs"
               disabled={sending || !to.trim()}
-              data-loading={sending ? "true" : undefined}
               onClick={handleSend}
-              title="Send email (Ctrl + Enter)"
             >
               {sending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner className="size-3.5" />
               ) : (
-                <Send className="size-4" />
+                <Send className="size-3.5" data-icon="inline-start" />
               )}
               <span>{sending ? "Sending…" : "Send"}</span>
             </Button>
 
-            <div className="compose-save-status">
-              {autoSaving ? (
-                <span className="saving-indicator flex items-center gap-1 text-xs text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" />
-                  Saving...
-                </span>
-              ) : lastSavedTime ? (
-                <span className="saved-indicator flex items-center gap-1 text-xs text-muted-foreground">
-                  <CheckCircle2 className="size-3 text-emerald-500" />
-                  Saved {lastSavedTime}
-                </span>
-              ) : null}
-            </div>
+            {autoSaving ? (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Spinner className="size-3" />
+                <span>Saving draft...</span>
+              </span>
+            ) : lastSavedTime ? (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
+                <span>Saved {lastSavedTime}</span>
+              </span>
+            ) : null}
           </div>
 
-          <div className="compose-foot-actions flex items-center gap-1">
-            <div className="formatting-toolbar flex items-center gap-0.5">
+          <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Bold (Ctrl+B)"
                       onClick={() => applyFormatting("bold")}
                     />
@@ -841,7 +768,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Italic (Ctrl+I)"
                       onClick={() => applyFormatting("italic")}
                     />
@@ -858,7 +785,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Link (Ctrl+K)"
                       onClick={() => applyFormatting("link")}
                     />
@@ -875,7 +802,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Bulleted list"
                       onClick={() => applyFormatting("list")}
                     />
@@ -892,7 +819,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Quote block"
                       onClick={() => applyFormatting("quote")}
                     />
@@ -909,7 +836,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Code snippet"
                       onClick={() => applyFormatting("code")}
                     />
@@ -926,7 +853,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="icon-button small"
+                      className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Attach files"
                       onClick={() => fileInputRef.current?.click()}
                     />
@@ -936,6 +863,14 @@ export default function ComposePanel() {
                 </TooltipTrigger>
                 <TooltipContent>Attach files</TooltipContent>
               </Tooltip>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFileAttach(e.target.files)}
+              />
             </div>
 
             <DropdownMenu>
@@ -944,46 +879,48 @@ export default function ComposePanel() {
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    className="icon-button small"
-                    aria-label="Compose options"
+                    className="size-7 text-muted-foreground hover:text-foreground"
+                    aria-label="More options"
                   />
                 }
               >
                 <MoreHorizontal className="size-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44 p-1">
-                <DropdownMenuItem
-                  onClick={() => handleSaveDraft(false)}
-                  disabled={savingDraft}
-                >
-                  {savingDraft
-                    ? "Saving..."
-                    : draftId
-                      ? "Update draft"
-                      : "Save as draft"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={insertSignature}>
-                  Insert signature
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleDiscardDraft}
-                  className="text-destructive focus:text-destructive"
-                >
-                  Discard draft
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onClick={() => handleSaveDraft(false)}
+                    disabled={savingDraft}
+                  >
+                    {savingDraft
+                      ? "Saving..."
+                      : draftId
+                        ? "Update draft"
+                        : "Save as draft"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={insertSignature}>
+                    Insert signature
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDiscardDraft}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Discard draft
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
       </div>
 
+      {/* Discard / Save Alert Dialog */}
       <AlertDialog open={showClosePrompt} onOpenChange={setShowClosePrompt}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Save draft or discard?</AlertDialogTitle>
             <AlertDialogDescription>
-              You have unsaved changes in this message. Do you want to save it
-              as a draft or discard it?
+              You have unsaved content in this email. Would you like to save it as a draft to finish later, or discard it permanently?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

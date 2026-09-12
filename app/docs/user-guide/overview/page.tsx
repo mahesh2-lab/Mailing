@@ -2,9 +2,9 @@ import { DocsPager } from "@/components/docs/pager";
 
 export default function UserGuideOverview() {
   return (
-    <div className="prose prose-zinc prose-headings:text-black prose-p:text-black prose-strong:text-black prose-li:text-black text-black max-w-none">
-      <h1 className="font-black text-4xl mb-4">Product Overview</h1>
-      <p className="lead text-xl text-zinc-500 mb-8">
+    <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
+      <h1 className="text-3xl font-bold tracking-tight mb-2">Product Overview</h1>
+      <p className="lead text-muted-foreground text-base mb-8">
         Welcome to Mailing! This guide will help you understand what Mailing is and how to get the most out of your self-hosted email client.
       </p>
 

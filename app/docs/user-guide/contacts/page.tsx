@@ -2,9 +2,9 @@ import { DocsPager } from "@/components/docs/pager";
 
 export default function UserGuideContacts() {
   return (
-    <div className="prose prose-zinc prose-headings:text-black prose-p:text-black prose-strong:text-black prose-li:text-black text-black max-w-none">
-      <h1 className="font-black text-4xl mb-4">Contacts &amp; Address Book</h1>
-      <p className="lead text-xl text-zinc-500 mb-8">
+    <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
+      <h1 className="text-3xl font-bold tracking-tight mb-2">Contacts &amp; Address Book</h1>
+      <p className="lead text-muted-foreground text-base mb-8">
         Mailing keeps track of the people you talk to so you don't have to manually manage an address book.
       </p>
 

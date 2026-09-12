@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Book, Globe, Key, Webhook, Box, Database, FolderTree, Mail, Settings, Home } from "lucide-react";
+import { Book, Globe, Key, Webhook, Box, Database, FolderTree, Mail, Settings, Home, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const gettingStartedItems = [
@@ -42,29 +42,34 @@ const userGuideItems = [
   {
     title: "Automations & Workflows",
     href: "/docs/user-guide/automations",
-    icon: Settings, // Repurposing settings or using another icon
+    icon: Settings,
   },
   {
     title: "Contacts & Address Book",
     href: "/docs/user-guide/contacts",
-    icon: FolderTree, // Repurposing FolderTree or using another icon
+    icon: FolderTree,
   },
   {
     title: "Settings & Profile",
     href: "/docs/user-guide/settings",
-    icon: Database, // Repurposing Database or using another icon
+    icon: Database,
   },
 ];
 
 export function DocsSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname();
 
-  const renderNavGroup = (title: string, items: { title: string; href: string; icon: any }[]) => (
-    <div className="mb-8">
-      <div className="mb-3 px-4">
-        <h4 className="font-semibold text-sm tracking-tight text-zinc-950">{title}</h4>
+  const renderNavGroup = (
+    title: string,
+    items: { title: string; href: string; icon: LucideIcon }[]
+  ) => (
+    <div className="mb-6">
+      <div className="mb-2 px-3">
+        <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+          {title}
+        </h4>
       </div>
-      <ul className="space-y-1">
+      <ul className="space-y-0.5">
         {items.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -73,19 +78,19 @@ export function DocsSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
                 href={item.href}
                 onClick={() => onNavigate?.()}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                   isActive
-                    ? "bg-zinc-100/80 text-brand font-semibold"
-                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
                 <item.icon
                   className={cn(
-                    "w-4 h-4",
-                    isActive ? "text-brand" : "text-zinc-400"
+                    "size-4 shrink-0",
+                    isActive ? "text-primary-foreground" : "text-muted-foreground"
                   )}
                 />
-                {item.title}
+                <span>{item.title}</span>
               </Link>
             </li>
           );
@@ -95,15 +100,15 @@ export function DocsSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   );
 
   return (
-    <nav className="w-full">
-      <div className="mb-8 px-2">
+    <nav className="w-full px-2">
+      <div className="mb-6">
         <Link
           href="/"
           onClick={() => onNavigate?.()}
-          className="flex items-center gap-3 rounded-md px-4 py-2 text-sm font-medium transition-colors text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-foreground"
         >
-          <Home className="w-4 h-4 text-zinc-400" />
-          Back to App Home
+          <Home className="size-4 text-muted-foreground" />
+          <span>Back to App Home</span>
         </Link>
       </div>
       {renderNavGroup("Getting Started", gettingStartedItems)}

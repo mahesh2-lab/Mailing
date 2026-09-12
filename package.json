@@ -10,8 +10,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "sync-emails": "tsx scripts/sync-emails.ts",
-    "worker": "tsx worker/worker.ts",
-    "mail-worker": "tsx worker/mail-worker.ts",
     "workers": "tsx worker/index.ts",
     "reset-db": "tsx scripts/reset-db.ts"
   },

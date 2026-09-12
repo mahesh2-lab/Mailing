@@ -11,7 +11,9 @@ import { user } from "./auth-schema";
 
 export const emails = pgTable("emails", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   to: jsonb("to").$type<string[]>().notNull(),
 
   from: text("from").notNull(),
@@ -49,7 +51,9 @@ export const webhookEvents = pgTable("webhook_events", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
 
   createdAt: timestamp("created_at", { mode: "string" }).notNull(),
@@ -61,7 +65,9 @@ export const webhookEvents = pgTable("webhook_events", {
 
 export const customLabels = pgTable("custom_labels", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull().unique(),
   color: text("color"),
   createdAt: timestamp("created_at", { mode: "string" }).notNull(),
@@ -93,7 +99,9 @@ export const userApiKeys = pgTable(
 
 export const automations = pgTable("automations", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   enabled: boolean("enabled").notNull().default(false),
@@ -108,7 +116,9 @@ export const automations = pgTable("automations", {
 
 export const automationRuns = pgTable("automation_runs", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   automationId: text("automation_id").notNull(),
   automationName: text("automation_name").notNull(),
   status: text("status").notNull().default("success"),
@@ -121,7 +131,9 @@ export const automationRuns = pgTable("automation_runs", {
 
 export const customTools = pgTable("custom_tools", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   method: text("method").notNull().default("POST"),

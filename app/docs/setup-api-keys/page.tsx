@@ -6,9 +6,9 @@ import { DocsPager } from "@/components/docs/pager";
 
 export default function SetupApiKeysDocs() {
   return (
-    <div className="prose prose-zinc prose-headings:text-black prose-p:text-black prose-strong:text-black prose-li:text-black text-black max-w-none">
-      <h1 className="font-black">Setup API Keys in Resend</h1>
-      <p className="lead">
+    <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
+      <h1 className="text-3xl font-bold tracking-tight mb-2">Setup API Keys in Resend</h1>
+      <p className="lead text-muted-foreground text-base mb-8">
         API keys are required to authenticate your application with Resend so it
         can send emails and manage webhooks programmatically.
       </p>

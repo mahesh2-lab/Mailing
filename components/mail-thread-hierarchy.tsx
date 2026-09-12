@@ -288,11 +288,18 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
 
   // Single turn: standard message view with no quotes
   if (turns.length <= 1) {
+    if (message.rawHtml) {
+      return (
+        <div
+          className="email-html-body text-foreground text-sm leading-relaxed overflow-x-auto max-w-[820px] mx-auto w-full [&_img]:max-w-full [&_img]:h-auto [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: message.rawHtml }}
+        />
+      );
+    }
     return (
-      <div
-        className="email-body-content text-sm text-foreground/90 leading-relaxed font-normal"
-        dangerouslySetInnerHTML={{ __html: message.body }}
-      />
+      <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text max-w-[820px] mx-auto w-full">
+        {message.rawText || message.body}
+      </div>
     );
   }
 

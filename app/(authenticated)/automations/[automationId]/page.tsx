@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteNav } from "@/components/site-nav";
+import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import { AutomationBuilder } from "@/components/automations/automation-builder";
 import { ExecutionDetails } from "@/components/automations/execution-details";
 import { Automation, CustomTool, ExecutionRun } from "@/components/automations/automation-types";
@@ -163,12 +163,12 @@ export default function AutomationEditorPage() {
   }
 
   return (
-    <main className="h-screen w-full flex flex-col overflow-hidden bg-background text-foreground select-none">
-      {/* Site Navigation Bar */}
-      <SiteNav current="automations" className="mb-0! px-4 min-h-12! border-b border-border bg-background z-20 shrink-0" />
-
-      {/* Editor Component */}
-      <div className="flex-1 flex w-full overflow-hidden">
+    <AuthenticatedPageShell
+      title={automation.name || "Workflow Editor"}
+      description="Visual automation graph builder"
+      fullWidth={true}
+    >
+      <div className="flex-1 flex w-full h-full overflow-hidden">
         <AutomationBuilder
           automation={automation}
           customTools={customTools}
@@ -188,6 +188,6 @@ export default function AutomationEditorPage() {
           if (automation) handleTestRun(automation);
         }}
       />
-    </main>
+    </AuthenticatedPageShell>
   );
 }

@@ -6,10 +6,10 @@ import { DocsPager } from "@/components/docs/pager";
 
 export default function SetupDomainDocs() {
   return (
-    <div className="prose prose-zinc prose-headings:text-black prose-p:text-black prose-strong:text-black prose-li:text-black text-black max-w-none">
+    <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
       
-      <h1>Setup Custom Domain in Resend</h1>
-      <p className="lead">
+      <h1 className="text-3xl font-bold tracking-tight mb-2">Setup Custom Domain in Resend</h1>
+      <p className="lead text-muted-foreground text-base mb-8">
         To send and receive emails from your own domain (e.g., <code>you@yourdomain.com</code>), you need to verify it within Resend.
       </p>
 

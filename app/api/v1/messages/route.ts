@@ -34,7 +34,13 @@ export async function GET(request: Request) {
         data = await db
           .select()
           .from(emails)
-          .where(and(eq(emails.starred, true), ne(emails.folder, "trash"), eq(emails.userId, userId)))
+          .where(
+            and(
+              eq(emails.starred, true),
+              ne(emails.folder, "trash"),
+              eq(emails.userId, userId),
+            ),
+          )
           .orderBy(desc(emails.createdAt));
       } else if (folder === "sent") {
         data = await db
@@ -46,7 +52,12 @@ export async function GET(request: Request) {
         data = await db
           .select()
           .from(emails)
-          .where(and(or(eq(emails.folder, "drafts"), eq(emails.status, "draft")), eq(emails.userId, userId)))
+          .where(
+            and(
+              or(eq(emails.folder, "drafts"), eq(emails.status, "draft")),
+              eq(emails.userId, userId),
+            ),
+          )
           .orderBy(desc(emails.createdAt));
       } else if (folder === "archive") {
         data = await db
@@ -75,12 +86,16 @@ export async function GET(request: Request) {
           and(
             sql`${emails.labels}::text LIKE ${'%"' + label + '"%'}`,
             ne(emails.folder, "trash"),
-            eq(emails.userId, userId)
+            eq(emails.userId, userId),
           ),
         )
         .orderBy(desc(emails.createdAt));
     } else {
-      data = await db.select().from(emails).where(eq(emails.userId, userId)).orderBy(desc(emails.createdAt));
+      data = await db
+        .select()
+        .from(emails)
+        .where(eq(emails.userId, userId))
+        .orderBy(desc(emails.createdAt));
     }
 
     return NextResponse.json(data ?? []);
@@ -93,19 +108,25 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const internalToken = request.headers.get("x-internal-token");
-    const internalSecret = process.env.INTERNAL_API_SECRET || "default-internal-secret-123";
+    const internalSecret =
+      process.env.INTERNAL_API_SECRET || "default-internal-secret-123";
     const isInternal = internalToken === internalSecret;
 
     const body = await request.json();
     const { to, cc, bcc, subject, html, text, attachments, isDraft } = body;
-    
+
     let userId: string;
     if (isInternal) {
-      if (!body.userId) return NextResponse.json({ error: "Missing userId for internal request" }, { status: 400 });
+      if (!body.userId)
+        return NextResponse.json(
+          { error: "Missing userId for internal request" },
+          { status: 400 },
+        );
       userId = body.userId;
     } else {
       const session = await getAuthSession();
-      if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (!session)
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       userId = session.user.id;
     }
 
@@ -114,10 +135,12 @@ export async function POST(request: Request) {
     const bccList = bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : [];
 
     const settings = await db.query.userSettings.findFirst({
-      where: eq(userSettings.userId, userId)
+      where: eq(userSettings.userId, userId),
     });
 
-    const fromAddress = settings ? `${settings.senderName} <${settings.senderEmail}>` : "Mahesh <mahesh@heymahesh.in>";
+    const fromAddress = settings
+      ? `${settings.senderName} <${settings.senderEmail}>`
+      : "Mahesh <mahesh@heymahesh.in>";
 
     // Prepare Resend payload
     const resendPayload: any = {
@@ -146,11 +169,14 @@ export async function POST(request: Request) {
     }
 
     let emailId = crypto.randomUUID();
-    
+
     if (!isDraft) {
       const resend = await getResendClient(userId);
       if (!resend) {
-        return NextResponse.json({ error: "Resend not configured" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Resend not configured" },
+          { status: 400 },
+        );
       }
       const { data, error } = await resend.emails.send(resendPayload);
       if (error) {

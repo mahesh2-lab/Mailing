@@ -284,7 +284,7 @@ export function AutomationList({
           ))}
 
           {filtered.length === 0 && (
-            <div className="panel text-center py-12 space-y-3">
+            <div className="rounded-xl border border-border bg-card text-center py-12 px-4 space-y-3 shadow-xs">
               <div className="size-10 rounded-full bg-muted grid place-items-center mx-auto text-muted-foreground">
                 <Zap className="size-5" />
               </div>
@@ -299,13 +299,14 @@ export function AutomationList({
                 </p>
               </div>
               <div className="pt-2">
-                <button
+                <Button
                   type="button"
                   onClick={onCreateNew}
-                  className="button-primary text-xs"
+                  size="sm"
+                  className="text-xs font-semibold"
                 >
                   <Plus className="size-3.5 mr-1" /> Create Workflow
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -315,8 +316,8 @@ export function AutomationList({
       {/* Right Column: Engine Stats, Templates & Activity (4 Cols) */}
       <div className="lg:col-span-4 space-y-6">
         {/* Panel 1: Engine Status & Key Metrics */}
-        <div className="panel space-y-4">
-          <div className="panel-title">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Engine Status</h2>
               <p className="text-xs text-muted-foreground">Resend webhook & worker health</p>
@@ -350,13 +351,13 @@ export function AutomationList({
         </div>
 
         {/* Panel 2: Quick Starter Templates */}
-        <div className="panel space-y-3">
-          <div className="panel-title">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Quick Templates</h2>
               <p className="text-xs text-muted-foreground">Click to instantiate pre-built logic.</p>
             </div>
-            <Sparkles className="size-4 text-brand" />
+            <Sparkles className="size-4 text-primary" />
           </div>
 
           <div className="space-y-2 pt-1">
@@ -365,11 +366,11 @@ export function AutomationList({
                 key={tpl.name}
                 type="button"
                 onClick={() => onCreateFromTemplate?.(tpl)}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-foreground/30 bg-card hover:bg-muted/20 transition-all group flex items-start justify-between gap-3 cursor-pointer"
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-foreground/30 bg-background hover:bg-muted/40 transition-all group flex items-start justify-between gap-3 cursor-pointer"
               >
                 <div className="space-y-0.5 min-w-0">
-                  <div className="text-xs font-semibold text-foreground group-hover:text-brand transition-colors flex items-center gap-1.5">
-                    <tpl.icon className="size-3.5 text-muted-foreground group-hover:text-brand transition-colors shrink-0" />
+                  <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
+                    <tpl.icon className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     <span className="truncate">{tpl.name}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
@@ -383,8 +384,8 @@ export function AutomationList({
         </div>
 
         {/* Panel 3: Recent Executions Feed */}
-        <div className="panel space-y-3">
-          <div className="panel-title">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-xs">
+          <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
               <p className="text-xs text-muted-foreground">Latest execution audit traces.</p>
