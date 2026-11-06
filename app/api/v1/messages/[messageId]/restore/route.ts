@@ -1,6 +1,6 @@
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/src/lib/require-auth";
 
@@ -27,7 +27,7 @@ export async function POST(
     const email = await db
       .select()
       .from(emails)
-      .where(eq(emails.id, messageId));
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     if (!email || email.length === 0) {
       return NextResponse.json({ error: "Email not found" }, { status: 404 });
@@ -36,7 +36,7 @@ export async function POST(
     await db
       .update(emails)
       .set({ folder: targetFolder })
-      .where(eq(emails.id, messageId));
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: messageId, folder: targetFolder });
   } catch (error) {

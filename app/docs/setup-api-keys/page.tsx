@@ -1,7 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { DocsPager } from "@/components/docs/pager";
 
 export default function SetupApiKeysDocs() {
@@ -54,11 +51,8 @@ export default function SetupApiKeysDocs() {
         <strong>only once</strong>. Make sure you copy it immediately.
       </p>
       <p>
-        Paste this key into your application's <code>.env</code> file:
+        Save the key in Mailing's Settings page so it is encrypted before storage:
       </p>
-      <pre>
-        <code>RESEND_API_KEY="re_123456789..."</code>
-      </pre>
 
       <h2>3. Manage Your API Keys</h2>
       <p>

@@ -2,9 +2,10 @@ import { db } from "@/src";
 import { automations, automationRuns, emails } from "@/src/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 
-import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
 import { logger } from "@/lib/logger";
+import { isSafeHttpUrl, requestSafeHttp } from "@/lib/safe-http-request";
+export { isSafeHttpUrl } from "@/lib/safe-http-request";
 
 function getGeminiClient() {
   const key = process.env.GEMINI_API_KEY;
@@ -88,63 +89,6 @@ export function resolveVariables(
   });
 }
   
-export function isSafeHttpUrl(raw: string): { ok: boolean; reason?: string } {
-  let u: URL;
-  try {
-    u = new URL(raw);
-  } catch {
-    return { ok: false, reason: "Invalid URL" };
-  }
-
-  if (u.protocol !== "http:" && u.protocol !== "https:") {
-    return { ok: false, reason: `Blocked protocol "${u.protocol}"` };
-  }
-
-  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-
-  if (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host.endsWith(".local") ||
-    host.endsWith(".internal")
-  ) {
-    return { ok: false, reason: `Blocked internal host "${host}"` };
-  }
-
-  // IPv6 loopback / link-local (fe80::/10) / unique-local (fc00::/7)
-  if (
-    host === "::1" ||
-    host === "::" ||
-    host.startsWith("fe8") ||
-    host.startsWith("fe9") ||
-    host.startsWith("fea") ||
-    host.startsWith("feb") ||
-    host.startsWith("fc") ||
-    host.startsWith("fd")
-  ) {
-    return { ok: false, reason: `Blocked IPv6 host "${host}"` };
-  }
-
-  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const a = Number(m[1]);
-    const b = Number(m[2]);
-    if (
-      a === 0 ||
-      a === 127 || // loopback
-      a === 10 || // private
-      (a === 169 && b === 254) || // link-local incl. 169.254.169.254 metadata
-      (a === 172 && b >= 16 && b <= 31) || // private
-      (a === 192 && b === 168) || // private
-      (a === 100 && b >= 64 && b <= 127) // CGNAT
-    ) {
-      return { ok: false, reason: `Blocked private/reserved IP "${host}"` };
-    }
-  }
-
-  return { ok: true };
-}
-
 /**
  * Evaluate a trigger node's filters (sender / subject) against an email.
  * Used by the webhook to decide which automations actually apply to an inbound
@@ -538,12 +482,14 @@ export async function executeAutomation(
         if (!triggerPayload.simulated) {
           try {
             addStepLog("Sending live email via internal API...");
+            const internalSecret = process.env.INTERNAL_API_SECRET;
+            if (!internalSecret) throw new Error("INTERNAL_API_SECRET is not configured");
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
             const res = await fetch(`${appUrl}/api/v1/messages`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "x-internal-token": process.env.INTERNAL_API_SECRET || "default-internal-secret-123",
+                "x-internal-token": internalSecret,
               },
               body: JSON.stringify({
                 userId: ctx.userId,
@@ -591,49 +537,41 @@ export async function executeAutomation(
         const labelToAdd = node.config?.label || "Automated";
         addStepLog(`Applying label "${labelToAdd}" to current thread`);
         if (ctx.email?.id) {
-          try {
-            const existing = await db.query.emails.findFirst({
-              where: eq(emails.id, ctx.email.id),
-            });
-            if (existing) {
-              const currentLabels = existing.labels || [];
-              if (!currentLabels.includes(labelToAdd)) {
-                await db
-                  .update(emails)
-                  .set({ labels: [...currentLabels, labelToAdd] })
-                  .where(eq(emails.id, ctx.email.id));
-                addStepLog(
-                  `Updated database email record ${ctx.email.id} with label "${labelToAdd}"`,
-                );
-              }
+          const existing = await db.query.emails.findFirst({
+            where: and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)),
+          });
+          if (existing) {
+            const currentLabels = existing.labels || [];
+            if (!currentLabels.includes(labelToAdd)) {
+              await db
+                .update(emails)
+                .set({ labels: [...currentLabels, labelToAdd] })
+                .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
+              addStepLog(
+                `Updated database email record ${ctx.email.id} with label "${labelToAdd}"`,
+              );
             }
-          } catch (lblErr: any) {
-            addStepLog(`Label update notice: ${lblErr.message}`);
           }
         }
         output = { addedLabel: labelToAdd };
       } else if (node.type === "email_archive") {
         addStepLog("Moving email to Archive folder");
         if (ctx.email?.id) {
-          try {
-            await db
-              .update(emails)
-              .set({ folder: "archive" })
-              .where(eq(emails.id, ctx.email.id));
-            addStepLog(`Email ${ctx.email.id} marked as archived in database`);
-          } catch {}
+          await db
+            .update(emails)
+            .set({ folder: "archive" })
+            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
+          addStepLog(`Email ${ctx.email.id} marked as archived in database`);
         }
         output = { archived: true };
       } else if (node.type === "email_star") {
         addStepLog("Marking email as Starred Priority");
         if (ctx.email?.id) {
-          try {
-            await db
-              .update(emails)
-              .set({ starred: true })
-              .where(eq(emails.id, ctx.email.id));
-            addStepLog(`Email ${ctx.email.id} starred`);
-          } catch {}
+          await db
+            .update(emails)
+            .set({ starred: true })
+            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
+          addStepLog(`Email ${ctx.email.id} starred`);
         }
         output = { starred: true };
       } else if (node.type === "tool_http_request") {
@@ -647,7 +585,7 @@ export async function executeAutomation(
           throw new Error(`Unsafe HTTP request URL: ${safety.reason}`);
         }
 
-        let parsedBody: any = undefined;
+        let parsedBody: unknown;
         if (node.config?.body) {
           const resolvedBody = resolveVariables(node.config.body, ctx);
           try {
@@ -663,19 +601,14 @@ export async function executeAutomation(
         if (url && !triggerPayload.simulated) {
           try {
             addStepLog(`Sending HTTP request to external endpoint ${url}...`);
-            const response = await axios({
-              url,
-              method,
-              data: parsedBody,
-              timeout: 5000,
-              maxRedirects: 0, // don't let a public URL redirect into an internal one
-            });
+            const response = await requestSafeHttp(url, method, parsedBody);
             ctx.variables["{{tool.response}}"] = JSON.stringify(response.data);
             addStepLog(`HTTP request returned HTTP ${response.status} OK`);
             output = { status: response.status, data: response.data };
-          } catch (reqErr: any) {
-            addStepLog(`HTTP request failed: ${reqErr.message}`);
-            output = { error: reqErr.message, simulatedFallback: true };
+          } catch (reqErr: unknown) {
+            const message = reqErr instanceof Error ? reqErr.message : "Unknown error";
+            addStepLog(`HTTP request failed: ${message}`);
+            output = { error: message, simulatedFallback: true };
           }
         } else {
           addStepLog(

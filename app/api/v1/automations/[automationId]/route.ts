@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { automations } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { automationQueue } from "@/lib/queue";
 import { getAuthSession } from "@/src/lib/require-auth";
 
@@ -15,7 +15,7 @@ export async function GET(
 
     const { automationId } = await Promise.resolve(params);
     const item = await db.query.automations.findFirst({
-      where: eq(automations.id, automationId),
+      where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
     });
 
     if (!item) {
@@ -50,10 +50,10 @@ export async function PUT(
         edges: body.edges !== undefined ? body.edges : undefined,
         updatedAt: now,
       })
-      .where(eq(automations.id, automationId));
+      .where(and(eq(automations.id, automationId), eq(automations.userId, session.user.id)));
 
     const updated = await db.query.automations.findFirst({
-      where: eq(automations.id, automationId),
+      where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
     });
 
     return NextResponse.json({ data: updated });
@@ -71,7 +71,7 @@ export async function DELETE(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { automationId } = await Promise.resolve(params);
-    await db.delete(automations).where(eq(automations.id, automationId));
+    await db.delete(automations).where(and(eq(automations.id, automationId), eq(automations.userId, session.user.id)));
     return NextResponse.json({ success: true, deletedId: automationId });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -89,6 +89,11 @@ export async function POST(
 
     const { automationId } = await Promise.resolve(params);
     const body = await request.json().catch(() => ({}));
+    const automation = await db.query.automations.findFirst({
+      where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
+      columns: { id: true },
+    });
+    if (!automation) return NextResponse.json({ error: "Automation not found" }, { status: 404 });
     
     const job = await automationQueue.add("execute-automation", {
       automationId,

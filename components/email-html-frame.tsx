@@ -1,0 +1,15 @@
+"use client";
+
+const EMAIL_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:;">`;
+
+export function EmailHtmlFrame({ html, title = "Email content" }: { html: string; title?: string }) {
+  return (
+    <iframe
+      title={title}
+      sandbox=""
+      referrerPolicy="no-referrer"
+      srcDoc={`${EMAIL_CSP}${html}`}
+      className="min-h-[400px] w-full border-0 bg-white"
+    />
+  );
+}

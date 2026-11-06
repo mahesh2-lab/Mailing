@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { avatarColor, getInitials } from "@/lib/utils";
 import type { MailItem } from "../hooks/use-mail";
+import { EmailHtmlFrame } from "./email-html-frame";
 
 export interface ThreadTurn {
   id: string;
@@ -290,10 +291,9 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   if (turns.length <= 1) {
     if (message.rawHtml) {
       return (
-        <div
-          className="email-html-body text-foreground text-sm leading-relaxed overflow-x-auto max-w-[820px] mx-auto w-full [&_img]:max-w-full [&_img]:h-auto [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline"
-          dangerouslySetInnerHTML={{ __html: message.rawHtml }}
-        />
+        <div className="mx-auto w-full max-w-[820px]">
+          <EmailHtmlFrame html={message.rawHtml} />
+        </div>
       );
     }
     return (

@@ -16,8 +16,7 @@ export interface MailActionConfig {
 }
 
 export function getActionsForFolder(
-  folder: Folder | string | undefined,
-  isLabel?: boolean
+  folder: Folder | string | undefined
 ): {
   primaryActions: MailActionConfig[];
   canEmptyFolder?: boolean;

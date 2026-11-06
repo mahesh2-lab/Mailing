@@ -3,7 +3,14 @@ import { db } from "../src/index.js";
 import { sql } from "drizzle-orm";
 
 async function resetDb() {
-  console.log("Starting database reset...");
+  if (!process.argv.includes("--confirm-reset") || process.env.ALLOW_DESTRUCTIVE_DB_RESET !== "true") {
+    console.error("Refusing to reset. Set ALLOW_DESTRUCTIVE_DB_RESET=true and pass --confirm-reset.");
+    process.exitCode = 1;
+    await db.$client.end();
+    return;
+  }
+
+  console.log("Starting confirmed database reset...");
   try {
     await db.execute(sql`
       TRUNCATE TABLE 
@@ -15,8 +22,9 @@ async function resetDb() {
     console.log("Database successfully reset.");
   } catch (error) {
     console.error("Error resetting database:", error);
+    process.exitCode = 1;
   } finally {
-    process.exit(0);
+    await db.$client.end();
   }
 }
 

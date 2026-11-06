@@ -1,6 +1,6 @@
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/src/lib/require-auth';
 
@@ -15,17 +15,17 @@ export async function POST(
 
   try {
 
-    const email = await db.select().from(emails).where(eq(emails.id, messageId));
+    const email = await db.select().from(emails).where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
     
-    if (!email) {
+    if (email.length === 0) {
       return NextResponse.json({ error: "Email not found" }, { status: 404 });
     }
     
-    await db.update(emails).set({ folder: 'trash' }).where(eq(emails.id, messageId));
+    await db.update(emails).set({ folder: 'trash' }).where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: messageId, folder: 'trash' });
   } catch (error) {
-    console.log(error);
-    return NextResponse.json({ id: messageId, folder: 'trash' });
+    console.error("Failed to trash message:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

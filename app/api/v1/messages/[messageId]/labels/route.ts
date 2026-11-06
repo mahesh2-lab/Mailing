@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(
@@ -23,7 +23,7 @@ export async function POST(
     const [email] = await db
       .select({ id: emails.id, labels: emails.labels })
       .from(emails)
-      .where(eq(emails.id, messageId))
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)))
       .limit(1);
 
     if (!email) {
@@ -36,7 +36,7 @@ export async function POST(
       await db
         .update(emails)
         .set({ labels: currentLabels })
-        .where(eq(emails.id, messageId));
+        .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
     }
 
     return NextResponse.json({ id: messageId, labels: currentLabels });
@@ -65,7 +65,7 @@ export async function DELETE(
     const [email] = await db
       .select({ id: emails.id, labels: emails.labels })
       .from(emails)
-      .where(eq(emails.id, messageId))
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)))
       .limit(1);
 
     if (!email) {
@@ -78,7 +78,7 @@ export async function DELETE(
     await db
       .update(emails)
       .set({ labels: updatedLabels })
-      .where(eq(emails.id, messageId));
+        .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: messageId, labels: updatedLabels });
   } catch (error) {

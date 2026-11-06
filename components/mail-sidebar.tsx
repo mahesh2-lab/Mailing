@@ -14,7 +14,6 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Pencil,
   Plus,
   Send,
   Settings,
@@ -28,14 +27,14 @@ import {
   Zap,
 } from "lucide-react";
 import axios from "axios";
-import { Folder, MailItem } from "../hooks/use-mail";
+import { DEFAULT_LABEL_NAMES, useMailSummary } from "../hooks/use-mail-summary";
+import { Folder } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import ConfirmDialog from "./confirm-dialog";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -61,7 +60,7 @@ import {
 } from "@/components/ui/context-menu";
 import { ThemeToggle } from "./theme-toggle";
 import { authClient } from "@/src/lib/auth-client";
-import { getInitials, cn } from "@/lib/utils";
+import { getInitials } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -98,109 +97,6 @@ const folderRoutes: Record<Folder, string> = {
   Archive: "/archive",
   Trash: "/trash",
 };
-
-export interface LabelData {
-  id: string;
-  name: string;
-  color?: string | null;
-  count: number;
-}
-
-const DEFAULT_LABEL_NAMES = ["Important", "Work", "Personal"];
-
-function useMailSummary(refreshTick: number) {
-  const [allMail, setAllMail] = useState<MailItem[]>([]);
-  const [labels, setLabels] = useState<LabelData[]>([]);
-
-  useEffect(() => {
-    let mounted = true;
-    axios
-      .get("/api/v1/messages")
-      .then((res) => {
-        if (!mounted) return;
-        const mapped: MailItem[] = (res.data || []).map((e: any) => ({
-          id: e.id,
-          sender: {
-            name: e.from?.split("<")[0].trim() || e.from || "Unknown",
-            email: e.from || "",
-          },
-          subject: e.subject || "",
-          preview: "",
-          rawText: e.text || "",
-          rawHtml: e.html || "",
-          body: e.html || e.text || "",
-          timestamp: e.createdAt || e.created_at || "",
-          folder: e.folder,
-          status: e.status,
-          unread: e.unread ?? false,
-          starred: e.starred ?? false,
-          labels: e.labels || [],
-          attachments: (e.attachments || []).map((a: any) => ({
-            id: a.id,
-            filename: a.filename,
-            sizeBytes: a.size || 0,
-            url: a.download_url || "#",
-            type: a.content_type || "application/octet-stream",
-          })),
-        }));
-        setAllMail(mapped);
-      })
-      .catch(() => {});
-
-    axios
-      .get("/api/v1/labels")
-      .then((res) => {
-        if (!mounted) return;
-        setLabels(res.data || []);
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, [refreshTick]);
-
-  const counts = useMemo<Record<string, number>>(() => {
-    const res: Record<string, number> = {
-      Inbox: allMail.filter(
-        (m) => (m.folder?.toLowerCase() === "inbox" || !m.folder) && m.unread,
-      ).length,
-      Starred: allMail.filter(
-        (m) => m.starred && m.folder?.toLowerCase() !== "trash" && m.unread,
-      ).length,
-      Sent: allMail.filter(
-        (m) => m.folder?.toLowerCase() === "sent" && m.unread,
-      ).length,
-      Drafts: allMail.filter(
-        (m) =>
-          (m.folder?.toLowerCase() === "drafts" ||
-            m.status?.toLowerCase() === "draft" ||
-            m.labels?.includes("Draft")) &&
-          m.unread,
-      ).length,
-      Archive: allMail.filter(
-        (m) => m.folder?.toLowerCase() === "archive" && m.unread,
-      ).length,
-      Trash: allMail.filter(
-        (m) => m.folder?.toLowerCase() === "trash" && m.unread,
-      ).length,
-    };
-
-    for (const lbl of labels) {
-      res[lbl.name] = allMail.filter(
-        (m) =>
-          Array.isArray(m.labels) &&
-          m.labels.includes(lbl.name) &&
-          m.folder?.toLowerCase() !== "trash" &&
-          m.unread,
-      ).length;
-    }
-
-    return res;
-  }, [allMail, labels]);
-
-  return { counts, labels };
-}
 
 export interface MailSidebarProps {
   hideThemeToggle?: boolean;
@@ -253,7 +149,8 @@ export default function MailSidebar({
 
   // Clear navigating state when the active route, folder, or label updates
   useEffect(() => {
-    setNavigatingKey(null);
+    const timer = setTimeout(() => setNavigatingKey(null), 0);
+    return () => clearTimeout(timer);
   }, [pathname, folder, label]);
 
   // Fallback timeout so navigating animation never gets stuck
@@ -307,8 +204,11 @@ export default function MailSidebar({
       setNewLabelName("");
       setCreatingLabel(false);
       refresh();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || "Failed to create label");
+    } catch (error: unknown) {
+      const message = axios.isAxiosError<{ error?: string }>(error)
+        ? error.response?.data?.error
+        : undefined;
+      toast.error(message || "Failed to create label");
     } finally {
       setCreatingLoading(false);
     }

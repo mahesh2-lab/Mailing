@@ -1,6 +1,6 @@
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/src/lib/require-auth';
 
@@ -16,18 +16,18 @@ export async function POST(
     const body = await request.json();
 
 
-    const email = await db.select().from(emails).where(eq(emails.id, messageId));
+    const email = await db.select().from(emails).where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
     
-    if (!email) {
+    if (email.length === 0) {
       return NextResponse.json({ error: "Email not found" }, { status: 404 });
     }
     
-    await db.update(emails).set({ starred: body.starred ?? true }).where(eq(emails.id, messageId));
+    await db.update(emails).set({ starred: body.starred ?? true }).where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: messageId, starred: body.starred ?? true });
     
   } catch (error) {
-    console.log(error);
-    return NextResponse.json({ id: messageId, starred: true });
+    console.error("Failed to update message star:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

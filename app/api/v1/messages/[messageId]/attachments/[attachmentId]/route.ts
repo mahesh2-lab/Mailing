@@ -4,7 +4,7 @@ import { auth } from "@/src/lib/auth";
 import { headers } from "next/headers";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export async function GET(
   request: Request,
@@ -25,8 +25,14 @@ export async function GET(
     return new NextResponse("Resend not configured", { status: 400 });
   }
 
-
   try {
+    const [emailRecord] = await db
+      .select({ attachments: emails.attachments })
+      .from(emails)
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)))
+      .limit(1);
+    if (!emailRecord) return new NextResponse("Message not found", { status: 404 });
+
     const { data, error } = await resend.emails.receiving.attachments.get({
       emailId: messageId,
       id: attachmentId,
@@ -35,12 +41,6 @@ export async function GET(
     if (error || !data) {
       console.error("Failed to fetch attachment from Resend:", error);
       
-      // Fallback: Check if we have the attachment URL in the database
-      const [emailRecord] = await db
-        .select({ attachments: emails.attachments })
-        .from(emails)
-        .where(eq(emails.id, messageId));
-        
       if (emailRecord && Array.isArray(emailRecord.attachments)) {
         const att = emailRecord.attachments.find((a: any) => a.id === attachmentId) as any;
         if (att && att.download_url) {

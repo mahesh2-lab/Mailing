@@ -41,17 +41,10 @@ export async function POST(request: Request) {
       updatedAt: now,
     };
 
-    await db.insert(automations).values(record).onConflictDoUpdate({
-      target: automations.id,
-      set: {
-        name: record.name,
-        description: record.description,
-        enabled: record.enabled,
-        nodes: record.nodes,
-        edges: record.edges,
-        updatedAt: now,
-      },
-    });
+    const [created] = await db.insert(automations).values(record)
+      .onConflictDoNothing()
+      .returning({ id: automations.id });
+    if (!created) return NextResponse.json({ error: "Automation ID already exists" }, { status: 409 });
 
     return NextResponse.json({ data: record }, { status: 201 });
   } catch (error: any) {

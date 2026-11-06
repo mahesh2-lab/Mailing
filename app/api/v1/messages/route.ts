@@ -7,6 +7,32 @@ import { getResendClient } from "@/lib/resend";
 import { pusherServer } from "@/src/lib/pusher";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { emailChannelForUser } from "@/lib/realtime-channels";
+import { escapeHtml } from "@/lib/utils";
+import { z } from "zod";
+
+const EmailAddress = z.string().trim().email().max(320);
+const MessageInput = z.object({
+  userId: z.string().min(1).optional(),
+  to: z.union([EmailAddress, z.array(EmailAddress).max(100)]).optional(),
+  cc: z.union([EmailAddress, z.array(EmailAddress).max(100)]).optional(),
+  bcc: z.union([EmailAddress, z.array(EmailAddress).max(100)]).optional(),
+  subject: z.string().max(998).optional(),
+  html: z.string().max(1_000_000).optional(),
+  text: z.string().max(1_000_000).optional(),
+  attachments: z.array(z.object({
+    id: z.string().optional(),
+    filename: z.string().min(1).max(255),
+    size: z.number().nonnegative().optional(),
+    type: z.string().max(255).optional(),
+    url: z.string().max(4096).optional(),
+    content: z.string().max(14_000_000).optional(),
+  })).max(20).optional(),
+  isDraft: z.boolean().optional(),
+}).superRefine((message, context) => {
+  if (!message.isDraft && !message.to) {
+    context.addIssue({ code: "custom", path: ["to"], message: "At least one recipient is required" });
+  }
+});
 
 export async function GET(request: Request) {
   const session = await getAuthSession();
@@ -17,88 +43,86 @@ export async function GET(request: Request) {
 
   const folder = searchParams.get("folder")?.toLowerCase();
   const label = searchParams.get("label");
+    const limitParam = searchParams.get("limit");
+    const offsetParam = searchParams.get("offset") ?? "0";
+    const pageLimit = limitParam === null ? null : Number(limitParam);
+    const offset = Number(offsetParam);
+    if (
+      (pageLimit !== null && (!Number.isInteger(pageLimit) || pageLimit < 1 || pageLimit > 100)) ||
+      !Number.isSafeInteger(offset) || offset < 0
+    ) {
+      return NextResponse.json({ error: "Invalid pagination" }, { status: 400 });
+    }
 
   try {
-    let data: any;
-
     const userId = session.user.id;
+
+    if (searchParams.get("summary") === "1") {
+      const rows = await db.select({
+        folder: emails.folder,
+        status: emails.status,
+        starred: emails.starred,
+        unread: emails.unread,
+        labels: emails.labels,
+      }).from(emails).where(eq(emails.userId, userId));
+      const counts: Record<string, number> = {};
+      for (const row of rows) {
+        const folderName = row.folder.toLowerCase();
+        if (row.unread) {
+          const key = folderName === "drafts" || row.status.toLowerCase() === "draft" ? "Drafts" :
+            folderName === "inbox" ? "Inbox" : folderName === "sent" ? "Sent" :
+            folderName === "archive" ? "Archive" : folderName === "trash" ? "Trash" : null;
+          if (key) counts[key] = (counts[key] || 0) + 1;
+          if (row.starred && folderName !== "trash") counts.Starred = (counts.Starred || 0) + 1;
+          if (folderName !== "trash") {
+            for (const name of row.labels || []) counts[name] = (counts[name] || 0) + 1;
+          }
+        }
+      }
+      return NextResponse.json(counts);
+    }
+
+    const filters = [eq(emails.userId, userId)];
 
     if (folder) {
       if (folder === "inbox") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(and(eq(emails.folder, "inbox"), eq(emails.userId, userId)))
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.folder, "inbox"));
       } else if (folder === "starred") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(
-            and(
-              eq(emails.starred, true),
-              ne(emails.folder, "trash"),
-              eq(emails.userId, userId),
-            ),
-          )
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.starred, true), ne(emails.folder, "trash"));
       } else if (folder === "sent") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(and(eq(emails.folder, "sent"), eq(emails.userId, userId)))
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.folder, "sent"));
       } else if (folder === "drafts") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(
-            and(
-              or(eq(emails.folder, "drafts"), eq(emails.status, "draft")),
-              eq(emails.userId, userId),
-            ),
-          )
-          .orderBy(desc(emails.createdAt));
+        filters.push(or(eq(emails.folder, "drafts"), eq(emails.status, "draft"))!);
       } else if (folder === "archive") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(and(eq(emails.folder, "archive"), eq(emails.userId, userId)))
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.folder, "archive"));
       } else if (folder === "trash") {
-        data = await db
-          .select()
-          .from(emails)
-          .where(and(eq(emails.folder, "trash"), eq(emails.userId, userId)))
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.folder, "trash"));
       } else {
-        data = await db
-          .select()
-          .from(emails)
-          .where(and(eq(emails.folder, folder), eq(emails.userId, userId)))
-          .orderBy(desc(emails.createdAt));
+        filters.push(eq(emails.folder, folder));
       }
     } else if (label) {
-      data = await db
-        .select()
-        .from(emails)
-        .where(
-          and(
-            sql`${emails.labels}::text LIKE ${'%"' + label + '"%'}`,
-            ne(emails.folder, "trash"),
-            eq(emails.userId, userId),
-          ),
-        )
-        .orderBy(desc(emails.createdAt));
-    } else {
-      data = await db
-        .select()
-        .from(emails)
-        .where(eq(emails.userId, userId))
-        .orderBy(desc(emails.createdAt));
+      filters.push(sql`${emails.labels}::text LIKE ${'%"' + label + '"%'}`, ne(emails.folder, "trash"));
     }
 
-    return NextResponse.json(data ?? []);
+    const query = db.select({
+      id: emails.id,
+      from: emails.from,
+      createdAt: emails.createdAt,
+      subject: emails.subject,
+      preview: sql<string>`left(regexp_replace(coalesce(${emails.text}, ${emails.html}, ''), '<[^>]*>', ' ', 'g'), 140)`,
+      folder: emails.folder,
+      status: emails.status,
+      starred: emails.starred,
+      unread: emails.unread,
+      labels: emails.labels,
+      attachments: emails.attachments,
+    }).from(emails).where(and(...filters)).orderBy(desc(emails.createdAt));
+    if (pageLimit === null) return NextResponse.json(await query);
+
+    const rows = await query.limit(pageLimit + 1).offset(offset);
+    return NextResponse.json(rows.slice(0, pageLimit), {
+      headers: { "x-has-more": String(rows.length > pageLimit) },
+    });
   } catch (error) {
     console.error("Failed to fetch emails:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -108,11 +132,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const internalToken = request.headers.get("x-internal-token");
-    const internalSecret =
-      process.env.INTERNAL_API_SECRET || "default-internal-secret-123";
-    const isInternal = internalToken === internalSecret;
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+    const isInternal = Boolean(internalSecret && internalToken === internalSecret);
 
-    const body = await request.json();
+    const parsed = MessageInput.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: "Invalid email payload" }, { status: 400 });
+    const body = parsed.data;
     const { to, cc, bcc, subject, html, text, attachments, isDraft } = body;
 
     let userId: string;
@@ -138,35 +163,28 @@ export async function POST(request: Request) {
       where: eq(userSettings.userId, userId),
     });
 
-    const fromAddress = settings
-      ? `${settings.senderName} <${settings.senderEmail}>`
-      : "Mahesh <mahesh@heymahesh.in>";
+    if (!settings) return NextResponse.json({ error: "Complete sender setup before composing email" }, { status: 400 });
+    const fromAddress = `${settings.senderName} <${settings.senderEmail}>`;
 
     // Prepare Resend payload
-    const resendPayload: any = {
+    const htmlBody = html ?? (text
+      ? `<p>${text.split(/\r?\n/).map(escapeHtml).join("<br>")}</p>`
+      : "<p></p>");
+    const resendPayload = {
       from: fromAddress,
       to: recipients,
       subject: subject || "No Subject",
+      html: htmlBody,
+      ...(text ? { text } : {}),
+      ...(ccList.length ? { cc: ccList } : {}),
+      ...(bccList.length ? { bcc: bccList } : {}),
+      ...(attachments?.length ? {
+        attachments: attachments.map((att) => ({
+          filename: att.filename,
+          content: att.content || "",
+        })),
+      } : {}),
     };
-
-    if (html) {
-      resendPayload.html = html;
-    } else if (text) {
-      resendPayload.text = text;
-      // Optionally provide a basic HTML fallback to ensure consistent rendering
-      resendPayload.html = `<p>${text.replace(/\n/g, "<br>")}</p>`;
-    } else {
-      resendPayload.html = "<p></p>";
-    }
-
-    if (ccList.length > 0) resendPayload.cc = ccList;
-    if (bccList.length > 0) resendPayload.bcc = bccList;
-    if (Array.isArray(attachments) && attachments.length > 0) {
-      resendPayload.attachments = attachments.map((att: any) => ({
-        filename: att.filename || "attachment",
-        content: att.content || "",
-      }));
-    }
 
     let emailId = crypto.randomUUID();
 
@@ -188,7 +206,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     const storedAttachments = (attachments || []).map(
-      (att: any, idx: number) => ({
+      (att) => ({
         id: att.id || crypto.randomUUID(),
         filename: att.filename,
         size: att.size || 0,
@@ -208,8 +226,8 @@ export async function POST(request: Request) {
         from: fromAddress,
         createdAt: now,
         subject: subject || "No Subject",
-        html: resendPayload.html,
-        text: resendPayload.text || "",
+        html: htmlBody,
+        text: text || "",
         attachments: storedAttachments,
         status: isDraft ? "draft" : "sent",
         folder: isDraft ? "drafts" : "sent",

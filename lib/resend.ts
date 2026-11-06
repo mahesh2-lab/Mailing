@@ -24,15 +24,5 @@ export async function getResendClient(userId?: string | null): Promise<Resend | 
     }
   }
 
-  const anyRecord = await db.query.userApiKeys.findFirst({
-    where: eq(userApiKeys.provider, "Resend"),
-  });
-  if (anyRecord) {
-    try {
-      const decryptedKey = await decrypt(anyRecord.encryptedKey);
-      return new Resend(decryptedKey);
-    } catch {}
-  }
-
   return null;
 }

@@ -5,7 +5,7 @@ import { db } from "../index";
 import * as authSchema from "../db/auth-schema";
 
 export const auth = betterAuth({
-  appName: "Mailling",
+  appName: "Mailing",
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: authSchema, 

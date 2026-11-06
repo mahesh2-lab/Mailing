@@ -1,6 +1,6 @@
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { getAuthSession } from '@/src/lib/require-auth';
 
@@ -17,11 +17,11 @@ export async function POST(
     await db
       .update(emails)
       .set({ folder: 'archive' })
-      .where(eq(emails.id, messageId));
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: messageId, folder: 'archive' });
   } catch (error) {
     console.error('Failed to archive message:', error);
-    return NextResponse.json({ id: messageId, folder: 'archive' });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Play, Check, AlertCircle, Wrench } from "lucide-react";
+import { Plus, Trash2, Wrench } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -54,15 +54,6 @@ export function CustomToolDialog({
     initialTool?.inputSchema || '{\n  "type": "object",\n  "properties": {\n    "email": { "type": "string" }\n  }\n}'
   );
 
-  // Test tool state
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    status: number;
-    ok: boolean;
-    data: any;
-    durationMs: number;
-  } | null>(null);
-
   function handleAddHeader() {
     setHeaders([...headers, { key: "", value: "" }]);
   }
@@ -79,49 +70,6 @@ export function CustomToolDialog({
 
   function handleInsertVariable(vKey: string) {
     setBodyTemplate((prev) => prev + vKey);
-  }
-
-  async function handleTestTool() {
-    if (!url.trim()) {
-      toast.error("Please enter a valid URL");
-      return;
-    }
-
-    setTesting(true);
-    setTestResult(null);
-
-    const startTime = Date.now();
-    try {
-      // Simulate/perform HTTP test safely
-      await new Promise((r) => setTimeout(r, 600));
-      const durationMs = Date.now() - startTime;
-
-      setTestResult({
-        status: 200,
-        ok: true,
-        durationMs,
-        data: {
-          success: true,
-          message: `Endpoint ${url} responded successfully.`,
-          simulatedPayload: {
-            method,
-            headersCount: headers.filter((h) => h.key.trim()).length,
-            authenticated: authType !== "none",
-          },
-        },
-      });
-      toast.success("Tool test passed (200 OK)");
-    } catch (err: any) {
-      setTestResult({
-        status: 500,
-        ok: false,
-        durationMs: Date.now() - startTime,
-        data: { error: err.message || "Failed to contact URL" },
-      });
-      toast.error("Tool test failed");
-    } finally {
-      setTesting(false);
-    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -331,44 +279,7 @@ export function CustomToolDialog({
             />
           </div>
 
-          {/* Test Tool Feedback */}
-          {testResult && (
-            <div
-              className={`p-2.5 rounded-md text-xs border ${
-                testResult.ok
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                  : "bg-destructive/10 border-destructive/30 text-destructive"
-              }`}
-            >
-              <div className="flex items-center justify-between font-medium">
-                <span className="flex items-center gap-1.5">
-                  {testResult.ok ? (
-                    <Check className="size-3.5 text-emerald-500" />
-                  ) : (
-                    <AlertCircle className="size-3.5 text-destructive" />
-                  )}
-                  Status: {testResult.status} {testResult.ok ? "OK" : "Error"}
-                </span>
-                <span className="text-[11px] opacity-80">{testResult.durationMs}ms</span>
-              </div>
-              <pre className="mt-1.5 text-[11px] font-mono p-1.5 bg-background/80 rounded border overflow-x-auto">
-                {JSON.stringify(testResult.data, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          <DialogFooter className="pt-3 flex sm:justify-between items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleTestTool}
-              disabled={testing}
-              className="gap-1.5 text-xs"
-            >
-              <Play className="size-3.5" />
-              {testing ? "Testing…" : "Test Tool"}
-            </Button>
+          <DialogFooter className="pt-3 flex justify-end items-center gap-2">
             <div className="flex gap-2">
               <Button
                 type="button"

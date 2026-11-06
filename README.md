@@ -61,9 +61,9 @@ Follow these instructions to get a local copy of the project up and running.
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
-- **pnpm** (v8 or higher)
-- **PostgreSQL** database (Local or hosted like Supabase/Neon)
+- **Node.js** (v24 or higher)
+- **pnpm** (v11.17.0)
+- **PostgreSQL** and **BullMQ-compatible Redis** services
 - A **Resend** account and API Key
 - A **Pusher** account (for real-time notifications)
 
@@ -82,7 +82,7 @@ Follow these instructions to get a local copy of the project up and running.
 
 ### Configuration
 
-1. **Copy the example environment file:**
+1. **If you do not already have a `.env`, copy the example environment file:**
    ```bash
    cp .env.example .env
    ```
@@ -95,23 +95,39 @@ Follow these instructions to get a local copy of the project up and running.
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
 
-### Database Setup
+### Run Locally
 
-Initialize your PostgreSQL database and push the schema using Drizzle:
-
-```bash
-pnpm drizzle-kit push
-```
-
-### Start the Application
-
-Start the development server:
+Set `DATABASE_URL`, `REDIS_URL`, and the other required values in `.env`, apply checked-in migrations, then start the app and worker in separate terminals:
 
 ```bash
-pnpm run dev
+pnpm db:migrate
+pnpm dev
+pnpm workers
 ```
 
-Visit `http://localhost:3000` to access your Mailing dashboard!
+### Deploy the App on Vercel and the Worker on a VPS
+
+Use this option when the web app should run on Vercel. The VPS only runs the queue worker, so it does not need a domain or inbound web ports. Vercel and the worker must use the same PostgreSQL and BullMQ-compatible Redis services. Managed endpoints are simplest; if these services run on your VPS, Vercel must be able to reach them over the network and they must be secured with TLS, credentials, and firewall rules. Vercel's outbound IPs are dynamic by default; Static IPs can be enabled on Pro or Enterprise for allowlisting. See [Vercel's IP allowlisting guidance](https://vercel.com/kb/guide/how-to-allowlist-deployment-ip-address).
+
+1. In Vercel, import the repository as a Next.js project and set `DATABASE_URL`, `REDIS_URL`, `ENCRYPTION_KEY`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `INTERNAL_API_SECRET`, and the Pusher variables from `.env.example`. Set `GEMINI_API_KEY` only if AI automations are used. `NEXT_PUBLIC_APP_URL` and `BETTER_AUTH_URL` should be the Vercel production URL.
+2. On the VPS, use the existing `.env` or copy `.env.example` to `.env`. Set the same database URL, Redis URL, encryption key, internal API secret, and Pusher server credentials as Vercel. Use a PostgreSQL pooled URL and a Redis TCP URL supported by BullMQ, not a REST-only Redis endpoint.
+3. From the repository directory on the VPS, apply migrations once:
+
+   ```bash
+   docker compose run --build --rm migrate
+   ```
+
+4. Deploy the Vercel app, then start the worker on the VPS:
+
+   ```bash
+   docker compose up --build -d worker
+   ```
+
+5. Check it with `docker compose logs -f worker`. Configure Resend's webhook to call the Vercel URL at `/api/webhooks/resend`.
+
+If custom HTTP tools were saved before credential encryption was added, run `pnpm encrypt-custom-tool-secrets` once with the same `DATABASE_URL` and `ENCRYPTION_KEY` used by the app.
+
+The destructive database reset requires both `ALLOW_DESTRUCTIVE_DB_RESET=true` and `pnpm reset-db -- --confirm-reset`.
 
 ---
 

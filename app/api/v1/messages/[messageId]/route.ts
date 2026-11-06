@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { emails } from "@/src/db/schema";
 import { db } from "@/src";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(
@@ -17,7 +17,7 @@ export async function GET(
     const message = await db
       .select()
       .from(emails)
-      .where(eq(emails.id, messageId));
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
 
     if (!message || message.length === 0) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
@@ -39,7 +39,7 @@ export async function DELETE(
   const { messageId } = await Promise.resolve(params);
 
   try {
-    await db.delete(emails).where(eq(emails.id, messageId));
+    await db.delete(emails).where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
     return NextResponse.json({ success: true, deletedId: messageId });
   } catch (error) {
     console.error("Failed to permanently delete message:", error);

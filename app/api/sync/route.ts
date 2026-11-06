@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { syncSentEmails, syncReceivedEmails } from "@/src/lib/syncEmails";
 import { getAuthSession } from "@/src/lib/require-auth";
-
-const syncRateLimits = new Map<string, number>();
+import { claimRateLimit } from "@/lib/rate-limit";
 
 export async function POST() {
   try {
@@ -10,19 +9,15 @@ export async function POST() {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.id;
-    const now = Date.now();
-    const lastSync = syncRateLimits.get(userId);
+    const waitTime = await claimRateLimit(`email-sync:${userId}`, 60);
 
-    if (lastSync && now - lastSync < 60 * 1000) {
-      const waitTime = Math.ceil((60 * 1000 - (now - lastSync)) / 1000);
+    if (waitTime > 0) {
       return NextResponse.json(
         { success: false, message: `Please wait ${waitTime} seconds before syncing again.` },
         { status: 429 }
       );
     }
     
-    syncRateLimits.set(userId, now);
-
     const sentStats = await syncSentEmails(userId);
     const receivedStats = await syncReceivedEmails(userId);
     

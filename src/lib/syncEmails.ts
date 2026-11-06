@@ -15,7 +15,7 @@ function normalizeEmails(
 export async function syncSentEmails(userId: string) {
   console.log("Fetching sent emails from Resend...");
 
-  let stats = { found: 0, new: 0 };
+  const stats = { found: 0, new: 0 };
 
   const resend = await getResendClient(userId);
   if (!resend) {
@@ -103,7 +103,7 @@ export async function syncSentEmails(userId: string) {
 export async function syncReceivedEmails(userId: string) {
   console.log("Fetching received emails from Resend...");
 
-  let stats = { found: 0, new: 0 };
+  const stats = { found: 0, new: 0 };
 
   const resend = await getResendClient(userId);
   if (!resend) {

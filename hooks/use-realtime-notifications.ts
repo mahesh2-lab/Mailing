@@ -20,7 +20,9 @@ export function useRealtimeNotifications() {
   const { data: session } = authClient.useSession();
   const router = useRouter();
   const routerRef = useRef(router);
-  routerRef.current = router;
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
 
   useEffect(() => {
     const userId = session?.user?.id;

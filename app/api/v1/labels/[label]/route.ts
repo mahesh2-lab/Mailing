@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { emails, customLabels } from "@/src/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function DELETE(
@@ -16,13 +16,19 @@ export async function DELETE(
     const decodedLabel = decodeURIComponent(label);
 
     
-    await db.delete(customLabels).where(eq(customLabels.name, decodedLabel));
+    await db.delete(customLabels).where(and(
+      eq(customLabels.name, decodedLabel),
+      eq(customLabels.userId, session.user.id),
+    ));
 
     
     const affectedEmails = await db
       .select({ id: emails.id, labels: emails.labels })
       .from(emails)
-      .where(sql`${emails.labels}::text LIKE ${"%" + decodedLabel + "%"}`);
+      .where(and(
+        eq(emails.userId, session.user.id),
+        sql`${emails.labels}::text LIKE ${"%" + decodedLabel + "%"}`,
+      ));
 
     for (const em of affectedEmails) {
       if (Array.isArray(em.labels) && em.labels.includes(decodedLabel)) {
@@ -30,7 +36,7 @@ export async function DELETE(
         await db
           .update(emails)
           .set({ labels: updatedLabels })
-          .where(eq(emails.id, em.id));
+          .where(and(eq(emails.id, em.id), eq(emails.userId, session.user.id)));
       }
     }
 

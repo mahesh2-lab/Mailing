@@ -72,7 +72,8 @@ export interface CustomTool {
   url: string;
   authType: "none" | "bearer" | "basic" | "header";
   authValue?: string;
-  headers: { key: string; value: string }[];
+  authConfigured?: boolean;
+  headers: { key: string; value: string; secretConfigured?: boolean }[];
   bodyTemplate?: string;
   inputSchema?: string;
   createdAt: string;
@@ -131,8 +132,3 @@ export const WORKFLOW_VARIABLES = [
   { key: "{{tool.response}}", label: "HTTP Tool Response", category: "Tool" },
   { key: "{{date.now}}", label: "Current Timestamp", category: "System" },
 ] as const;
-
-export const DEFAULT_AUTOMATIONS: Automation[] = [];
-export const DEFAULT_CUSTOM_TOOLS: CustomTool[] = [];
-export const MOCK_EXECUTION_HISTORY: ExecutionRun[] = [];
-

@@ -4,6 +4,7 @@ import {
   boolean,
   timestamp,
   jsonb,
+  index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
@@ -68,10 +69,24 @@ export const customLabels = pgTable("custom_labels", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  name: text("name").notNull().unique(),
+  name: text("name").notNull(),
   color: text("color"),
   createdAt: timestamp("created_at", { mode: "string" }).notNull(),
-});
+}, (table) => ({
+  userNameIdx: uniqueIndex("custom_labels_user_name_idx").on(table.userId, table.name),
+}));
+
+export const contacts = pgTable("contacts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { mode: "string" }).notNull(),
+}, (table) => ({
+  userIdx: index("contacts_user_id_idx").on(table.userId),
+  userEmailIdx: uniqueIndex("contacts_user_email_idx").on(table.userId, table.email),
+}));
 
 export const userApiKeys = pgTable(
   "user_api_keys",

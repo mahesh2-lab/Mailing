@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/src';
 import { emails } from '@/src/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getAuthSession } from '@/src/lib/require-auth';
 
 export async function GET(
@@ -17,7 +17,7 @@ export async function GET(
     const [draft] = await db
       .select()
       .from(emails)
-      .where(eq(emails.id, draftId))
+      .where(and(eq(emails.id, draftId), eq(emails.userId, session.user.id)))
       .limit(1);
 
     if (!draft) {
@@ -55,7 +55,7 @@ export async function PUT(
         bcc: bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : [],
         createdAt: now,
       })
-      .where(eq(emails.id, draftId));
+      .where(and(eq(emails.id, draftId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ id: draftId, success: true });
   } catch (error) {
@@ -74,7 +74,7 @@ export async function DELETE(
 
     const { draftId } = await Promise.resolve(params);
 
-    await db.delete(emails).where(eq(emails.id, draftId));
+    await db.delete(emails).where(and(eq(emails.id, draftId), eq(emails.userId, session.user.id)));
 
     return NextResponse.json({ success: true, deletedDraftId: draftId });
   } catch (error) {

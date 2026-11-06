@@ -1,6 +1,6 @@
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/src/lib/require-auth";
 
@@ -9,7 +9,10 @@ export async function POST() {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await db.delete(emails).where(eq(emails.folder, "trash"));
+    await db.delete(emails).where(and(
+      eq(emails.folder, "trash"),
+      eq(emails.userId, session.user.id),
+    ));
     return NextResponse.json({ success: true, message: "Trash emptied" });
   } catch (error) {
     console.error("Failed to empty trash:", error);

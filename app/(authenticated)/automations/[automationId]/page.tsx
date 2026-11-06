@@ -7,8 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import { AutomationBuilder } from "@/components/automations/automation-builder";
-import { ExecutionDetails } from "@/components/automations/execution-details";
-import { Automation, CustomTool, ExecutionRun } from "@/components/automations/automation-types";
+import { Automation, CustomTool } from "@/components/automations/automation-types";
 import { toast } from "sonner";
 import { generateId } from "@/lib/utils";
 
@@ -21,8 +20,6 @@ export default function AutomationEditorPage() {
   const [customTools, setCustomTools] = useState<CustomTool[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastExecutionRun, setLastExecutionRun] = useState<ExecutionRun | null>(null);
-  const [executionDetailsOpen, setExecutionDetailsOpen] = useState(false);
 
   useEffect(() => {
     if (!automationId) return;
@@ -101,32 +98,24 @@ export default function AutomationEditorPage() {
     toast.loading("Executing workflow test against backend...", { id: "test-run" });
 
     try {
-      const res = await fetch(`/api/v1/automations/${auto.id}`, {
+      const response = await fetch(`/api/v1/automations/${auto.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          simulated: false,
+          simulated: true,
           triggerSource: "Live Interactive Test",
           email: {
             id: generateId(),
             from: "Billing Department <billing@acme.corp>",
-            to: ["mahesh@heymahesh.in"],
-            subject: "Invoice #9021 for Professional Services",
-            text: "Hi Mahesh, please find attached our invoice #9021 for billing and review.",
+            to: ["user@example.com"],
+            subject: "Workflow test message",
+            text: "This message is used only to simulate an automation run.",
           },
         }),
-      }).then((r) => r.json());
-
-      if (res.data) {
-        setLastExecutionRun(res.data);
-        setExecutionDetailsOpen(true);
-        toast.success(
-          `Workflow execution completed in ${res.data.durationMs}ms with status: ${res.data.status}`,
-          { id: "test-run" }
-        );
-      } else {
-        toast.error("Test execution failed to return result", { id: "test-run" });
-      }
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Failed to queue workflow test");
+      toast.success("Simulated workflow test queued", { id: "test-run" });
     } catch (err: any) {
       console.error("Test run error:", err);
       toast.error(`Execution error: ${err.message}`, { id: "test-run" });
@@ -179,15 +168,6 @@ export default function AutomationEditorPage() {
         />
       </div>
 
-      {/* Execution Diagnostics & Logs Modal */}
-      <ExecutionDetails
-        run={lastExecutionRun}
-        open={executionDetailsOpen}
-        onOpenChange={setExecutionDetailsOpen}
-        onRetry={() => {
-          if (automation) handleTestRun(automation);
-        }}
-      />
     </AuthenticatedPageShell>
   );
 }

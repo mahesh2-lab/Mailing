@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { Webhook } from "svix";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/src/index";
 import { emails, webhookEvents, userApiKeys } from "@/src/db/schema";
 import { pusherServer } from "@/src/lib/pusher";
@@ -154,7 +154,7 @@ async function handleStatusChange(
       await db
         .update(emails)
         .set({ status: "read" })
-        .where(eq(emails.id, emailId));
+        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
       try {
         await pusherServer.trigger(emailChannelForUser(resolvedUserId), "read", {
           emailId,
@@ -166,7 +166,7 @@ async function handleStatusChange(
       await db
         .update(emails)
         .set({ status: "delivered" })
-        .where(eq(emails.id, emailId));
+        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
       try {
         await pusherServer.trigger(
           emailChannelForUser(resolvedUserId),
@@ -183,7 +183,7 @@ async function handleStatusChange(
       await db
         .update(emails)
         .set({ status: "bounced" })
-        .where(eq(emails.id, emailId));
+        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
       try {
         await pusherServer.trigger(emailChannelForUser(resolvedUserId), "bounced", {
           emailId,
@@ -259,22 +259,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const existing = await db.query.webhookEvents.findFirst({
-      where: eq(webhookEvents.id, svixHeaders.id),
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { success: true, message: "Already processed" },
-        { status: 200 },
-      );
-    }
-
     const emailId = event.data?.email_id;
     const resolvedUserId = verificationResult.resolvedUserId;
 
-    const recordEvent = () =>
-      db
+    const [claimed] = await db
         .insert(webhookEvents)
         .values({
           id: svixHeaders.id,
@@ -284,10 +272,19 @@ export async function POST(request: Request) {
           emailId: emailId || null,
           data: event.data,
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing()
+        .returning({ id: webhookEvents.id });
+
+    if (!claimed) {
+      return NextResponse.json(
+        { success: true, message: "Already processed" },
+        { status: 200 },
+      );
+    }
 
     if (emailId && event.type === "email.received") {
-      await mailFetchQueue.add(
+      try {
+        await mailFetchQueue.add(
         "fetch-inbound-email",
         {
           emailId,
@@ -301,23 +298,24 @@ export async function POST(request: Request) {
             delay: 2000,
           },
         },
-      );
-      await recordEvent();
+        );
+      } catch (queueError) {
+        await db.delete(webhookEvents).where(eq(webhookEvents.id, svixHeaders.id));
+        throw queueError;
+      }
     } else if (emailId) {
       // Intentional: keep lightweight status updates in `after()` instead of queueing.
       after(async () => {
         try {
           await handleStatusChange(emailId, resolvedUserId, event.type, event.data);
-          await recordEvent();
         } catch (procErr) {
+          await db.delete(webhookEvents).where(eq(webhookEvents.id, svixHeaders.id));
           console.error("[Webhook:Resend] Background status processing error:", {
             emailId,
             error: procErr,
           });
         }
       });
-    } else {
-      await recordEvent();
     }
 
     return NextResponse.json(

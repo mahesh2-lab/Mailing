@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/src";
 import { automationRuns } from "@/src/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function GET(request: Request) {
@@ -17,13 +17,17 @@ export async function GET(request: Request) {
       runs = await db
         .select()
         .from(automationRuns)
-        .where(eq(automationRuns.automationId, automationId))
+        .where(and(
+          eq(automationRuns.automationId, automationId),
+          eq(automationRuns.userId, session.user.id),
+        ))
         .orderBy(desc(automationRuns.startedAt))
         .limit(100);
     } else {
       runs = await db
         .select()
         .from(automationRuns)
+        .where(eq(automationRuns.userId, session.user.id))
         .orderBy(desc(automationRuns.startedAt))
         .limit(100);
     }

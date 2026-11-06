@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -12,12 +12,10 @@ import {
   Forward,
   Italic,
   Link2,
-  List,
   Mail,
   MailOpen,
   MoreHorizontal,
   Paperclip,
-  Plus,
   Printer,
   Reply,
   ReplyAll,
@@ -29,9 +27,11 @@ import {
   X,
 } from "lucide-react";
 import axios from "axios";
-import { MailItem, useSendMail } from "../hooks/use-mail";
+import { useSendMail } from "../hooks/use-mail";
+import { useMessageDetail } from "../hooks/use-mail-message-detail";
 import { useMailContext } from "./mail-context";
-import { getActionsForFolder, MailActionConfig } from "@/lib/mail-actions";
+import { EmailHtmlFrame } from "./email-html-frame";
+import type { MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { formatFileSize } from "@/lib/image-compressor";
 import { toast } from "sonner";
@@ -39,7 +39,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials, avatarColor, cn, escapeHtml } from "@/lib/utils";
-import { parseSender } from "./mail-thread-hierarchy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -112,79 +111,14 @@ function MessageSkeleton() {
   );
 }
 
-function useMessageDetail(id: string | null) {
-  const [message, setMessage] = useState<MailItem | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    if (!id) {
-      setMessage(null);
-      return;
-    }
-    let mounted = true;
-    setLoading(true);
-    setError(false);
-    axios
-      .get(`/api/v1/messages/${id}`)
-      .then((res) => {
-        if (!mounted) return;
-        const e = res.data;
-        if (e?.id) {
-          const sender = parseSender(e.from);
-          setMessage({
-            id: e.id,
-            sender: {
-              name: sender.name,
-              email: sender.email,
-            },
-            to: Array.isArray(e.to) ? e.to : e.to ? [e.to] : [],
-            cc: Array.isArray(e.cc) ? e.cc : e.cc ? [e.cc] : [],
-            bcc: Array.isArray(e.bcc) ? e.bcc : e.bcc ? [e.bcc] : [],
-            subject: e.subject || "No Subject",
-            preview: "",
-            rawText: e.text || "",
-            rawHtml: e.html || "",
-            body: e.html || e.text || "",
-            timestamp: e.createdAt || e.created_at || new Date().toISOString(),
-            folder: e.folder,
-            status: e.status,
-            unread: e.unread,
-            starred: e.starred,
-            labels: e.labels || [],
-            attachments: (e.attachments || []).map((a: any) => ({
-              id: a.id,
-              filename: a.filename,
-              sizeBytes: a.size || 0,
-              url: a.download_url || "#",
-              type: a.content_type || "application/octet-stream",
-            })),
-          });
-        }
-      })
-      .catch(() => {
-        if (mounted) setError(true);
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [id]);
-
-  return { message, setMessage, loading, error };
-}
-
 export default function MailDetailPane() {
-  const { openId, setOpenId, folder, label, openCompose, refresh } =
+  const { openId, setOpenId, folder, openCompose, refresh } =
     useMailContext();
 
   const { message, setMessage, loading } = useMessageDetail(openId);
   const { sendMail, sending } = useSendMail();
 
   const [replyText, setReplyText] = useState("");
-  const [isReplyFocused, setIsReplyFocused] = useState(false);
   const [replyAttachments, setReplyAttachments] = useState<
     Array<{
       id: string;
@@ -202,7 +136,6 @@ export default function MailDetailPane() {
   const [allLabels, setAllLabels] = useState<
     Array<{ id: string; name: string }>
   >([]);
-  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const insertFormatting = (prefix: string, suffix = prefix) => {
@@ -256,11 +189,6 @@ export default function MailDetailPane() {
       .catch(() => {});
   }, []);
 
-  const { primaryActions } = useMemo(
-    () => getActionsForFolder(folder, !!label),
-    [folder, label],
-  );
-
   async function handleToolbarAction(action: MailActionConfig) {
     if (!message) return;
 
@@ -269,7 +197,6 @@ export default function MailDetailPane() {
       return;
     }
 
-    setActionInProgress(action.id);
     try {
       if (action.id === "restore") {
         await axios.post(`/api/v1/messages/${message.id}/restore`);
@@ -286,7 +213,6 @@ export default function MailDetailPane() {
     } catch {
       toast.error("Failed to perform action");
     } finally {
-      setActionInProgress(null);
     }
   }
 
@@ -375,7 +301,6 @@ export default function MailDetailPane() {
       toast.success("Reply dispatched");
       setReplyText("");
       setReplyAttachments([]);
-      setIsReplyFocused(false);
       refresh();
     } catch {
       toast.error("Failed to send reply");
@@ -396,7 +321,6 @@ export default function MailDetailPane() {
       const key = e.key.toLowerCase();
       if (key === "r") {
         e.preventDefault();
-        setIsReplyFocused(true);
         setTimeout(() => replyTextareaRef.current?.focus(), 50);
       } else if (key === "e") {
         e.preventDefault();
@@ -884,19 +808,13 @@ export default function MailDetailPane() {
                 >
                   <div className="w-full select-text">
                     {message.rawHtml ? (
-                      <div
-                        className="email-html-body select-text [&_*]:select-text text-foreground text-sm leading-relaxed overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_p]:mb-3.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                        dangerouslySetInnerHTML={{ __html: message.rawHtml }}
-                      />
+                      <EmailHtmlFrame html={message.rawHtml} />
                     ) : message.rawText ? (
                       <div className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground select-text [&_*]:select-text break-words">
                         {renderPlainTextWithLinks(message.rawText)}
                       </div>
                     ) : message.body ? (
-                      <div
-                        className="email-html-body select-text [&_*]:select-text text-foreground text-sm leading-relaxed overflow-x-auto [&_img]:max-w-full [&_img]:h-auto [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_p]:mb-3.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
-                        dangerouslySetInnerHTML={{ __html: message.body }}
-                      />
+                      <EmailHtmlFrame html={message.body} />
                     ) : (
                       <p className="text-sm italic text-muted-foreground">
                         No content
@@ -971,7 +889,6 @@ export default function MailDetailPane() {
                 <ContextMenuContent>
                   <ContextMenuItem
                     onClick={() => {
-                      setIsReplyFocused(true);
                       setTimeout(() => replyTextareaRef.current?.focus(), 50);
                     }}
                   >

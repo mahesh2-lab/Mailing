@@ -1,44 +1,30 @@
-version: "3.8"
-
 services:
-  app:
+  worker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mailing_app
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
+      target: worker
+    env_file: .env
     environment:
-      - DATABASE_URL=postgresql://mailing_user:password@postgres:5432/mailing_db
-      - NEXT_PUBLIC_APP_URL=http://localhost:3000
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - postgres
-      - redis
-    env_file:
-      - .env
-  
-  redis:
-    image: redis:7-alpine
-    container_name: mailing_redis
-    command: redis-server --maxmemory-policy noeviction
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      REDIS_URL: ${REDIS_URL:?Set REDIS_URL in .env}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?Set NEXT_PUBLIC_APP_URL in .env}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:?Set INTERNAL_API_SECRET in .env}
+      PUSHER_APP_ID: ${PUSHER_APP_ID:?Set PUSHER_APP_ID in .env}
+      PUSHER_KEY: ${PUSHER_KEY:?Set PUSHER_KEY in .env}
+      PUSHER_SECRET: ${PUSHER_SECRET:?Set PUSHER_SECRET in .env}
+      PUSHER_CLUSTER: ${PUSHER_CLUSTER:?Set PUSHER_CLUSTER in .env}
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    stop_grace_period: 30s
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: mailing_db
-    restart: unless-stopped
+  migrate:
+    profiles: [migrate]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    env_file: .env
     environment:
-      POSTGRES_USER: mailing_user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: mailing_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - mailing_db_data:/var/lib/postgresql/data
-
-volumes:
-  mailing_db_data:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+    restart: "no"
