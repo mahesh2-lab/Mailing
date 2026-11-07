@@ -3,6 +3,10 @@ import { Worker } from "bullmq";
 import IORedis from "ioredis";
 import { executeAutomation } from "../lib/automation-engine";
 import { logger } from "../lib/logger";
+import { db } from "../src";
+import { automations } from "../src/db/schema";
+import { eq } from "drizzle-orm";
+import { restoreAutomationSchedules } from "../lib/automation-schedules";
 
 const connection = new IORedis(
   process.env.REDIS_URL || "redis://localhost:6379",
@@ -12,6 +16,11 @@ const connection = new IORedis(
 );
 
 logger.info("Starting Automation Worker...");
+
+void db.query.automations.findMany({ where: eq(automations.enabled, true) })
+  .then((items) => restoreAutomationSchedules(items.map((item) => ({ ...item, nodes: item.nodes as never[] }))))
+  .then((results) => results.filter(Boolean).forEach((failure) => logger.error(failure, "Failed to restore automation schedule")))
+  .catch((error) => logger.error({ error }, "Failed to restore automation schedules"));
 
 export const automationWorker = new Worker(
   "automation-queue",

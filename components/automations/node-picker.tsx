@@ -175,8 +175,8 @@ const PREDEFINED_NODE_ITEMS: NodeItemDef[] = [
   {
     type: "ai_decision",
     category: "ai",
-    title: "AI Decision router",
-    description: "Let AI choose next optimal step",
+    title: "Condition router",
+    description: "Route based on a variable matching a configured value",
     icon: Sparkles,
   },
 

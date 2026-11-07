@@ -3,6 +3,7 @@ import { db } from "@/src";
 import { automations } from "@/src/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { syncAutomationSchedule } from "@/lib/automation-schedules";
 
 export async function GET() {
   try {
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
       .onConflictDoNothing()
       .returning({ id: automations.id });
     if (!created) return NextResponse.json({ error: "Automation ID already exists" }, { status: 409 });
+
+    await syncAutomationSchedule(id, record.enabled, record.nodes);
 
     return NextResponse.json({ data: record }, { status: 201 });
   } catch (error: any) {

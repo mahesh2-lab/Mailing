@@ -6,12 +6,12 @@ import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ messageId: string }> | { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   const session = await getAuthSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { messageId } = await Promise.resolve(params);
+  const { messageId } = await params;
 
   try {
     let targetFolder = "inbox";

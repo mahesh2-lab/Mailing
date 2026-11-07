@@ -117,8 +117,7 @@ describe("Image Compressor & Restrictions Utility", () => {
     it("throws clear error if executed outside a browser environment", async () => {
       // Temporarily simulate non-browser environment
       const originalWindow = global.window;
-      // @ts-ignore
-      delete global.window;
+      delete (global as unknown as { window?: Window }).window;
 
       const file = new File(["dummy"], "photo.png", { type: "image/png" });
       await expect(compressImage(file)).rejects.toThrow("must be executed in a browser environment");

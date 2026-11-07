@@ -197,6 +197,18 @@ export function NodeConfigPanel({
                   <SelectItem value="custom">Custom Cron Expression</SelectItem>
                 </SelectContent>
               </Select>
+              {config.interval === "custom" && <Input value={config.cron || "0 9 * * *"} onChange={(e) => handleConfigChange("cron", e.target.value)} placeholder="0 9 * * *" className="h-8 text-xs font-mono rounded-md" />}
+              <p className="text-[11px] text-muted-foreground">Daily and weekly schedules run at 9:00 UTC.</p>
+            </div>
+          )}
+
+          {node.type === "trigger_webhook" && (
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground tracking-tight">Webhook URL token</label>
+              <Input value={config.webhookSecret || ""} onChange={(e) => handleConfigChange("webhookSecret", e.target.value)} placeholder="Generate a secret token" className="h-8 text-xs font-mono rounded-md" />
+              <Button type="button" size="sm" variant="outline" onClick={() => handleConfigChange("webhookSecret", crypto.randomUUID())}>Generate token</Button>
+              {config.webhookSecret && <p className="break-all text-[11px] text-muted-foreground">{typeof window !== "undefined" ? window.location.origin : ""}/api/automation-webhooks/{config.webhookSecret}</p>}
+              <p className="text-[11px] text-muted-foreground">Keep this URL private. Send a JSON POST body to trigger the workflow.</p>
             </div>
           )}
 
@@ -346,6 +358,21 @@ export function NodeConfigPanel({
             </div>
           )}
 
+          {node.type === "ai_extract" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground tracking-tight">JSON schema / fields to extract</label>
+              <Textarea rows={4} value={config.schema || '{"invoiceNumber":"string","total":"number"}'} onChange={(e) => handleConfigChange("schema", e.target.value)} className="text-xs font-mono rounded-md" />
+            </div>
+          )}
+
+          {node.type === "ai_decision" && (
+            <>
+              <Input placeholder="Value to check (for example {{ai.category}})" value={config.variable || "{{ai.category}}"} onChange={(e) => handleConfigChange("variable", e.target.value)} className="h-8 text-xs font-mono rounded-md" />
+              <Input placeholder="Route to true when value equals" value={config.value || "Billing"} onChange={(e) => handleConfigChange("value", e.target.value)} className="h-8 text-xs rounded-md" />
+              <p className="text-[11px] text-muted-foreground">Connect true and false branches on the canvas.</p>
+            </>
+          )}
+
           {/* ── EMAIL CONFIGS ─────────────────────────────── */}
           {(node.type === "email_send" || node.type === "email_reply") && (
             <>
@@ -380,6 +407,13 @@ export function NodeConfigPanel({
             </>
           )}
 
+          {node.type === "email_forward" && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground tracking-tight">Forward to</label>
+              <Input value={config.forwardTo || ""} onChange={(e) => handleConfigChange("forwardTo", e.target.value)} className="h-8 text-xs rounded-md" placeholder="recipient@example.com" />
+            </div>
+          )}
+
           {node.type === "email_add_label" && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground tracking-tight">Label Name</label>
@@ -402,7 +436,7 @@ export function NodeConfigPanel({
           )}
 
           {/* ── TOOL CONFIGS ──────────────────────────────── */}
-          {node.type === "tool_http_request" && (
+          {(node.type === "tool_http_request" || node.type === "tool_webhook") && (
             <>
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1.5 col-span-1">

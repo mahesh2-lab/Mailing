@@ -4,16 +4,17 @@ import { automations } from "@/src/db/schema";
 import { and, eq } from "drizzle-orm";
 import { automationQueue } from "@/lib/queue";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { syncAutomationSchedule } from "@/lib/automation-schedules";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
+  { params }: { params: Promise<{ automationId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { automationId } = await Promise.resolve(params);
+    const { automationId } = await params;
     const item = await db.query.automations.findFirst({
       where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
     });
@@ -30,13 +31,13 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
+  { params }: { params: Promise<{ automationId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { automationId } = await Promise.resolve(params);
+    const { automationId } = await params;
     const body = await request.json();
     const now = new Date().toISOString();
 
@@ -56,6 +57,8 @@ export async function PUT(
       where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
     });
 
+    if (updated) await syncAutomationSchedule(updated.id, updated.enabled, updated.nodes as never[]);
+
     return NextResponse.json({ data: updated });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -64,14 +67,15 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
+  { params }: { params: Promise<{ automationId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { automationId } = await Promise.resolve(params);
+    const { automationId } = await params;
     await db.delete(automations).where(and(eq(automations.id, automationId), eq(automations.userId, session.user.id)));
+    await syncAutomationSchedule(automationId, false, []);
     return NextResponse.json({ success: true, deletedId: automationId });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -81,13 +85,13 @@ export async function DELETE(
 // POST to trigger a live or simulated test execution
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ automationId: string }> | { automationId: string } }
+  { params }: { params: Promise<{ automationId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { automationId } = await Promise.resolve(params);
+    const { automationId } = await params;
     const body = await request.json().catch(() => ({}));
     const automation = await db.query.automations.findFirst({
       where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),

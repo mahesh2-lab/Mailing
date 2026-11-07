@@ -125,6 +125,7 @@ export const WORKFLOW_VARIABLES = [
   { key: "{{email.text}}", label: "Message Body (Text)", category: "Email" },
   { key: "{{email.threadId}}", label: "Thread ID", category: "Email" },
   { key: "{{email.labels}}", label: "Email Labels", category: "Email" },
+  { key: "{{webhook.payload}}", label: "Webhook JSON Payload", category: "Trigger" },
   { key: "{{ai.category}}", label: "AI Classification Result", category: "AI" },
   { key: "{{ai.reply}}", label: "AI Drafted Reply", category: "AI" },
   { key: "{{ai.summary}}", label: "AI Summary", category: "AI" },

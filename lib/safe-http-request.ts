@@ -66,7 +66,7 @@ function safeDnsLookup(
   });
 }
 
-export async function requestSafeHttp(url: string, method: string, data: unknown) {
+export async function requestSafeHttp(url: string, method: string, data: unknown, headers: Record<string, string> = {}, responseType: "json" | "arraybuffer" = "json") {
   const httpAgent = new HttpAgent({ lookup: safeDnsLookup as typeof dns.lookup });
   const httpsAgent = new HttpsAgent({ lookup: safeDnsLookup as typeof dns.lookup });
   try {
@@ -74,6 +74,8 @@ export async function requestSafeHttp(url: string, method: string, data: unknown
       url,
       method,
       data,
+      headers,
+      responseType,
       timeout: 5000,
       maxRedirects: 0,
       httpAgent,

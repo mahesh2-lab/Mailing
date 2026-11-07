@@ -1,148 +1,67 @@
 import { db } from "@/src";
-import { automations, automationRuns, emails } from "@/src/db/schema";
+import { automations, automationRuns, customTools, emails } from "@/src/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 
-import { GoogleGenAI } from "@google/genai";
 import { logger } from "@/lib/logger";
 import { isSafeHttpUrl, requestSafeHttp } from "@/lib/safe-http-request";
+import { executeAiNode } from "@/lib/automation-ai-nodes";
+import { executeLogicNode, isLogicNodeType } from "@/lib/automation-logic-nodes";
+import type { ExecutionContext, WorkflowEdge, WorkflowNode } from "@/lib/automation-workflow";
+import { matchesTrigger, resolveVariables } from "@/lib/automation-workflow";
+import { runWorkflowGraph, type WorkflowGraphState } from "@/lib/automation-graph";
+import { decrypt } from "@/src/lib/crypto";
+import { getResendClient } from "@/lib/resend";
+import { automationQueue } from "@/lib/queue";
 export { isSafeHttpUrl } from "@/lib/safe-http-request";
+export { matchesTrigger, resolveVariables } from "@/lib/automation-workflow";
+export type { ExecutionContext } from "@/lib/automation-workflow";
 
-function getGeminiClient() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return null;
-  return new GoogleGenAI({ apiKey: key });
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Unknown error";
 }
 
-const MAX_TOTAL_STEPS = 100;
-const MAX_VISITS_PER_NODE = 10;
-
-export interface ExecutionContext {
-  email?: {
-    id: string;
-    from: string;
-    to: string[];
-    subject: string;
-    text: string;
-    html: string;
-    labels?: string[];
-  };
-  triggerSource: string;
-  variables: Record<string, any>;
-  steps: {
-    nodeId: string;
-    nodeTitle: string;
-    nodeType: string;
-    status: "success" | "failed" | "skipped";
-    durationMs: number;
-    input: Record<string, any>;
-    output?: Record<string, any>;
-    error?: string;
-    logs?: string[];
-  }[];
-  userId: string;
-}
-
-interface WorkflowNode {
-  id: string;
-  type: string;
-  category?: string;
-  title: string;
-  config?: Record<string, any>;
-}
-
-interface WorkflowEdge {
-  id?: string;
-  from: string;
-  to: string;
-  condition?: "true" | "false" | "default" | null;
-}
-
-/**
- * Substitute {{token}} placeholders in a single pass so that a resolved value
- * which itself contains braces is never re-substituted by a later key.
- */
-export function resolveVariables(
-  template: string,
-  ctx: ExecutionContext,
-): string {
-  if (!template || typeof template !== "string") return template || "";
-
-  const map: Record<string, any> = {
-    "{{email.from.name}}":
-      ctx.email?.from?.split("<")[0]?.trim() || ctx.email?.from || "Friend",
-    "{{email.from.address}}":
-      ctx.email?.from?.match(/<([^>]+)>/)?.[1] || ctx.email?.from || "",
-    "{{email.subject}}": ctx.email?.subject || "",
-    "{{email.text}}": ctx.email?.text || "",
-    "{{email.id}}": ctx.email?.id || "",
-    "{{date.now}}": new Date().toLocaleString(),
-    ...ctx.variables,
-  };
-
-  return template.replace(/\{\{[^}]+\}\}/g, (token) => {
-    if (Object.prototype.hasOwnProperty.call(map, token)) {
-      const v = map[token];
-      return v !== undefined && v !== null ? String(v) : "";
+async function forwardAttachments(userId: string, emailId: string, attachments: { id: string; filename: string }[]) {
+  if (!attachments.length) return [];
+  const resend = await getResendClient(userId);
+  if (!resend) throw new Error("Resend is not configured to fetch forwarded attachments");
+  return Promise.all(attachments.map(async ({ id, filename }) => {
+    const { data, error } = await resend.emails.receiving.attachments.get({ emailId, id });
+    if (error || !data) throw new Error(`Failed to fetch forwarded attachment: ${filename}`);
+    const attachment = data as { content?: string; download_url?: string; content_type?: string };
+    let content = attachment.content;
+    if (!content && attachment.download_url) {
+      const safety = isSafeHttpUrl(attachment.download_url);
+      if (!safety.ok) throw new Error(`Unsafe attachment URL: ${safety.reason}`);
+      const response = await requestSafeHttp(attachment.download_url, "GET", undefined, {}, "arraybuffer");
+      content = Buffer.from(response.data as ArrayBuffer).toString("base64");
     }
-    // Unknown token: leave it intact rather than blanking it out.
-    return token;
-  });
-}
-  
-/**
- * Evaluate a trigger node's filters (sender / subject) against an email.
- * Used by the webhook to decide which automations actually apply to an inbound
- * email, so we don't fire — or record noisy runs for — every automation.
- */
-export function matchesTrigger(
-  auto: { nodes?: any },
-  email: { from?: string; subject?: string } | undefined,
-): boolean {
-  if (!email) return true;
-  const nodes = (auto.nodes as WorkflowNode[]) || [];
-  const trigger = nodes.find((n) => n.category === "trigger") || nodes[0];
-  if (!trigger || !trigger.config) return true;
-
-  const { filterFrom, filterSubject } = trigger.config;
-
-  if (filterFrom && typeof filterFrom === "string" && filterFrom.trim()) {
-    const from = (email.from || "").toLowerCase();
-    const senders = filterFrom
-      .toLowerCase()
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (senders.length && !senders.some((s) => from.includes(s))) return false;
-  }
-
-  if (
-    filterSubject &&
-    typeof filterSubject === "string" &&
-    filterSubject.trim()
-  ) {
-    const subject = (email.subject || "").toLowerCase();
-    const keywords = filterSubject
-      .toLowerCase()
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (keywords.length && !keywords.some((k) => subject.includes(k)))
-      return false;
-  }
-
-  return true;
+    if (!content) throw new Error(`Attachment content unavailable: ${filename}`);
+    return { filename, content, type: attachment.content_type || "application/octet-stream" };
+  }));
 }
 
 export async function executeAutomation(
   automationId: string,
   triggerPayload: {
-    email?: any;
+    email?: ExecutionContext["email"];
     triggerSource?: string;
     simulated?: boolean;
     jobId?: string;
+    webhook?: unknown;
+    resumeState?: {
+      startedAt: number;
+      variables: Record<string, unknown>;
+      steps: ExecutionContext["steps"];
+      logs: string[];
+      graph: WorkflowGraphState;
+      branches: [string, "true" | "false"][];
+      blocked: string[];
+    };
   },
 ) {
-  const startTime = Date.now();
+  const simulated = triggerPayload.simulated !== false;
+  const resume = triggerPayload.resumeState;
+  const startTime = resume?.startedAt || Date.now();
   const auto = await db.query.automations.findFirst({
     where: eq(automations.id, automationId),
   });
@@ -153,17 +72,17 @@ export async function executeAutomation(
 
   const nodes = ((auto.nodes as WorkflowNode[]) || []).filter(Boolean);
   const edges = ((auto.edges as WorkflowEdge[]) || []).filter(Boolean);
-  const nodeById = new Map<string, WorkflowNode>(nodes.map((n) => [n.id, n]));
 
   const ctx: ExecutionContext = {
     email: triggerPayload.email,
     triggerSource: triggerPayload.triggerSource || "Manual Test Execution",
-    variables: {},
-    steps: [],
+    variables: resume?.variables || {},
+    steps: resume?.steps || [],
     userId: auto.userId,
+    webhook: triggerPayload.webhook,
   };
 
-  if (ctx.email) {
+  if (!resume && ctx.email) {
     ctx.variables["{{email.from.name}}"] =
       ctx.email.from?.split("<")[0]?.trim() || ctx.email.from || "Friend";
     ctx.variables["{{email.from.address}}"] =
@@ -171,10 +90,13 @@ export async function executeAutomation(
     ctx.variables["{{email.subject}}"] = ctx.email.subject || "";
     ctx.variables["{{email.text}}"] = ctx.email.text || "";
   }
+  if (!resume && triggerPayload.webhook !== undefined) {
+    ctx.variables["{{webhook.payload}}"] = JSON.stringify(triggerPayload.webhook);
+  }
 
   let executionFailed = false;
   let executionError: string | undefined;
-  const executionLogs: string[] = [];
+  const executionLogs: string[] = resume?.logs || [];
 
   const jobLogger = logger.child({
     automationId: auto.id,
@@ -188,7 +110,7 @@ export async function executeAutomation(
     jobLogger.info(msg);
   };
 
-  addLog(`Starting workflow execution "${auto.name}" (ID: ${auto.id})`);
+  addLog(`${resume ? "Resuming" : "Starting"} workflow execution "${auto.name}" (ID: ${auto.id})`);
   addLog(
     `Trigger source: ${ctx.triggerSource} | Nodes: ${nodes.length} | Edges: ${edges.length}`,
   );
@@ -198,19 +120,11 @@ export async function executeAutomation(
     );
   }
 
-  // Adjacency for graph traversal.
-  const edgesByFrom = new Map<string, WorkflowEdge[]>();
-  for (const e of edges) {
-    if (!e.from || !e.to) continue;
-    const list = edgesByFrom.get(e.from) || [];
-    list.push(e);
-    edgesByFrom.set(e.from, list);
-  }
-
   // Track the branch a logic_if_else node took so we know which edge to follow.
-  const branchTaken = new Map<string, "true" | "false">();
+  const branchTaken = new Map<string, "true" | "false">(resume?.branches || []);
   // logic_filter / trigger gating can stop a path.
-  const pathBlocked = new Set<string>();
+  const pathBlocked = new Set<string>(resume?.blocked || []);
+  let requestedDelayMs = 0;
 
   /**
    * Run a single node and record its step result. Returns false if a step error
@@ -219,10 +133,10 @@ export async function executeAutomation(
   const runNode = async (
     node: WorkflowNode,
     stepIndex: number,
-  ): Promise<boolean> => {
+  ): Promise<boolean | "paused"> => {
     const stepStart = Date.now();
-    const input: Record<string, any> = { ...(node.config || {}) };
-    let output: Record<string, any> = {};
+    const input: Record<string, unknown> = { ...(node.config || {}) };
+    let output: Record<string, unknown> = {};
     const stepLogs: string[] = [];
 
     const addStepLog = (msg: string) => {
@@ -235,6 +149,14 @@ export async function executeAutomation(
 
     try {
       if (node.category === "trigger") {
+        const supportedLiveTrigger = node.type === "trigger_email_received" || node.type === "trigger_schedule" || node.type === "trigger_webhook";
+        if (!simulated && !supportedLiveTrigger) {
+          throw new Error(`Unsupported live trigger type: ${node.type}`);
+        }
+        if (!simulated && node.type === "trigger_email_received" && !ctx.email) {
+          throw new Error("Live email trigger is missing its email context");
+        }
+        if (!simulated && node.type === "trigger_webhook" && ctx.webhook === undefined) throw new Error("Webhook trigger is missing its payload");
         const matched = matchesTrigger({ nodes: [node] }, ctx.email);
         if (!matched) {
           addStepLog(
@@ -250,205 +172,26 @@ export async function executeAutomation(
             source: ctx.triggerSource,
           };
         }
-      } else if (node.type === "ai_classify") {
-        const categories: string[] = node.config?.categories?.length
-          ? node.config.categories
-          : ["Billing", "General", "Support"];
-        const textToAnalyze =
-          `${ctx.email?.subject || ""} ${ctx.email?.text || ""}`.trim();
-        let matchedCategory = categories[0];
-        let confidence = 0.95;
-        let classifiedByAI = false;
-
-        addStepLog(
-          `Running AI classification against categories: [${categories.join(", ")}]`,
-        );
-
-        const geminiClient = getGeminiClient();
-        if (geminiClient && textToAnalyze) {
-          try {
-            addStepLog(
-              "Calling Google Gemini (gemini-2.5-flash) for email classification...",
-            );
-            const prompt = `Classify this email into exactly one of these categories: [${categories.join(", ")}].\n\nSubject: ${ctx.email?.subject || ""}\nBody: ${ctx.email?.text || ""}\n\nRespond with ONLY the exact category name.`;
-            const resp = await geminiClient.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: prompt,
-              config: { temperature: 0.1 },
-            });
-            const predicted = resp.text?.trim() || "";
-            const found = categories.find(
-              (c) => c.toLowerCase() === predicted.toLowerCase(),
-            );
-            if (found) {
-              matchedCategory = found;
-              confidence = 0.99;
-              classifiedByAI = true;
-              addStepLog(
-                `Gemini successfully classified as: "${matchedCategory}" (confidence: 99%)`,
-              );
-            } else {
-              addStepLog(
-                `Gemini returned "${predicted}", no exact category match; will fall back to heuristic`,
-              );
-            }
-          } catch (aiErr: any) {
-            addStepLog(
-              `Gemini API call notice: ${aiErr.message || "Failed"}. Falling back to heuristic match.`,
-            );
-          }
-        } else {
-          addStepLog(
-            "Gemini client not initialized or no text. Using keyword heuristic.",
-          );
+      } else if (["ai_classify", "ai_generate", "ai_summarize", "ai_extract", "ai_decision"].includes(node.type)) {
+        output = await executeAiNode(node, ctx, addStepLog);
+        if (node.type === "ai_decision") branchTaken.set(node.id, output.branch as "true" | "false");
+      } else if (isLogicNodeType(node.type)) {
+        const result = executeLogicNode(node, ctx, addStepLog, !simulated);
+        output = result.output;
+        if (result.branch) branchTaken.set(node.id, result.branch);
+        if (result.blocked) pathBlocked.add(node.id);
+        if (node.type === "logic_delay" && !simulated) {
+          requestedDelayMs = Number(result.output.delayMs);
         }
-
-        if (!classifiedByAI) {
-          const lowerText = textToAnalyze.toLowerCase();
-          for (const cat of categories) {
-            if (lowerText.includes(cat.toLowerCase())) {
-              matchedCategory = cat;
-              addStepLog(
-                `Keyword match identified category: "${matchedCategory}"`,
-              );
-              break;
-            }
-          }
-        }
-
-        ctx.variables["{{ai.category}}"] = matchedCategory;
-        addStepLog(`Set variable {{ai.category}} = "${matchedCategory}"`);
-        output = { classifiedCategory: matchedCategory, confidence };
-      } else if (node.type === "ai_generate") {
-        const promptInstruction = resolveVariables(
-          node.config?.prompt || "Draft an acknowledgment reply",
-          ctx,
-        );
-        let generated = `Thank you for contacting us regarding "${ctx.email?.subject || "your inquiry"}". We have received your message and will review it promptly.`;
-
-        addStepLog(
-          `Prompt instruction: "${promptInstruction.slice(0, 80)}..."`,
-        );
-
-        const geminiClient = getGeminiClient();
-        if (geminiClient) {
-          try {
-            addStepLog("Calling Google Gemini to generate contextual reply...");
-            const prompt = `You are an AI assistant for an email client.\nInstruction: ${promptInstruction}\n\nIncoming email:\nFrom: ${ctx.email?.from || "User"}\nSubject: ${ctx.email?.subject || ""}\nBody:\n${ctx.email?.text || ""}\n\nDraft a concise, professional reply. Return only the reply text:`;
-            const resp = await geminiClient.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: prompt,
-              config: { temperature: 0.3 },
-            });
-            if (resp.text?.trim()) {
-              generated = resp.text.trim();
-              addStepLog(`Gemini generated reply (${generated.length} chars)`);
-            }
-          } catch (aiErr: any) {
-            addStepLog(
-              `Gemini generation note: ${aiErr.message}. Using default template.`,
-            );
-          }
-        } else {
-          addStepLog(
-            "Gemini API key not configured. Using standard template reply.",
-          );
-        }
-
-        ctx.variables["{{ai.reply}}"] = generated;
-        addStepLog("Set variable {{ai.reply}} with response text");
-        output = { generatedReply: generated };
-      } else if (node.type === "ai_summarize") {
-        let summary = `Email from ${ctx.email?.from || "sender"} discussing: ${ctx.email?.subject || "General inquiry"}.`;
-
-        const geminiClient = getGeminiClient();
-        if (geminiClient && ctx.email?.text) {
-          try {
-            addStepLog("Calling Gemini to summarize email content...");
-            const prompt = `Summarize this email in 1-2 bullet points:\nSubject: ${ctx.email?.subject}\nBody: ${ctx.email?.text}\n\nSummary:`;
-            const resp = await geminiClient.models.generateContent({
-              model: "gemini-2.5-flash",
-              contents: prompt,
-              config: { temperature: 0.2 },
-            });
-            if (resp.text?.trim()) {
-              summary = resp.text.trim();
-              addStepLog(`Generated summary: "${summary.slice(0, 60)}..."`);
-            }
-          } catch (aiErr: any) {
-            addStepLog(`Gemini summary note: ${aiErr.message}`);
-          }
-        }
-
-        ctx.variables["{{ai.summary}}"] = summary;
-        output = { summary };
-      } else if (node.type === "logic_if_else") {
-        const rawVar = resolveVariables(
-          node.config?.variable || "{{ai.category}}",
-          ctx,
-        );
-        const targetVal = node.config?.value || "";
-        const operator = node.config?.operator || "equals";
-
-        let passed = false;
-        if (operator === "equals")
-          passed = rawVar.toLowerCase() === targetVal.toLowerCase();
-        else if (operator === "contains")
-          passed = rawVar.toLowerCase().includes(targetVal.toLowerCase());
-        else if (operator === "starts_with")
-          passed = rawVar.toLowerCase().startsWith(targetVal.toLowerCase());
-        else if (operator === "not_equals")
-          passed = rawVar.toLowerCase() !== targetVal.toLowerCase();
-        else if (operator === "is_empty")
-          passed = !rawVar || rawVar.trim() === "";
-
-        branchTaken.set(node.id, passed ? "true" : "false");
-        addStepLog(
-          `Condition evaluated: "${rawVar}" ${operator} "${targetVal}" -> Result: ${passed ? "TRUE (branch: true)" : "FALSE (branch: false)"}`,
-        );
-        ctx.variables["{{logic.conditionPassed}}"] = passed;
-        output = {
-          variableValue: rawVar,
-          targetValue: targetVal,
-          operator,
-          conditionPassed: passed,
-        };
-      } else if (node.type === "logic_filter") {
-        const condition = resolveVariables(node.config?.condition || "", ctx)
-          .trim()
-          .toLowerCase();
-        const passed =
-          condition !== "" &&
-          condition !== "false" &&
-          condition !== "0" &&
-          condition !== "no";
-        addStepLog(
-          `Filter condition "${condition}" -> ${passed ? "PASS (continue)" : "STOP (halt path)"}`,
-        );
-        if (!passed) pathBlocked.add(node.id);
-        output = { conditionPassed: passed };
-      } else if (node.type === "logic_delay") {
-        const amount = node.config?.amount ?? node.config?.minutes ?? 15;
-        const unit = node.config?.unit || "minutes";
-        addStepLog(
-          `Delay of ${amount} ${unit} requested. Delays are not enforced in synchronous execution; continuing immediately.`,
-        );
-        output = { delay: amount, unit, enforced: false };
-      } else if (node.type === "logic_loop") {
-        // Actual iteration is expressed via edges wired back into the graph and
-        // is bounded by the walker's per-node visit cap. This node is a no-op marker.
-        addStepLog(
-          "Loop marker reached (iteration bounded by execution loop guard).",
-        );
-        output = { loop: true };
-      } else if (node.type === "email_send" || node.type === "email_reply") {
+      } else if (node.type === "email_send" || node.type === "email_reply" || node.type === "email_forward") {
         const recipient = resolveVariables(
-          node.config?.recipient ||
+          String(node.config?.forwardTo || node.config?.recipient ||
             node.config?.to ||
             ctx.email?.from ||
-            "test@heymahesh.in",
+            ""),
           ctx,
         );
+        if (!recipient.trim()) throw new Error("Email action has no recipient configured");
 
         const emailSubject =
           node.type === "email_reply"
@@ -456,21 +199,26 @@ export async function executeAutomation(
               ? ctx.email.subject
               : `Re: ${ctx.email?.subject || "Your Inquiry"}`
             : resolveVariables(
-                node.config?.subject ||
+                String(node.config?.subject ||
                   (ctx.email?.subject
-                    ? `Re: ${ctx.email.subject}`
-                    : "Automated Response"),
+                    ? `${node.type === "email_forward" ? "Fwd" : "Re"}: ${ctx.email.subject}`
+                    : "Automated Response")),
                 ctx,
               );
 
-        const rawTemplate =
+        const rawTemplate = String(
           node.config?.template ||
           node.config?.body ||
           (ctx.variables["{{ai.reply}}"]
             ? "{{ai.reply}}"
-            : "Hi {{email.from.name}},\n\nThank you for reaching out. We have received your message and will get back to you shortly.\n\nBest regards,\nMailing Team");
+            : "Hi {{email.from.name}},\n\nThank you for reaching out. We have received your message and will get back to you shortly.\n\nBest regards,\nMailing Team"),
+        );
 
-        const templateBody = resolveVariables(rawTemplate, ctx);
+        const templateBody = node.type === "email_forward"
+          ? `---------- Forwarded message ----------\nFrom: ${ctx.email?.from || ""}\nSubject: ${ctx.email?.subject || ""}\n\n${ctx.email?.text || ""}`
+          : resolveVariables(rawTemplate, ctx);
+
+        if (node.type === "email_forward" && !ctx.email) throw new Error("Email forward requires an email context");
 
         addStepLog(
           `Preparing dispatch to <${recipient}> with subject "${emailSubject}"`,
@@ -479,7 +227,7 @@ export async function executeAutomation(
           `Email body preview: "${templateBody.replace(/\n/g, " ").slice(0, 90)}..."`,
         );
 
-        if (!triggerPayload.simulated) {
+        if (!simulated) {
           try {
             addStepLog("Sending live email via internal API...");
             const internalSecret = process.env.INTERNAL_API_SECRET;
@@ -497,6 +245,7 @@ export async function executeAutomation(
                 subject: emailSubject,
                 text: templateBody,
                 isDraft: node.type === "email_reply",
+                ...(node.type === "email_forward" ? { attachments: await forwardAttachments(ctx.userId, ctx.email?.id || "", ctx.email?.attachments || []) } : {}),
               }),
             });
             
@@ -505,22 +254,18 @@ export async function executeAutomation(
               throw new Error(errData.error || `HTTP error ${res.status}`);
             }
             
-            addStepLog(
-              `Email successfully delivered and stored via API to ${recipient}`,
-            );
+            addStepLog(node.type === "email_reply"
+              ? `Reply draft saved via API for ${recipient}`
+              : `Email successfully sent via API to ${recipient}`);
             output = {
               sentTo: recipient,
               subject: emailSubject,
-              status: "delivered_via_api",
+              status: node.type === "email_reply" ? "drafted_via_api" : "delivered_via_api",
             };
-          } catch (sendErr: any) {
-            addStepLog(`API dispatch error: ${sendErr.message}`);
-            output = {
-              sentTo: recipient,
-              subject: emailSubject,
-              simulated: true,
-              error: sendErr.message,
-            };
+          } catch (sendErr: unknown) {
+            const message = `Email dispatch failed: ${errorMessage(sendErr)}`;
+            addStepLog(message);
+            throw new Error(message, { cause: sendErr });
           }
         } else {
           addStepLog(
@@ -529,54 +274,81 @@ export async function executeAutomation(
           output = {
             sentTo: recipient,
             subject: emailSubject,
-            status: "simulated_send_ok",
+            status: node.type === "email_reply" ? "simulated_reply_draft" : "simulated_send_ok",
             text: templateBody,
           };
         }
       } else if (node.type === "email_add_label") {
-        const labelToAdd = node.config?.label || "Automated";
+        const labelToAdd = String(node.config?.label || "Automated");
         addStepLog(`Applying label "${labelToAdd}" to current thread`);
-        if (ctx.email?.id) {
+        if (simulated) {
+          output = { addedLabel: labelToAdd, simulated: true };
+        } else if (ctx.email?.id) {
           const existing = await db.query.emails.findFirst({
             where: and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)),
           });
-          if (existing) {
-            const currentLabels = existing.labels || [];
-            if (!currentLabels.includes(labelToAdd)) {
-              await db
+          if (!existing) throw new Error("Email not found for automation user");
+          const currentLabels = existing.labels || [];
+          if (!currentLabels.includes(labelToAdd)) {
+            const [updated] = await db
                 .update(emails)
                 .set({ labels: [...currentLabels, labelToAdd] })
-                .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
-              addStepLog(
-                `Updated database email record ${ctx.email.id} with label "${labelToAdd}"`,
-              );
-            }
+                .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)))
+                .returning({ id: emails.id });
+            if (!updated) throw new Error("Email label update did not affect a message");
+            addStepLog(`Updated database email record ${ctx.email.id} with label "${labelToAdd}"`);
           }
+          output = { addedLabel: labelToAdd };
+        } else {
+          throw new Error("Email label action requires an email context");
         }
-        output = { addedLabel: labelToAdd };
       } else if (node.type === "email_archive") {
         addStepLog("Moving email to Archive folder");
-        if (ctx.email?.id) {
-          await db
+        if (simulated) {
+          output = { archived: true, simulated: true };
+        } else if (ctx.email?.id) {
+          const [updated] = await db
             .update(emails)
             .set({ folder: "archive" })
-            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
+            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)))
+            .returning({ id: emails.id });
+          if (!updated) throw new Error("Email not found for automation user");
           addStepLog(`Email ${ctx.email.id} marked as archived in database`);
+          output = { archived: true };
+        } else {
+          throw new Error("Archive action requires an email context");
         }
-        output = { archived: true };
       } else if (node.type === "email_star") {
         addStepLog("Marking email as Starred Priority");
-        if (ctx.email?.id) {
-          await db
+        if (simulated) {
+          output = { starred: true, simulated: true };
+        } else if (ctx.email?.id) {
+          const [updated] = await db
             .update(emails)
             .set({ starred: true })
-            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)));
+            .where(and(eq(emails.id, ctx.email.id), eq(emails.userId, ctx.userId)))
+            .returning({ id: emails.id });
+          if (!updated) throw new Error("Email not found for automation user");
           addStepLog(`Email ${ctx.email.id} starred`);
+          output = { starred: true };
+        } else {
+          throw new Error("Star action requires an email context");
         }
-        output = { starred: true };
-      } else if (node.type === "tool_http_request") {
-        const url = resolveVariables(node.config?.url || "", ctx);
-        const method = (node.config?.method || "POST").toUpperCase();
+      } else if (node.type === "tool_http_request" || node.type === "tool_webhook" || node.type === "tool_custom") {
+        let config = node.config || {};
+        if (node.type === "tool_custom") {
+          const toolId = String(config.toolId || "");
+          const [tool] = await db.select().from(customTools).where(and(eq(customTools.id, toolId), eq(customTools.userId, ctx.userId))).limit(1);
+          if (!tool) throw new Error("Saved custom tool not found for automation owner");
+          const authValue = tool.authValue ? (tool.authValue.startsWith("enc:v1:") ? await decrypt(tool.authValue.slice(7)) : tool.authValue) : "";
+          const headers = await Promise.all((tool.headers || []).map(async ({ key, value }) => ({
+            key,
+            value: value.startsWith("enc:v1:") ? await decrypt(value.slice(7)) : value,
+          })));
+          config = { url: tool.url, method: tool.method, body: tool.bodyTemplate || "", authType: tool.authType, authValue, headers };
+        }
+        const url = resolveVariables(String(config.url || ""), ctx);
+        const method = String(config.method || "POST").toUpperCase();
         addStepLog(`Preparing HTTP tool request: ${method} ${url}`);
 
         const safety = isSafeHttpUrl(url);
@@ -586,8 +358,8 @@ export async function executeAutomation(
         }
 
         let parsedBody: unknown;
-        if (node.config?.body) {
-          const resolvedBody = resolveVariables(node.config.body, ctx);
+        if (config.body) {
+          const resolvedBody = resolveVariables(String(config.body), ctx);
           try {
             parsedBody = JSON.parse(resolvedBody);
           } catch {
@@ -598,17 +370,23 @@ export async function executeAutomation(
           }
         }
 
-        if (url && !triggerPayload.simulated) {
+        if (url && !simulated) {
           try {
             addStepLog(`Sending HTTP request to external endpoint ${url}...`);
-            const response = await requestSafeHttp(url, method, parsedBody);
+            const headers: Record<string, string> = {};
+            for (const item of (config.headers as { key: string; value: string }[] | undefined) || []) headers[item.key] = resolveVariables(item.value, ctx);
+            const authValue = resolveVariables(String(config.authValue || ""), ctx);
+            if (config.authType === "bearer") headers.Authorization = `Bearer ${authValue}`;
+            else if (config.authType === "basic") headers.Authorization = `Basic ${Buffer.from(authValue).toString("base64")}`;
+            else if (config.authType === "header" && authValue) headers["x-api-key"] = authValue;
+            const response = await requestSafeHttp(url, method, parsedBody, headers);
             ctx.variables["{{tool.response}}"] = JSON.stringify(response.data);
             addStepLog(`HTTP request returned HTTP ${response.status} OK`);
             output = { status: response.status, data: response.data };
           } catch (reqErr: unknown) {
-            const message = reqErr instanceof Error ? reqErr.message : "Unknown error";
-            addStepLog(`HTTP request failed: ${message}`);
-            output = { error: message, simulatedFallback: true };
+            const message = `HTTP request failed: ${errorMessage(reqErr)}`;
+            addStepLog(message);
+            throw new Error(message, { cause: reqErr });
           }
         } else {
           addStepLog(
@@ -623,8 +401,7 @@ export async function executeAutomation(
           };
         }
       } else {
-        addStepLog(`Node ${node.type} executed`);
-        output = { processed: true };
+        throw new Error(`Unsupported automation node type: ${node.type}`);
       }
 
       const stepDuration = Date.now() - stepStart;
@@ -640,12 +417,12 @@ export async function executeAutomation(
         output,
         logs: stepLogs,
       });
-      return true;
-    } catch (stepErr: any) {
+      return requestedDelayMs > 0 ? "paused" : true;
+    } catch (stepErr: unknown) {
       executionFailed = true;
-      executionError = stepErr.message;
+      executionError = errorMessage(stepErr);
       const stepDuration = Date.now() - stepStart;
-      addStepLog(`Step failed with error: ${stepErr.message}`);
+      addStepLog(`Step failed with error: ${executionError}`);
 
       ctx.steps.push({
         nodeId: node.id,
@@ -654,86 +431,53 @@ export async function executeAutomation(
         status: "failed",
         durationMs: stepDuration,
         input,
-        error: stepErr.message,
+        error: executionError,
         logs: stepLogs,
       });
       return false;
     }
   };
 
-  // Choose the starting node: the trigger, else the first node.
-  const startNode = nodes.find((n) => n.category === "trigger") || nodes[0];
-
-  if (startNode) {
-    if (edges.length === 0) {
-      // Legacy / linear workflows with no edges: execute in array order.
-      addLog("No edges defined; executing nodes in linear order.");
-      for (let i = 0; i < nodes.length; i++) {
-        const ok = await runNode(nodes[i], i + 1);
-        if (!ok) break;
-        if (pathBlocked.has(nodes[i].id)) {
-          addLog("Path halted by trigger/filter; stopping linear execution.");
-          break;
-        }
-      }
-    } else {
-      // Edge-driven traversal honoring true/false branches, with loop guards.
-      const queue: string[] = [startNode.id];
-      const visitCounts = new Map<string, number>();
-      let totalSteps = 0;
-
-      while (queue.length > 0) {
-        if (totalSteps >= MAX_TOTAL_STEPS) {
-          executionFailed = true;
-          executionError = `Workflow exceeded maximum step count (${MAX_TOTAL_STEPS}); aborted to prevent an infinite loop.`;
-          addLog(executionError);
-          break;
-        }
-
-        const nodeId = queue.shift()!;
-        const node = nodeById.get(nodeId);
-        if (!node) continue;
-
-        const vc = (visitCounts.get(nodeId) || 0) + 1;
-        visitCounts.set(nodeId, vc);
-        if (vc > MAX_VISITS_PER_NODE) {
-          addLog(
-            `Loop guard: node "${node.title}" (${nodeId}) hit visit cap (${MAX_VISITS_PER_NODE}); stopping this path.`,
-          );
-          continue;
-        }
-
-        totalSteps++;
-        const ok = await runNode(node, totalSteps);
-        if (!ok) break; // hard step error aborts the whole run
-
-        if (pathBlocked.has(nodeId)) {
-          // Trigger/filter halted this path; do not follow outgoing edges.
-          continue;
-        }
-
-        const outs = edgesByFrom.get(nodeId) || [];
-        let nextEdges: WorkflowEdge[];
-        if (node.type === "logic_if_else") {
-          const taken = branchTaken.get(nodeId) || "false";
-          const matching = outs.filter((e) => e.condition === taken);
-          const unconditional = outs.filter(
-            (e) => !e.condition || e.condition === "default",
-          );
-          nextEdges = matching.length ? matching : unconditional;
-        } else {
-          nextEdges = outs;
-        }
-
-        for (const e of nextEdges) {
-          if (nodeById.has(e.to)) queue.push(e.to);
-        }
-      }
+  const traversal = await runWorkflowGraph(
+    nodes,
+    edges,
+    runNode,
+    (nodeId) => pathBlocked.has(nodeId),
+    (nodeId) => branchTaken.get(nodeId),
+    addLog,
+    resume?.graph,
+  );
+  if (traversal.paused && traversal.state) {
+    try {
+      await automationQueue.add("execute-automation", {
+        automationId,
+        triggerPayload: {
+          email: ctx.email,
+          webhook: ctx.webhook,
+          triggerSource: ctx.triggerSource,
+          simulated: false,
+          resumeState: {
+            startedAt: startTime,
+            variables: ctx.variables,
+            steps: ctx.steps,
+            logs: executionLogs,
+            graph: traversal.state,
+            branches: [...branchTaken],
+            blocked: [...pathBlocked],
+          },
+        },
+      }, { delay: requestedDelayMs });
+      return { id: triggerPayload.jobId || "", automationId, status: "waiting", steps: ctx.steps };
+    } catch (error) {
+      executionFailed = true;
+      executionError = `Failed to schedule workflow continuation: ${errorMessage(error)}`;
+      addLog(executionError);
     }
-  } else {
-    addLog("Workflow has no nodes to execute.");
   }
-
+  if (traversal.failed) {
+    executionFailed = true;
+    executionError = traversal.error || executionError;
+  }
   const totalDuration = Date.now() - startTime;
   const runId = crypto.randomUUID();
   addLog(
@@ -767,9 +511,7 @@ export async function executeAutomation(
       error: runRecord.error,
     });
 
-    // Update run metrics + real success rate from recorded runs.
-    const currentCount = parseInt(auto.runCount || "0", 10) + 1;
-
+    // Count after insert so concurrent executions don't overwrite each other.
     const [{ total }] = await db
       .select({ total: sql<number>`count(*)` })
       .from(automationRuns)
@@ -792,17 +534,14 @@ export async function executeAutomation(
     await db
       .update(automations)
       .set({
-        runCount: String(currentCount),
+        runCount: String(Number(total)),
         successRate: String(successRate),
         lastRunAt: runRecord.startedAt,
         updatedAt: new Date().toISOString(),
       })
       .where(eq(automations.id, auto.id));
-  } catch (persistErr: any) {
-    console.error(
-      `[Automation:${auto.name}] Failed to persist run record:`,
-      persistErr,
-    );
+  } catch (persistErr: unknown) {
+    jobLogger.error({ error: errorMessage(persistErr) }, "Failed to persist automation run");
   }
 
   return runRecord;

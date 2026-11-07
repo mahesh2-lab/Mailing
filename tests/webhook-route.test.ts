@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
   queueAdd: vi.fn(),
   webhookFindFirst: vi.fn(),
   userApiKeyFindFirst: vi.fn(),
+  userApiKeyFindMany: vi.fn(),
   onConflictDoNothing: vi.fn(),
+  returning: vi.fn(),
   decrypt: vi.fn(),
 }));
 
@@ -47,7 +49,7 @@ vi.mock("@/src/index", () => ({
     query: {
       userApiKeys: {
         findFirst: mocks.userApiKeyFindFirst,
-        findMany: vi.fn(),
+        findMany: mocks.userApiKeyFindMany,
       },
       webhookEvents: {
         findFirst: mocks.webhookFindFirst,
@@ -71,10 +73,12 @@ describe("resend webhook route", () => {
       provider: "Resend",
       encryptedWebhookKey: "encrypted-secret",
     });
+    mocks.userApiKeyFindMany.mockResolvedValue([]);
     mocks.decrypt.mockResolvedValue("whsec_test");
     mocks.webhookFindFirst.mockResolvedValue(null);
     mocks.queueAdd.mockResolvedValue({ id: "job-1" });
-    mocks.onConflictDoNothing.mockResolvedValue(undefined);
+    mocks.onConflictDoNothing.mockReturnValue({ returning: mocks.returning });
+    mocks.returning.mockResolvedValue([{ id: "svix_1" }]);
   });
 
   it("enqueues email.received into mail-fetch-queue and records webhook after enqueue", async () => {
@@ -118,8 +122,25 @@ describe("resend webhook route", () => {
       },
     );
     expect(mocks.onConflictDoNothing).toHaveBeenCalledTimes(1);
-    expect(mocks.queueAdd.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.onConflictDoNothing.mock.invocationCallOrder[0],
+    expect(mocks.onConflictDoNothing.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.queueAdd.mock.invocationCallOrder[0],
     );
+  });
+
+  it("does not enqueue an event that has already been claimed", async () => {
+    mocks.returning.mockResolvedValueOnce([]);
+    const response = await POST(new Request("http://localhost/api/webhooks/resend?userId=user-1", {
+      method: "POST",
+      headers: {
+        "svix-id": "svix_1",
+        "svix-timestamp": "1111111111",
+        "svix-signature": "v1,test",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ type: "email.received", created_at: "2026-01-01T00:00:00.000Z", data: { email_id: "email_123" } }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.queueAdd).not.toHaveBeenCalled();
   });
 });

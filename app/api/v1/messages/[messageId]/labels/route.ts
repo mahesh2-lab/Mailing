@@ -6,13 +6,13 @@ import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ messageId: string }> | { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { messageId } = await Promise.resolve(params);
+    const { messageId } = await params;
     const { label } = await request.json();
     const trimmedLabel = (label || "").trim();
 
@@ -48,13 +48,13 @@ export async function POST(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ messageId: string }> | { messageId: string } }
+  { params }: { params: Promise<{ messageId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { messageId } = await Promise.resolve(params);
+    const { messageId } = await params;
     const { searchParams } = new URL(request.url);
     const labelToDelete = searchParams.get("label");
 

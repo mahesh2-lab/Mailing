@@ -5,16 +5,16 @@ export default function UserGuideAutomations() {
     <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Automations &amp; Workflows</h1>
       <p className="lead text-muted-foreground text-base mb-8">
-        Mailing's superpower is its visual automation builder. You can construct powerful logic flows to automatically process your incoming email.
+        Mailing&apos;s superpower is its visual automation builder. You can construct powerful logic flows to automatically process your incoming email.
       </p>
 
       <h2 className="mt-12 mb-6">How it Works</h2>
       <p>
-        An automation consists of a series of connected "nodes". Every automation starts with a <strong>Trigger</strong>, followed by one or more <strong>Actions</strong>.
+        An automation consists of a series of connected &quot;nodes&quot;. Every automation starts with a <strong>Trigger</strong>, followed by one or more <strong>Actions</strong>.
       </p>
       
       <ul>
-        <li><strong>Triggers</strong>: The event that starts the workflow. Currently, the primary trigger is "When an email is received."</li>
+        <li><strong>Triggers</strong>: The event that starts the workflow. Currently, the primary trigger is &quot;When an email is received.&quot;</li>
         <li><strong>Actions</strong>: The tasks performed after the trigger. Actions can include Artificial Intelligence tasks (like summarizing an email), or standard tasks like moving an email to a folder.</li>
       </ul>
 

@@ -8,7 +8,6 @@ import { decrypt } from "@/src/lib/crypto";
 import { mailFetchQueue } from "@/lib/queue";
 import {
   emailChannelForUser,
-  notificationChannelForUser,
 } from "@/lib/realtime-channels";
 import { type ResendEventData } from "@/lib/mail-fetch-processor";
 
@@ -17,7 +16,6 @@ interface WebhookHeaders {
   timestamp: string;
   signature: string;
 }
-
 interface SecretCandidate {
   secret: string;
   userId: string;
@@ -331,11 +329,3 @@ export async function POST(request: Request) {
     );
   }
 }
-
-export const __internal = {
-  handleStatusChange,
-  resolveSecretForUser,
-  resolveFallbackSecretCandidates,
-  verifyWebhookSignature,
-  notificationChannelForUser,
-};

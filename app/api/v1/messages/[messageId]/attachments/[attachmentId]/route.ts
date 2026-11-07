@@ -8,9 +8,9 @@ import { and, eq } from "drizzle-orm";
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ messageId: string; attachmentId: string }> | { messageId: string; attachmentId: string } }
+  { params }: { params: Promise<{ messageId: string; attachmentId: string }> }
 ) {
-  const { messageId, attachmentId } = await Promise.resolve(params);
+  const { messageId, attachmentId } = await params;
   
   const session = await auth.api.getSession({
     headers: await headers(),

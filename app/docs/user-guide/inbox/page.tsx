@@ -20,7 +20,7 @@ export default function UserGuideInbox() {
 
       <h2 className="mt-12 mb-6">Reading Emails</h2>
       <p>
-        Clicking an email in the Thread List instantly loads it in the Detail Pane. If an email is part of a larger conversation, Mailing will automatically group them into a "Thread" so you can read the back-and-forth context without losing your place.
+        Clicking an email in the Thread List instantly loads it in the Detail Pane. If an email is part of a larger conversation, Mailing will automatically group them into a &quot;Thread&quot; so you can read the back-and-forth context without losing your place.
       </p>
 
       <h2 className="mt-12 mb-6">Composing &amp; Replying</h2>

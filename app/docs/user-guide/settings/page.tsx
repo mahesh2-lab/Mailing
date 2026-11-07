@@ -10,16 +10,16 @@ export default function UserGuideSettings() {
 
       <h2 className="mt-12 mb-6">Sender Identity</h2>
       <p>
-        When you send an email, the recipient sees a "From Name" and a "From Address". You can configure your default sender identity in the <strong>Settings</strong> tab.
+        When you send an email, the recipient sees a &quot;From Name&quot; and a &quot;From Address&quot;. You can configure your default sender identity in the <strong>Settings</strong> tab.
       </p>
       <ul>
-        <li><strong>Sender Name</strong>: Your full name, or your company's name (e.g., "Jane Doe" or "Acme Corp Support").</li>
-        <li><strong>Sender Email</strong>: The email address people will reply to (e.g., "jane@acmecorp.com"). Note that this domain <em>must</em> match the domain you verified in Resend during onboarding, otherwise Resend will block the email.</li>
+        <li><strong>Sender Name</strong>: Your full name, or your company&apos;s name (e.g., &quot;Jane Doe&quot; or &quot;Acme Corp Support&quot;).</li>
+        <li><strong>Sender Email</strong>: The email address people will reply to (e.g., &quot;jane@acmecorp.com&quot;). Note that this domain <em>must</em> match the domain you verified in Resend during onboarding, otherwise Resend will block the email.</li>
       </ul>
 
       <h2 className="mt-12 mb-6">Updating API Keys</h2>
       <p>
-        If you ever need to rotate your Resend API keys or update your webhook secrets, you can do this securely from the Settings page. Simply enter the new keys and save. Mailing will automatically encrypt them using your server's secure encryption key before storing them in the database.
+        If you ever need to rotate your Resend API keys or update your webhook secrets, you can do this securely from the Settings page. Simply enter the new keys and save. Mailing will automatically encrypt them using your server&apos;s secure encryption key before storing them in the database.
       </p>
 
       <DocsPager 

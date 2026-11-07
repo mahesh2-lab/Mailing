@@ -14,7 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    let { apiKey, webhookSecret, senderEmail } = body;
+    let { apiKey, webhookSecret } = body;
+    const { senderEmail } = body;
 
     // If apiKey is missing or masked, attempt to load and decrypt from DB
     if (!apiKey || typeof apiKey !== "string" || apiKey.includes("••••")) {

@@ -5,17 +5,17 @@ export default function UserGuideContacts() {
     <div className="prose dark:prose-invert prose-zinc max-w-none text-foreground">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Contacts &amp; Address Book</h1>
       <p className="lead text-muted-foreground text-base mb-8">
-        Mailing keeps track of the people you talk to so you don't have to manually manage an address book.
+        Mailing keeps track of the people you talk to so you don&apos;t have to manually manage an address book.
       </p>
 
       <h2 className="mt-12 mb-6">Automatic Contact Creation</h2>
       <p>
-        Unlike traditional email clients where you must manually click "Add Contact", Mailing does this automatically. When you send an email to a new address, or receive an email from an unknown sender, Mailing automatically creates a contact record for them in the background.
+        Unlike traditional email clients where you must manually click &quot;Add Contact&quot;, Mailing does this automatically. When you send an email to a new address, or receive an email from an unknown sender, Mailing automatically creates a contact record for them in the background.
       </p>
 
       <h2 className="mt-12 mb-6">Viewing Contact History</h2>
       <p>
-        If you navigate to the <strong>Contacts</strong> tab in the sidebar, you'll see a list of everyone you've communicated with.
+        If you navigate to the <strong>Contacts</strong> tab in the sidebar, you&apos;ll see a list of everyone you&apos;ve communicated with.
       </p>
       <p>
         Clicking on a specific contact allows you to:

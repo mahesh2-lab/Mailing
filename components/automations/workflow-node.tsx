@@ -25,6 +25,7 @@ import {
   Trash2,
   Wrench,
 } from "lucide-react";
+import { createElement } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,7 +142,7 @@ export function WorkflowNodeCard({
       <div
         className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}
       >
-        <Icon className="size-5" />
+        {createElement(Icon, { className: "size-5" })}
       </div>
 
       {/* Right Content Area */}

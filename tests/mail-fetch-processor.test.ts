@@ -81,13 +81,13 @@ describe("processMailFetchJob", () => {
         id: "auto-a",
         userId: "user-a",
         enabled: true,
-        nodes: [],
+        nodes: [{ id: "trigger-a", type: "trigger_email_received", category: "trigger", title: "New email", config: {} }],
       },
       {
         id: "auto-b",
         userId: "user-b",
         enabled: true,
-        nodes: [],
+        nodes: [{ id: "trigger-b", type: "trigger_email_received", category: "trigger", title: "New email", config: {} }],
       },
     ]);
 

@@ -6,13 +6,13 @@ import { getAuthSession } from '@/src/lib/require-auth';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
+  { params }: { params: Promise<{ draftId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { draftId } = await Promise.resolve(params);
+    const { draftId } = await params;
 
     const [draft] = await db
       .select()
@@ -33,13 +33,13 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
+  { params }: { params: Promise<{ draftId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { draftId } = await Promise.resolve(params);
+    const { draftId } = await params;
     const { to, cc, bcc, subject, html, text } = await request.json();
     const recipients = Array.isArray(to) ? to : (to ? [to] : []);
     const now = new Date().toISOString();
@@ -66,13 +66,13 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ draftId: string }> | { draftId: string } }
+  { params }: { params: Promise<{ draftId: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { draftId } = await Promise.resolve(params);
+    const { draftId } = await params;
 
     await db.delete(emails).where(and(eq(emails.id, draftId), eq(emails.userId, session.user.id)));
 

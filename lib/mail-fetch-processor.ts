@@ -108,12 +108,19 @@ export async function processMailFetchJob({
     text: emailData.text || "",
     html: emailData.html || "",
     labels: [] as string[],
+    attachments: (emailData.attachments || []).map((attachment) => ({
+      id: attachment.id,
+      filename: attachment.filename || "attachment",
+    })),
   };
 
   const matching = activeAutomations.filter(
-    (auto) =>
-      auto.userId === resolvedUserId &&
-      matchesTrigger(auto, { from: emailCtx.from, subject: emailCtx.subject }),
+    (auto) => {
+      const trigger = (auto.nodes as Array<{ type?: string; category?: string }>).find((node) => node.category === "trigger");
+      return auto.userId === resolvedUserId &&
+      trigger?.type === "trigger_email_received" &&
+      matchesTrigger(auto, { from: emailCtx.from, subject: emailCtx.subject });
+    },
   );
 
   await Promise.allSettled(

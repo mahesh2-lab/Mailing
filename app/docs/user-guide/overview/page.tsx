@@ -27,7 +27,7 @@ export default function UserGuideOverview() {
       </ul>
 
       <p className="mt-8">
-        Ready to learn how to use it? Let's dive into managing your Inbox.
+        Ready to learn how to use it? Let&apos;s dive into managing your Inbox.
       </p>
 
       <DocsPager 

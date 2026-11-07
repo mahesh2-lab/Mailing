@@ -127,7 +127,10 @@ export const automations = pgTable("automations", {
   lastRunAt: timestamp("last_run_at", { mode: "string" }),
   createdAt: timestamp("created_at", { mode: "string" }).notNull(),
   updatedAt: timestamp("updated_at", { mode: "string" }).notNull(),
-});
+  webhookTokenHash: text("webhook_token_hash"),
+}, (table) => ({
+  webhookTokenHashIdx: index("automations_webhook_token_hash_idx").on(table.webhookTokenHash),
+}));
 
 export const automationRuns = pgTable("automation_runs", {
   id: text("id").primaryKey(),

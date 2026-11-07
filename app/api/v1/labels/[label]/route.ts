@@ -6,13 +6,13 @@ import { getAuthSession } from "@/src/lib/require-auth";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ label: string }> | { label: string } }
+  { params }: { params: Promise<{ label: string }> }
 ) {
   try {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { label } = await Promise.resolve(params);
+    const { label } = await params;
     const decodedLabel = decodeURIComponent(label);
 
     

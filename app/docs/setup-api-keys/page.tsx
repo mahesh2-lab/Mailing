@@ -51,7 +51,7 @@ export default function SetupApiKeysDocs() {
         <strong>only once</strong>. Make sure you copy it immediately.
       </p>
       <p>
-        Save the key in Mailing's Settings page so it is encrypted before storage:
+        Save the key in Mailing&apos;s Settings page so it is encrypted before storage:
       </p>
 
       <h2>3. Manage Your API Keys</h2>

@@ -15,7 +15,7 @@ export default function SetupWebhooksDocs() {
 
       <h2>1. Navigate to Webhooks</h2>
       <p>
-        In the Resend dashboard, go to the <strong>Webhooks</strong> section in the sidebar. If you haven't created any webhooks yet, you will see an empty state. Click on the <strong>Add webhook</strong> button.
+        In the Resend dashboard, go to the <strong>Webhooks</strong> section in the sidebar. If you haven&apos;t created any webhooks yet, you will see an empty state. Click on the <strong>Add webhook</strong> button.
       </p>
       <figure>
         <Image 
@@ -76,7 +76,7 @@ export default function SetupWebhooksDocs() {
         Copy the signing secret from the Resend dashboard and add it to your <code>.env</code> file:
       </p>
       <pre>
-        <code>RESEND_WEBHOOK_SECRET="whsec_..."</code>
+        <code>RESEND_WEBHOOK_SECRET=&quot;whsec_...&quot;</code>
       </pre>
 
       <div className="bg-muted p-4 rounded-lg my-4">

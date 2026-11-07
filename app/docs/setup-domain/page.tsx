@@ -25,7 +25,7 @@ export default function SetupDomainDocs() {
           height={675} 
           className="rounded-lg border shadow-sm"
         />
-        <figcaption className="text-center text-sm text-muted-foreground mt-2">Clicking the 'Add domain' button</figcaption>
+        <figcaption className="text-center text-sm text-muted-foreground mt-2">Clicking the &apos;Add domain&apos; button</figcaption>
       </figure>
 
       <h2>2. Enter Domain Details</h2>
@@ -63,7 +63,7 @@ export default function SetupDomainDocs() {
 
       <h2>4. Wait for Verification</h2>
       <p>
-        Once you've added the records, the domain will show a <strong>Pending</strong> status as it looks for the DNS records. DNS propagation can sometimes take a few minutes up to a few hours.
+        Once you&apos;ve added the records, the domain will show a <strong>Pending</strong> status as it looks for the DNS records. DNS propagation can sometimes take a few minutes up to a few hours.
       </p>
       <figure>
         <Image 
