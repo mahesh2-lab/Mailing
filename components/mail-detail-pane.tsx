@@ -763,6 +763,66 @@ export default function MailDetailPane() {
                         <span className="truncate">to: {message.to.join(", ")}</span>
                       )}
                     </div>
+                    {/* Compact Attachment Chips in Header */}
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                        {message.attachments.map((att) => (
+                          <ContextMenu key={att.id}>
+                            <ContextMenuTrigger
+                              render={
+                                <a
+                                  href={att.url}
+                                  download={att.filename}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={att.filename}
+                                  onContextMenu={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border/80 bg-muted/60 hover:bg-muted text-[11px] transition-colors max-w-xs group cursor-pointer shadow-2xs"
+                                />
+                              }
+                            >
+                              <Paperclip className="size-3 text-muted-foreground shrink-0" />
+                              <span className="truncate max-w-40 font-medium text-foreground">
+                                {att.filename}
+                              </span>
+                              {att.sizeBytes > 0 && (
+                                <span className="text-[10px] text-muted-foreground shrink-0">
+                                  ({formatFileSize(att.sizeBytes)})
+                                </span>
+                              )}
+                              <Download className="size-3 text-muted-foreground group-hover:text-foreground shrink-0 ml-0.5 transition-colors" />
+                            </ContextMenuTrigger>
+                            <ContextMenuContent>
+                              <ContextMenuItem onClick={() => window.open(att.url, "_blank")}>
+                                <ExternalLink className="size-4 mr-2" />
+                                Open in new tab
+                              </ContextMenuItem>
+                              <ContextMenuItem
+                                onClick={() => {
+                                  const link = document.createElement("a");
+                                  link.href = att.url;
+                                  link.download = att.filename;
+                                  link.click();
+                                }}
+                              >
+                                <Download className="size-4 mr-2" />
+                                Download file
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                onClick={() => {
+                                  navigator.clipboard.writeText(att.url);
+                                  toast.success("Link copied to clipboard");
+                                }}
+                              >
+                                <Link2 className="size-4 mr-2" />
+                                Copy download link
+                              </ContextMenuItem>
+                            </ContextMenuContent>
+                          </ContextMenu>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -820,76 +880,7 @@ export default function MailDetailPane() {
                         No content
                       </p>
                     )}
-
-                    {/* Attachments (if any) */}
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="pt-3 mt-4 border-t border-border/40">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
-                          <Paperclip className="size-3.5" />
-                          <span>Attachments ({message.attachments.length})</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {message.attachments.map((att) => (
-                            <ContextMenu key={att.id}>
-                              <ContextMenuTrigger
-                                render={
-                                  <a
-                                    href={att.url}
-                                    download={att.filename}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    title={att.filename}
-                                    onContextMenu={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-card hover:bg-accent/50 text-xs transition-colors max-w-xs group cursor-pointer shadow-2xs"
-                                  />
-                                }
-                              >
-                                <Paperclip className="size-3.5 text-muted-foreground shrink-0" />
-                                <span className="truncate max-w-44 font-medium text-foreground">
-                                  {att.filename}
-                                </span>
-                                {att.sizeBytes > 0 && (
-                                  <span className="text-[10px] text-muted-foreground shrink-0">
-                                    ({formatFileSize(att.sizeBytes)})
-                                  </span>
-                                )}
-                                <Download className="size-3 text-muted-foreground group-hover:text-foreground shrink-0 ml-0.5 transition-colors" />
-                              </ContextMenuTrigger>
-                              <ContextMenuContent>
-                                <ContextMenuItem
-                                  onClick={() => window.open(att.url, "_blank")}
-                                >
-                                  <ExternalLink className="size-4 mr-2" />
-                                  Open in new tab
-                                </ContextMenuItem>
-                                <ContextMenuItem
-                                  onClick={() => {
-                                    const link = document.createElement("a");
-                                    link.href = att.url;
-                                    link.download = att.filename;
-                                    link.click();
-                                  }}
-                                >
-                                  <Download className="size-4 mr-2" />
-                                  Download file
-                                </ContextMenuItem>
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(att.url);
-                                    toast.success("Link copied to clipboard");
-                                  }}
-                                >
-                                  <Link2 className="size-4 mr-2" />
-                                  Copy download link
-                                </ContextMenuItem>
-                              </ContextMenuContent>
-                            </ContextMenu>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+</div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>
                   <ContextMenuItem
