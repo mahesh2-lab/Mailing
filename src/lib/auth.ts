@@ -14,7 +14,7 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
   },
-  plugins: [dash(), sentinel()],
+  plugins: [dash(), sentinel({ kvUrl: process.env.BETTER_AUTH_KV_URL })],
   advanced: {
     database: {
       joins: true, 

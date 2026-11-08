@@ -1,10 +1,10 @@
 import { createAuthClient } from "better-auth/react";
-import { dashClient, sentinelClient } from "@better-auth/infra/client";
+import { sentinelClient } from "@better-auth/infra/client";
 
 export const authClient = createAuthClient({
   plugins: [
-    dashClient(),
     sentinelClient({
+      identifyUrl: process.env.NEXT_PUBLIC_BETTER_AUTH_KV_URL,
       autoSolveChallenge: true, // Automatically solve PoW challenges
     }),
   ],
