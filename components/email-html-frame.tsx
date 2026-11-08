@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const EMAIL_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data:"><style>body{margin:0;font-family:Arial,Helvetica,sans-serif}</style>`;
+const EMAIL_CSP = `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data:"><style>html,body{max-width:100%;overflow-x:auto}body{margin:0;font-family:Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img,video,table{max-width:100%!important;height:auto}</style>`;
 
 export function EmailHtmlFrame({ html, title = "Email content" }: { html: string; title?: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);

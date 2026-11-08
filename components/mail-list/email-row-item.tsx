@@ -191,7 +191,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                   onToggleSelect(item.id);
                 }
               }}
-              className="relative shrink-0 mt-0.5 cursor-pointer select-none transition-transform duration-75 hover:scale-105 active:scale-95"
+              className="relative shrink-0 mt-0.5 cursor-pointer select-none transition-transform duration-75 hover:scale-105 active:scale-95 max-md:size-11 max-md:-ml-2 max-md:flex max-md:items-center max-md:justify-center"
               title={
                 isSelected ? "Deselect conversation" : "Select conversation"
               }

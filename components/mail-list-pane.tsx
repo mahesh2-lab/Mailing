@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   Check,
-  Menu,
   Search,
   Tag,
   Trash2,
@@ -68,7 +67,6 @@ export default function MailListPane() {
     setQuery,
     openId,
     setOpenId,
-    setMobileNavOpen,
     refreshTick,
     refresh,
   } = useMailContext();
@@ -740,15 +738,6 @@ export default function MailListPane() {
               </>
             ) : (
               <div className="flex items-center gap-2 min-w-0 animate-in fade-in-0 duration-150">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden size-11 shrink-0 -ml-1 text-muted-foreground"
-                  onClick={() => setMobileNavOpen(true)}
-                  aria-label="Open navigation menu"
-                >
-                  <Menu className="size-4" />
-                </Button>
                 {!initialLoading && visible.length > 0 && (
                   <Checkbox
                     checked={false}
@@ -825,7 +814,7 @@ export default function MailListPane() {
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          className="flex-1 overflow-y-auto p-2 space-y-1.5 overscroll-y-contain relative select-none md:select-auto"
+          className="flex-1 overflow-y-auto p-2 pb-24 md:pb-2 space-y-1.5 overscroll-y-contain relative select-none md:select-auto"
         >
           {/* Pull Down Refresh Indicator Pill */}
           {(pullDistance > 0 || isPullRefreshing) && (
