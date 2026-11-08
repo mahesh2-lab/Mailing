@@ -5,6 +5,7 @@ import { db } from "@/src/index";
 import { userSettings, userApiKeys } from "@/src/db/schema";
 import { eq, and } from "drizzle-orm";
 import { encrypt, decrypt } from "@/src/lib/crypto";
+import { getErrorMessage } from "@/src/lib/errors";
 
 const SettingsSchema = z.object({
   senderName: z.string().optional(),
@@ -129,7 +130,7 @@ async function handleUpdate(request: Request) {
         ),
       });
 
-      const updates: any = {
+      const updates: Partial<typeof userApiKeys.$inferInsert> = {
         updatedAt: new Date().toISOString(),
       };
 
@@ -152,8 +153,8 @@ async function handleUpdate(request: Request) {
         await db.insert(userApiKeys).values({
           userId: session.user.id,
           provider: "Resend",
-          encryptedKey: updates.encryptedKey,
-          keyLastFour: updates.keyLastFour,
+          encryptedKey: updates.encryptedKey!,
+          keyLastFour: updates.keyLastFour!,
           encryptedWebhookKey: updates.encryptedWebhookKey || null,
           webhookKeyLastFour: updates.webhookKeyLastFour || null,
           createdAt: new Date().toISOString(),
@@ -169,9 +170,9 @@ async function handleUpdate(request: Request) {
         senderEmail: senderEmail ?? "",
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Settings update error:", error);
-    return NextResponse.json({ error: error.message || "Invalid request" }, { status: 400 });
+    return NextResponse.json({ error: getErrorMessage(error, "Invalid request") }, { status: 400 });
   }
 }
 

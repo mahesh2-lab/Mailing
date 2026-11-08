@@ -5,6 +5,7 @@ import { db } from "@/src/index";
 import { userApiKeys } from "@/src/db/schema";
 import { and, eq } from "drizzle-orm";
 import { decrypt } from "@/src/lib/crypto";
+import { getErrorMessage } from "@/src/lib/errors";
 
 export async function POST(req: NextRequest) {
   try {
@@ -78,12 +79,12 @@ export async function POST(req: NextRequest) {
       webhooksCount: result.webhooksCount || 0,
       domainMatch: result.domainMatch,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Resend verify endpoint error:", err);
     return NextResponse.json(
       {
         success: false,
-        error: err.message || "Internal server error during verification",
+        error: getErrorMessage(err, "Internal server error during verification"),
       },
       { status: 500 }
     );

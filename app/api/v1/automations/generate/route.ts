@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { getErrorMessage } from "@/src/lib/errors";
 
 const SYSTEM_INSTRUCTION = `
 You are an expert Workflow Architect for an email automation SaaS platform called Mailing.
@@ -106,10 +107,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ data: parsed });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Gemini workflow generation error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to generate workflow via AI" },
+      { error: getErrorMessage(error, "Failed to generate workflow via AI") },
       { status: 500 }
     );
   }

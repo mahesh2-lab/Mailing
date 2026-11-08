@@ -30,9 +30,9 @@ export type NodeType =
   | "tool_webhook"
   | "tool_custom";
 
-export interface WorkflowNodeConfig {
-  [key: string]: any;
-}
+export type WorkflowNodeConfig = {
+  [key: string]: unknown;
+};
 
 export interface WorkflowNode {
   id: string;
@@ -82,11 +82,11 @@ export interface CustomTool {
 export interface StepExecutionResult {
   nodeId: string;
   nodeTitle: string;
-  nodeType: NodeType;
+  nodeType: string;
   status: "success" | "failed" | "skipped";
   durationMs: number;
-  input: Record<string, any>;
-  output?: Record<string, any>;
+  input: Record<string, unknown>;
+  output?: Record<string, unknown>;
   error?: string;
   logs?: string[];
 }

@@ -111,19 +111,25 @@ export function WorkflowNodeCard({
 }: WorkflowNodeComponentProps) {
   const colors = CATEGORY_COLORS[node.category] || CATEGORY_COLORS.tool;
   const Icon = getNodeIcon(node.type);
+  const configText = (key: string, fallback = "") =>
+    typeof node.config[key] === "string" ? node.config[key] as string : fallback;
+  const categoryValues = node.config.categories;
+  const categories = Array.isArray(categoryValues)
+    ? categoryValues.filter((value): value is string => typeof value === "string").join(", ")
+    : typeof categoryValues === "string" ? categoryValues : "";
 
   // Generate a concise subtitle based on config
   let configSummary = node.description || "";
-  if (node.type === "trigger_email_received" && node.config.filterSubject) {
-    configSummary = `Subject contains "${node.config.filterSubject}"`;
-  } else if (node.type === "ai_classify" && node.config.categories?.length) {
-    configSummary = `Categories: ${node.config.categories.join(", ")}`;
-  } else if (node.type === "logic_if_else" && node.config.variable) {
-    configSummary = `${node.config.variable} ${node.config.operator || "=="} ${node.config.value || '""'}`;
-  } else if (node.type === "tool_http_request" && node.config.url) {
-    configSummary = `${node.config.method || "POST"} ${node.config.url}`;
-  } else if (node.type === "email_add_label" && node.config.label) {
-    configSummary = `Tag with "${node.config.label}"`;
+  if (node.type === "trigger_email_received" && configText("filterSubject")) {
+    configSummary = `Subject contains "${configText("filterSubject")}"`;
+  } else if (node.type === "ai_classify" && categories) {
+    configSummary = `Categories: ${categories}`;
+  } else if (node.type === "logic_if_else" && configText("variable")) {
+    configSummary = `${configText("variable")} ${configText("operator", "==")} ${configText("value", '""')}`;
+  } else if (node.type === "tool_http_request" && configText("url")) {
+    configSummary = `${configText("method", "POST")} ${configText("url")}`;
+  } else if (node.type === "email_add_label" && configText("label")) {
+    configSummary = `Tag with "${configText("label")}"`;
   }
 
   return (

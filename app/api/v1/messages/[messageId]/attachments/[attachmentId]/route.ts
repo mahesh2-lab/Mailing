@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { db } from "@/src";
 import { emails } from "@/src/db/schema";
 import { and, eq } from "drizzle-orm";
+import { isRecord } from "@/src/lib/errors";
 
 export async function GET(
   request: Request,
@@ -42,9 +43,11 @@ export async function GET(
       console.error("Failed to fetch attachment from Resend:", error);
       
       if (emailRecord && Array.isArray(emailRecord.attachments)) {
-        const att = emailRecord.attachments.find((a: any) => a.id === attachmentId) as any;
-        if (att && att.download_url) {
-          return NextResponse.redirect(att.download_url);
+        const attachment = emailRecord.attachments.find(
+          (item) => isRecord(item) && item.id === attachmentId,
+        );
+        if (isRecord(attachment) && typeof attachment.download_url === "string") {
+          return NextResponse.redirect(attachment.download_url);
         }
       }
       
@@ -52,17 +55,18 @@ export async function GET(
     }
 
     // If Resend returns a download_url, redirect to it
-    if ((data as any).download_url) {
-      return NextResponse.redirect((data as any).download_url);
+    if (typeof data.download_url === "string") {
+      return NextResponse.redirect(data.download_url);
     }
-    
-    // If Resend returns content directly (e.g. as buffer or base64)
-    if ((data as any).content) {
-      const buffer = Buffer.from((data as any).content, "base64");
+
+    // The SDK's current response type only includes signed URLs; keep support for direct content if the API adds it.
+    const payload: unknown = data;
+    if (isRecord(payload) && typeof payload.content === "string") {
+      const buffer = Buffer.from(payload.content, "base64");
       return new NextResponse(buffer, {
         headers: {
-          "Content-Type": (data as any).content_type || "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${(data as any).filename || "attachment"}"`,
+          "Content-Type": typeof payload.content_type === "string" ? payload.content_type : "application/octet-stream",
+          "Content-Disposition": `attachment; filename="${typeof payload.filename === "string" ? payload.filename : "attachment"}"`,
         },
       });
     }

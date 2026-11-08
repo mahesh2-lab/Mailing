@@ -112,6 +112,8 @@ export function MailProvider({
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("mailing:sidebar_collapsed");
       if (stored === "true") {
+        // Read a browser-only preference after hydration to keep the server markup stable.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSidebarCollapsedState(true);
       }
     }
@@ -164,6 +166,8 @@ export function MailProvider({
     if (!pathname) return;
     const resolved = getFolderFromPath(pathname);
     if (resolved.label !== undefined) {
+      // Keep local mail selection aligned with external router navigation.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel(resolved.label);
       setFolder(undefined);
       setOpenId(null);
@@ -180,6 +184,8 @@ export function MailProvider({
       const params = new URLSearchParams(window.location.search);
       const initialId = params.get("id") || params.get("messageId");
       if (initialId) {
+        // Initialize the open message from the browser URL after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOpenId(initialId);
       }
     }

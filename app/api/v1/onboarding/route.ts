@@ -6,6 +6,7 @@ import { encrypt } from "@/src/lib/crypto";
 import { eq, and } from "drizzle-orm";
 import { verifyResendCredentials } from "@/lib/resend-verify";
 import { validateProfileImagePayload } from "@/lib/image-compressor";
+import { getErrorMessage } from "@/src/lib/errors";
 
 export async function POST(req: NextRequest) {
   try {
@@ -120,8 +121,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Onboarding error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(err, "Internal server error") }, { status: 500 });
   }
 }

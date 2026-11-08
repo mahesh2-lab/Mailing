@@ -8,10 +8,10 @@ import {
 vi.mock("resend", () => {
   return {
     Resend: class MockResend {
-      domains: any;
-      webhooks: any;
-      apiKeys: any;
-      emails: any;
+      domains!: Record<string, unknown>;
+      webhooks!: Record<string, unknown>;
+      apiKeys!: Record<string, unknown>;
+      emails!: Record<string, unknown>;
 
       constructor(key: string) {
         if (key === "re_valid_key_123") {

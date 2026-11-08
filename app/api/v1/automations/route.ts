@@ -4,6 +4,7 @@ import { automations } from "@/src/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { syncAutomationSchedule } from "@/lib/automation-schedules";
+import { getErrorMessage } from "@/src/lib/errors";
 
 export async function GET() {
   try {
@@ -12,9 +13,9 @@ export async function GET() {
 
     const list = await db.select().from(automations).where(eq(automations.userId, session.user.id)).orderBy(desc(automations.createdAt));
     return NextResponse.json({ data: list });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/v1/automations error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error, "Internal server error") }, { status: 500 });
   }
 }
 
@@ -50,8 +51,8 @@ export async function POST(request: Request) {
     await syncAutomationSchedule(id, record.enabled, record.nodes);
 
     return NextResponse.json({ data: record }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/v1/automations error:", error);
-    return NextResponse.json({ error: error.message || "Failed to create automation" }, { status: 400 });
+    return NextResponse.json({ error: getErrorMessage(error, "Failed to create automation") }, { status: 400 });
   }
 }
