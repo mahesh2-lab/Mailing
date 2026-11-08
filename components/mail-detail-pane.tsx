@@ -823,11 +823,12 @@ export default function MailDetailPane() {
 
                     {/* Attachments (if any) */}
                     {message.attachments && message.attachments.length > 0 && (
-                      <div className="space-y-2 pt-4 mt-4 border-t border-border/40">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                          Attachments ({message.attachments.length})
-                        </span>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                      <div className="pt-3 mt-4 border-t border-border/40">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                          <Paperclip className="size-3.5" />
+                          <span>Attachments ({message.attachments.length})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
                           {message.attachments.map((att) => (
                             <ContextMenu key={att.id}>
                               <ContextMenuTrigger
@@ -837,18 +838,22 @@ export default function MailDetailPane() {
                                     download={att.filename}
                                     target="_blank"
                                     rel="noreferrer"
+                                    title={att.filename}
                                     onContextMenu={(e) => e.stopPropagation()}
-                                    className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card hover:bg-accent/40 text-xs transition-colors group"
+                                    className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border bg-card hover:bg-accent/50 text-xs transition-colors max-w-xs group cursor-pointer shadow-2xs"
                                   />
                                 }
                               >
-                                <div className="flex items-center gap-2 truncate">
-                                  <Paperclip className="size-3.5 text-muted-foreground shrink-0" />
-                                  <span className="truncate font-medium text-foreground">
-                                    {att.filename}
+                                <Paperclip className="size-3.5 text-muted-foreground shrink-0" />
+                                <span className="truncate max-w-44 font-medium text-foreground">
+                                  {att.filename}
+                                </span>
+                                {att.sizeBytes > 0 && (
+                                  <span className="text-[10px] text-muted-foreground shrink-0">
+                                    ({formatFileSize(att.sizeBytes)})
                                   </span>
-                                </div>
-                                <Download className="size-3.5 text-muted-foreground group-hover:text-foreground shrink-0 ml-2 transition-colors" />
+                                )}
+                                <Download className="size-3 text-muted-foreground group-hover:text-foreground shrink-0 ml-0.5 transition-colors" />
                               </ContextMenuTrigger>
                               <ContextMenuContent>
                                 <ContextMenuItem
