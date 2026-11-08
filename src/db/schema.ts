@@ -46,7 +46,9 @@ export const emails = pgTable("emails", {
   unread: boolean("unread").notNull().default(true),
 
   labels: jsonb("labels").$type<string[]>().default([]),
-});
+}, (table) => [
+  index("emails_user_folder_created_at_idx").on(table.userId, table.folder, table.createdAt),
+]);
 
 export const webhookEvents = pgTable("webhook_events", {
   id: text("id")

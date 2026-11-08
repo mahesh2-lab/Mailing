@@ -57,6 +57,13 @@
       "when": 1793943586528,
       "tag": "0007_automation_webhook_token",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794140895133,
+      "tag": "0008_emails_user_folder_created_at_idx",
+      "breakpoints": true
     }
   ]
 }
