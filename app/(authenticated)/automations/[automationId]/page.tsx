@@ -47,9 +47,9 @@ export default function AutomationEditorPage() {
         if (toolsRes?.data) {
           setCustomTools(toolsRes.data);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load automation:", err);
-        setError(err.message || "Failed to load automation workflow");
+        setError(err instanceof Error ? err.message : "Failed to load automation workflow");
       } finally {
         setLoading(false);
       }
@@ -116,9 +116,9 @@ export default function AutomationEditorPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Failed to queue workflow test");
       toast.success("Simulated workflow test queued", { id: "test-run" });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Test run error:", err);
-      toast.error(`Execution error: ${err.message}`, { id: "test-run" });
+      toast.error(`Execution error: ${err instanceof Error ? err.message : "Unknown error"}`, { id: "test-run" });
     }
   }
 

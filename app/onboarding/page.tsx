@@ -107,6 +107,8 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (session?.user && !formData.profileName && !formData.senderName) {
+      // The session arrives asynchronously after hydration; prefill untouched onboarding fields.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData((prev) => ({
         ...prev,
         profileName: session.user.name || "",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ArrowLeft, Play, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import { NodeConfigPanel } from "./node-config-panel";
 import { CustomToolDialog } from "./custom-tool-dialog";
 import { toast } from "sonner";
 import { generateId } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AutomationBuilderProps {
   automation: Automation;
@@ -46,14 +47,9 @@ export function AutomationBuilder({
   const [configPanelOpen, setConfigPanelOpen] = useState(false);
   const [customToolDialogOpen, setCustomToolDialogOpen] = useState(false);
 
-  // Sidebar collapse - start collapsed on mobile viewports
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setSidebarCollapsed(true);
-    }
-  }, []);
+  const isMobile = useIsMobile();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean | null>(null);
+  const isSidebarCollapsed = sidebarCollapsed ?? isMobile;
 
   // Connecting context (if user clicked + on a specific node)
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
@@ -403,8 +399,8 @@ export function AutomationBuilder({
           onSelectNode={handleAddNodeFromPicker}
           customTools={customTools}
           onOpenCreateTool={() => setCustomToolDialogOpen(true)}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
         />
 
         <WorkflowCanvas
@@ -422,6 +418,7 @@ export function AutomationBuilder({
 
         {/* Docked Node Config Inspector on the Right */}
         <NodeConfigPanel
+          key={selectedNode?.id ?? "closed"}
           node={selectedNode}
           open={configPanelOpen}
           onOpenChange={(isOpen) => {

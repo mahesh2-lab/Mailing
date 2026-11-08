@@ -3,6 +3,7 @@ import { db } from "@/src";
 import { emails, customLabels } from "@/src/db/schema";
 import { sql, ne, eq, and } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { getErrorCode, getErrorMessage } from "@/src/lib/errors";
 
 const DEFAULT_LABELS = ["Important", "Work", "Personal"];
 
@@ -104,11 +105,11 @@ export async function POST(request: Request) {
     await db.insert(customLabels).values(newLabel);
 
     return NextResponse.json({ ...newLabel, count: 0 }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (
-      error?.message?.includes("UNIQUE constraint failed") ||
-      error?.code === "SQLITE_CONSTRAINT" ||
-      error?.code === "23505"
+      getErrorMessage(error, "").includes("UNIQUE constraint failed") ||
+      getErrorCode(error) === "SQLITE_CONSTRAINT" ||
+      getErrorCode(error) === "23505"
     ) {
       return NextResponse.json({ error: "Label already exists" }, { status: 409 });
     }

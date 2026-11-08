@@ -9,6 +9,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
+import type {
+  StepExecutionResult,
+  WorkflowEdge,
+  WorkflowNode,
+} from "@/components/automations/automation-types";
 
 export const emails = pgTable("emails", {
   id: text("id").primaryKey(),
@@ -122,8 +127,8 @@ export const automations = pgTable("automations", {
   name: text("name").notNull(),
   description: text("description"),
   enabled: boolean("enabled").notNull().default(false),
-  nodes: jsonb("nodes").$type<any[]>().notNull().default([]),
-  edges: jsonb("edges").$type<any[]>().notNull().default([]),
+  nodes: jsonb("nodes").$type<WorkflowNode[]>().notNull().default([]),
+  edges: jsonb("edges").$type<WorkflowEdge[]>().notNull().default([]),
   runCount: text("run_count").notNull().default("0"),
   successRate: text("success_rate").notNull().default("100"),
   lastRunAt: timestamp("last_run_at", { mode: "string" }),
@@ -145,7 +150,7 @@ export const automationRuns = pgTable("automation_runs", {
   triggerSource: text("trigger_source").notNull(),
   startedAt: timestamp("started_at", { mode: "string" }).notNull(),
   durationMs: text("duration_ms").notNull().default("0"),
-  steps: jsonb("steps").$type<any[]>().notNull().default([]),
+  steps: jsonb("steps").$type<StepExecutionResult[]>().notNull().default([]),
   error: text("error"),
 });
 

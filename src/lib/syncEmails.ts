@@ -59,8 +59,7 @@ export async function syncSentEmails(userId: string) {
         );
       }
 
-      const attachments =
-        attachmentsResponse?.data ?? attachmentsResponse ?? [];
+      const attachments = attachmentsResponse?.data ?? [];
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
@@ -74,11 +73,9 @@ export async function syncSentEmails(userId: string) {
         bcc: normalizeEmails(fullEmail.bcc),
         cc: normalizeEmails(fullEmail.cc),
         replyTo: normalizeEmails(fullEmail.reply_to),
-        headers: (fullEmail as any).headers ?? {},
-        attachments: Array.isArray(attachments)
-          ? attachments
-          : ((attachments as any)?.data ?? []),
-        status: (fullEmail as any).status ?? "sent",
+        headers: {},
+        attachments,
+        status: fullEmail.last_event,
         folder: "sent",
         unread: false,
         starred: false,
@@ -149,8 +146,7 @@ export async function syncReceivedEmails(userId: string) {
         );
       }
 
-      const attachments =
-        attachmentsResponse?.data ?? attachmentsResponse ?? [];
+      const attachments = attachmentsResponse?.data ?? [];
 
       const emailData: EmailInsert = {
         id: fullEmail.id,
@@ -165,9 +161,7 @@ export async function syncReceivedEmails(userId: string) {
         cc: normalizeEmails(fullEmail.cc),
         replyTo: normalizeEmails(fullEmail.reply_to),
         headers: fullEmail.headers ?? {},
-        attachments: Array.isArray(attachments)
-          ? attachments
-          : ((attachments as any)?.data ?? []),
+        attachments,
         status: "received",
         folder: "inbox",
         unread: true,

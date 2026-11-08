@@ -3,6 +3,7 @@ import { db } from "@/src";
 import { automationRuns } from "@/src/db/schema";
 import { and, eq, desc } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { getErrorMessage } from "@/src/lib/errors";
 
 export async function GET(request: Request) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ data: runs });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error, "Internal server error") }, { status: 500 });
   }
 }

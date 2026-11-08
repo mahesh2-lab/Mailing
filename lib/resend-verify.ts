@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { Webhook } from "svix";
+import { getErrorMessage, getErrorName } from "@/src/lib/errors";
 
 export interface DomainItem {
   id: string;
@@ -53,10 +54,10 @@ export function verifyResendWebhookSecret(
   try {
     new Webhook(clean);
     return { valid: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       valid: false,
-      error: `Invalid Resend webhook secret: ${err.message || "Invalid Svix Base64 secret"}`,
+      error: `Invalid Resend webhook secret: ${getErrorMessage(err, "Invalid Svix Base64 secret")}`,
     };
   }
 }
@@ -87,13 +88,7 @@ export async function verifyResendApiKey(
     const { data: domainData, error: domainError } = await resend.domains.list();
 
     if (!domainError && domainData) {
-      const rawDomains = Array.isArray((domainData as any).data)
-        ? (domainData as any).data
-        : Array.isArray(domainData)
-        ? domainData
-        : [];
-
-      const domains: DomainItem[] = rawDomains.map((d: any) => ({
+      const domains: DomainItem[] = domainData.data.map((d) => ({
         id: d.id,
         name: d.name,
         status: d.status,
@@ -110,7 +105,7 @@ export async function verifyResendApiKey(
         msg.includes("unauthorized") ||
         msg.includes("authentication") ||
         msg.includes("not found") ||
-        (domainError as any).name === "validation_error"
+        getErrorName(domainError) === "validation_error"
       ) {
         return {
           valid: false,
@@ -135,12 +130,11 @@ export async function verifyResendApiKey(
     }
 
     return { valid: false, error: "Unable to verify Resend API key" };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       valid: false,
       error:
-        err.message ||
-        "Could not connect to Resend API. Please check your network connection.",
+        getErrorMessage(err, "Could not connect to Resend API. Please check your network connection."),
     };
   }
 }
@@ -185,12 +179,7 @@ export async function verifyResendCredentials({
     const resend = new Resend(apiKey.trim());
     const { data: whData, error: whError } = await resend.webhooks.list();
     if (!whError && whData) {
-      const items = Array.isArray((whData as any).data)
-        ? (whData as any).data
-        : Array.isArray(whData)
-        ? whData
-        : [];
-      webhooksCount = items.length;
+      webhooksCount = whData.data.length;
     }
   } catch {
     // Non-fatal if key does not have webhooks:read scope

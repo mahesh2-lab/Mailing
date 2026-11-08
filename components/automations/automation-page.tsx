@@ -40,35 +40,44 @@ export function AutomationPage() {
 
   // Load live data from PostgreSQL backend API
   async function loadData() {
-    setLoading(true);
-    try {
-      const [autosRes, toolsRes, histRes] = await Promise.all([
-        fetch("/api/v1/automations").then((r) => r.json()),
-        fetch("/api/v1/automations/tools").then((r) => r.json()),
-        fetch("/api/v1/automations/history").then((r) => r.json()),
-      ]);
-
-      if (autosRes?.data) {
-        setAutomations(
-          autosRes.data.map((a: any) => ({
-            ...a,
-            runCount: parseInt(a.runCount || "0", 10),
-            successRate: parseFloat(a.successRate || "100"),
-          }))
-        );
-      }
-      if (toolsRes?.data) setCustomTools(toolsRes.data);
-      if (histRes?.data) setHistory(histRes.data);
-    } catch (err) {
-      console.error("Failed to load automations from backend:", err);
-      toast.error("Failed to load automations from server");
-    } finally {
-      setLoading(false);
-    }
+    return Promise.all([
+      fetch("/api/v1/automations").then((r) => r.json()),
+      fetch("/api/v1/automations/tools").then((r) => r.json()),
+      fetch("/api/v1/automations/history").then((r) => r.json()),
+    ]);
   }
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    loadData()
+      .then(([autosRes, toolsRes, histRes]) => {
+        if (!active) return;
+        if (autosRes?.data) {
+          type AutomationRecord = Omit<Automation, "runCount" | "successRate"> & {
+            runCount: string | number;
+            successRate: string | number;
+          };
+          setAutomations(
+            (autosRes.data as AutomationRecord[]).map((a) => ({
+              ...a,
+              runCount: parseInt(String(a.runCount || "0"), 10),
+              successRate: parseFloat(String(a.successRate || "100")),
+            }))
+          );
+        }
+        if (toolsRes?.data) setCustomTools(toolsRes.data);
+        if (histRes?.data) setHistory(histRes.data);
+      })
+      .catch((err: unknown) => {
+        console.error("Failed to load automations from backend:", err);
+        if (active) toast.error("Failed to load automations from server");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleCreateNew() {
@@ -231,9 +240,9 @@ export function AutomationPage() {
       } else {
         toast.error("Test execution failed to return result", { id: "test-run" });
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Test run error:", err);
-      toast.error(`Execution error: ${err.message}`, { id: "test-run" });
+      toast.error(`Execution error: ${err instanceof Error ? err.message : "Unknown error"}`, { id: "test-run" });
     }
   }
 

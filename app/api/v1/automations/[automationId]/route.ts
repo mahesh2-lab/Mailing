@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { automationQueue } from "@/lib/queue";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { syncAutomationSchedule } from "@/lib/automation-schedules";
+import { getErrorMessage } from "@/src/lib/errors";
 
 export async function GET(
   request: Request,
@@ -24,8 +25,8 @@ export async function GET(
     }
 
     return NextResponse.json({ data: item });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error, "Internal server error") }, { status: 500 });
   }
 }
 
@@ -60,8 +61,8 @@ export async function PUT(
     if (updated) await syncAutomationSchedule(updated.id, updated.enabled, updated.nodes as never[]);
 
     return NextResponse.json({ data: updated });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error, "Invalid request") }, { status: 400 });
   }
 }
 
@@ -77,8 +78,8 @@ export async function DELETE(
     await db.delete(automations).where(and(eq(automations.id, automationId), eq(automations.userId, session.user.id)));
     await syncAutomationSchedule(automationId, false, []);
     return NextResponse.json({ success: true, deletedId: automationId });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error, "Internal server error") }, { status: 500 });
   }
 }
 
@@ -115,7 +116,7 @@ export async function POST(
     });
 
     return NextResponse.json({ data: { queued: true, jobId: job.id } });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error, "Internal server error") }, { status: 500 });
   }
 }

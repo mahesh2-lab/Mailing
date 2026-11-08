@@ -149,7 +149,7 @@ export function CustomToolDialog({
           <div className="space-y-1">
             <label className="text-xs font-medium text-foreground">Endpoint</label>
             <div className="flex gap-2">
-              <Select value={method} onValueChange={(val: any) => setMethod(val)}>
+              <Select value={method} onValueChange={(val) => setMethod(val as CustomTool["method"])}>
                 <SelectTrigger className="w-28 h-8 text-xs font-semibold">
                   <SelectValue />
                 </SelectTrigger>
@@ -175,7 +175,7 @@ export function CustomToolDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-foreground">Authentication</label>
-              <Select value={authType} onValueChange={(val: any) => setAuthType(val)}>
+              <Select value={authType} onValueChange={(val) => setAuthType(val as CustomTool["authType"])}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>

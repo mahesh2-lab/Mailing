@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,17 +30,12 @@ export function NodeConfigPanel({
   onUpdateConfig,
   onDeleteNode,
 }: NodeConfigPanelProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [config, setConfig] = useState<Record<string, any>>({});
+  const [title, setTitle] = useState(node?.title ?? "");
+  const [description, setDescription] = useState(node?.description ?? "");
+  const [config, setConfig] = useState<Record<string, unknown>>({ ...node?.config });
 
-  useEffect(() => {
-    if (node) {
-      setTitle(node.title);
-      setDescription(node.description || "");
-      setConfig({ ...node.config });
-    }
-  }, [node]);
+  const textValue = (key: string, fallback = "") =>
+    typeof config[key] === "string" ? config[key] as string : fallback;
 
   if (!open || !node) return null;
 
@@ -53,7 +48,7 @@ export function NodeConfigPanel({
     });
   }
 
-  function handleConfigChange(key: string, value: any) {
+  function handleConfigChange(key: string, value: unknown) {
     const updated = { ...config, [key]: value };
     setConfig(updated);
     if (node) {
@@ -64,7 +59,7 @@ export function NodeConfigPanel({
   function handleInsertVariable(fieldKey: string, vKey: string) {
     const updated = {
       ...config,
-      [fieldKey]: (config[fieldKey] || "") + vKey,
+      [fieldKey]: `${String(config[fieldKey] ?? "")}${vKey}`,
     };
     setConfig(updated);
     if (node) {
@@ -151,7 +146,7 @@ export function NodeConfigPanel({
                 </label>
                 <Input
                   placeholder="e.g. @stripe.com or john@acme.com"
-                  value={config.filterFrom || ""}
+                  value={textValue("filterFrom")}
                   onChange={(e) => handleConfigChange("filterFrom", e.target.value)}
                   className="h-8 text-xs font-mono rounded-md"
                 />
@@ -167,7 +162,7 @@ export function NodeConfigPanel({
                 </label>
                 <Input
                   placeholder="e.g. invoice, receipt, urgent"
-                  value={config.filterSubject || ""}
+                  value={textValue("filterSubject")}
                   onChange={(e) => handleConfigChange("filterSubject", e.target.value)}
                   className="h-8 text-xs rounded-md"
                 />
@@ -184,7 +179,7 @@ export function NodeConfigPanel({
                 Schedule Interval
               </label>
               <Select
-                value={config.interval || "daily"}
+                value={textValue("interval", "daily")}
                 onValueChange={(val) => handleConfigChange("interval", val)}
               >
                 <SelectTrigger className="h-8 text-xs rounded-md">
@@ -197,7 +192,7 @@ export function NodeConfigPanel({
                   <SelectItem value="custom">Custom Cron Expression</SelectItem>
                 </SelectContent>
               </Select>
-              {config.interval === "custom" && <Input value={config.cron || "0 9 * * *"} onChange={(e) => handleConfigChange("cron", e.target.value)} placeholder="0 9 * * *" className="h-8 text-xs font-mono rounded-md" />}
+              {textValue("interval") === "custom" && <Input value={textValue("cron", "0 9 * * *")} onChange={(e) => handleConfigChange("cron", e.target.value)} placeholder="0 9 * * *" className="h-8 text-xs font-mono rounded-md" />}
               <p className="text-[11px] text-muted-foreground">Daily and weekly schedules run at 9:00 UTC.</p>
             </div>
           )}
@@ -205,9 +200,9 @@ export function NodeConfigPanel({
           {node.type === "trigger_webhook" && (
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground tracking-tight">Webhook URL token</label>
-              <Input value={config.webhookSecret || ""} onChange={(e) => handleConfigChange("webhookSecret", e.target.value)} placeholder="Generate a secret token" className="h-8 text-xs font-mono rounded-md" />
+              <Input value={textValue("webhookSecret")} onChange={(e) => handleConfigChange("webhookSecret", e.target.value)} placeholder="Generate a secret token" className="h-8 text-xs font-mono rounded-md" />
               <Button type="button" size="sm" variant="outline" onClick={() => handleConfigChange("webhookSecret", crypto.randomUUID())}>Generate token</Button>
-              {config.webhookSecret && <p className="break-all text-[11px] text-muted-foreground">{typeof window !== "undefined" ? window.location.origin : ""}/api/automation-webhooks/{config.webhookSecret}</p>}
+              {textValue("webhookSecret") && <p className="break-all text-[11px] text-muted-foreground">{typeof window !== "undefined" ? window.location.origin : ""}/api/automation-webhooks/{textValue("webhookSecret")}</p>}
               <p className="text-[11px] text-muted-foreground">Keep this URL private. Send a JSON POST body to trigger the workflow.</p>
             </div>
           )}
@@ -221,7 +216,7 @@ export function NodeConfigPanel({
                   <VariablePicker onSelect={(v) => handleConfigChange("variable", v)} />
                 </div>
                 <Input
-                  value={config.variable || "{{ai.category}}"}
+                  value={textValue("variable", "{{ai.category}}")}
                   onChange={(e) => handleConfigChange("variable", e.target.value)}
                   className="h-8 text-xs font-mono rounded-md"
                 />
@@ -234,7 +229,7 @@ export function NodeConfigPanel({
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground tracking-tight">Condition Operator</label>
                 <Select
-                  value={config.operator || "equals"}
+                  value={textValue("operator", "equals")}
                   onValueChange={(val) => handleConfigChange("operator", val)}
                 >
                   <SelectTrigger className="h-8 text-xs rounded-md">
@@ -254,7 +249,7 @@ export function NodeConfigPanel({
                 <label className="text-xs font-medium text-foreground tracking-tight">Target Value</label>
                 <Input
                   placeholder="e.g. Billing or urgent"
-                  value={config.value || ""}
+                  value={textValue("value")}
                   onChange={(e) => handleConfigChange("value", e.target.value)}
                   className="h-8 text-xs font-mono rounded-md"
                 />
@@ -269,7 +264,7 @@ export function NodeConfigPanel({
                 <Input
                   type="number"
                   min={1}
-                  value={config.amount || 15}
+                  value={typeof config.amount === "number" ? config.amount : 15}
                   onChange={(e) => handleConfigChange("amount", Number(e.target.value))}
                   className="h-8 text-xs rounded-md"
                 />
@@ -277,7 +272,7 @@ export function NodeConfigPanel({
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-foreground tracking-tight">Unit</label>
                 <Select
-                  value={config.unit || "minutes"}
+                  value={textValue("unit", "minutes")}
                   onValueChange={(val) => handleConfigChange("unit", val)}
                 >
                   <SelectTrigger className="h-8 text-xs rounded-md">
@@ -302,8 +297,8 @@ export function NodeConfigPanel({
               <Input
                 value={
                   Array.isArray(config.categories)
-                    ? config.categories.join(", ")
-                    : config.categories || "Support, Sales, Billing, Other"
+                    ? config.categories.filter((category): category is string => typeof category === "string").join(", ")
+                    : textValue("categories", "Support, Sales, Billing, Other")
                 }
                 onChange={(e) =>
                   handleConfigChange(
@@ -329,7 +324,7 @@ export function NodeConfigPanel({
               <Textarea
                 rows={4}
                 value={
-                  config.prompt ||
+                  textValue("prompt") ||
                   "Draft a polite, helpful reply to {{email.from.name}} addressing their question in '{{email.text}}'. Sign off as the Customer Care Team."
                 }
                 onChange={(e) => handleConfigChange("prompt", e.target.value)}
@@ -343,7 +338,7 @@ export function NodeConfigPanel({
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground tracking-tight">Summary Length</label>
               <Select
-                value={config.length || "short"}
+                value={textValue("length", "short")}
                 onValueChange={(val) => handleConfigChange("length", val)}
               >
                 <SelectTrigger className="h-8 text-xs rounded-md">
@@ -361,14 +356,14 @@ export function NodeConfigPanel({
           {node.type === "ai_extract" && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground tracking-tight">JSON schema / fields to extract</label>
-              <Textarea rows={4} value={config.schema || '{"invoiceNumber":"string","total":"number"}'} onChange={(e) => handleConfigChange("schema", e.target.value)} className="text-xs font-mono rounded-md" />
+              <Textarea rows={4} value={textValue("schema", '{"invoiceNumber":"string","total":"number"}')} onChange={(e) => handleConfigChange("schema", e.target.value)} className="text-xs font-mono rounded-md" />
             </div>
           )}
 
           {node.type === "ai_decision" && (
             <>
-              <Input placeholder="Value to check (for example {{ai.category}})" value={config.variable || "{{ai.category}}"} onChange={(e) => handleConfigChange("variable", e.target.value)} className="h-8 text-xs font-mono rounded-md" />
-              <Input placeholder="Route to true when value equals" value={config.value || "Billing"} onChange={(e) => handleConfigChange("value", e.target.value)} className="h-8 text-xs rounded-md" />
+              <Input placeholder="Value to check (for example {{ai.category}})" value={textValue("variable", "{{ai.category}}")} onChange={(e) => handleConfigChange("variable", e.target.value)} className="h-8 text-xs font-mono rounded-md" />
+              <Input placeholder="Route to true when value equals" value={textValue("value", "Billing")} onChange={(e) => handleConfigChange("value", e.target.value)} className="h-8 text-xs rounded-md" />
               <p className="text-[11px] text-muted-foreground">Connect true and false branches on the canvas.</p>
             </>
           )}
@@ -382,7 +377,7 @@ export function NodeConfigPanel({
                   <VariablePicker onSelect={(v) => handleInsertVariable("recipient", v)} />
                 </div>
                 <Input
-                  value={config.recipient || "{{email.from.address}}"}
+                  value={textValue("recipient", "{{email.from.address}}")}
                   onChange={(e) => handleConfigChange("recipient", e.target.value)}
                   className="h-8 text-xs font-mono rounded-md"
                 />
@@ -396,7 +391,7 @@ export function NodeConfigPanel({
                 <Textarea
                   rows={5}
                   value={
-                    config.template ||
+                    textValue("template") ||
                     "Hi {{email.from.name}},\n\nThank you for reaching out regarding '{{email.subject}}'.\n\n{{ai.reply}}\n\nBest,\nMailing Support"
                   }
                   onChange={(e) => handleConfigChange("template", e.target.value)}
@@ -410,7 +405,7 @@ export function NodeConfigPanel({
           {node.type === "email_forward" && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground tracking-tight">Forward to</label>
-              <Input value={config.forwardTo || ""} onChange={(e) => handleConfigChange("forwardTo", e.target.value)} className="h-8 text-xs rounded-md" placeholder="recipient@example.com" />
+              <Input value={textValue("forwardTo")} onChange={(e) => handleConfigChange("forwardTo", e.target.value)} className="h-8 text-xs rounded-md" placeholder="recipient@example.com" />
             </div>
           )}
 
@@ -418,7 +413,7 @@ export function NodeConfigPanel({
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground tracking-tight">Label Name</label>
               <Select
-                value={config.label || "Work"}
+                value={textValue("label", "Work")}
                 onValueChange={(val) => handleConfigChange("label", val)}
               >
                 <SelectTrigger className="h-8 text-xs rounded-md">
@@ -442,7 +437,7 @@ export function NodeConfigPanel({
                 <div className="space-y-1.5 col-span-1">
                   <label className="text-xs font-medium text-foreground tracking-tight">Method</label>
                   <Select
-                    value={config.method || "POST"}
+                    value={textValue("method", "POST")}
                     onValueChange={(val) => handleConfigChange("method", val)}
                   >
                     <SelectTrigger className="h-8 text-xs rounded-md">
@@ -459,7 +454,7 @@ export function NodeConfigPanel({
                 <div className="space-y-1.5 col-span-2">
                   <label className="text-xs font-medium text-foreground tracking-tight">URL</label>
                   <Input
-                    value={config.url || "https://api.example.com/lead"}
+                    value={textValue("url", "https://api.example.com/lead")}
                     onChange={(e) => handleConfigChange("url", e.target.value)}
                     className="h-8 text-xs font-mono rounded-md"
                   />
@@ -474,7 +469,7 @@ export function NodeConfigPanel({
                 <Textarea
                   rows={4}
                   value={
-                    config.body ||
+                    textValue("body") ||
                     '{\n  "email": "{{email.from.address}}",\n  "name": "{{email.from.name}}",\n  "summary": "{{ai.summary}}"\n}'
                   }
                   onChange={(e) => handleConfigChange("body", e.target.value)}

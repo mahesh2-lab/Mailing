@@ -224,7 +224,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const updates: any = {
+    const updates: Partial<typeof userApiKeys.$inferInsert> = {
       updatedAt: new Date().toISOString(),
     };
 

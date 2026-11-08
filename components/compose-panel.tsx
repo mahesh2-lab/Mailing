@@ -183,6 +183,8 @@ export default function ComposePanel() {
 
   useEffect(() => {
     if (composeDefaults) {
+      // Apply the compose request supplied by the mail context to this editor instance.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (composeDefaults.draftId) setDraftId(composeDefaults.draftId);
       setTo(composeDefaults.to?.join(", ") ?? "");
       setSubject(composeDefaults.subject ?? "");
@@ -315,8 +317,8 @@ export default function ComposePanel() {
       toast.success("Email sent successfully");
       setComposeOpen(false);
       refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send email");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to send email");
     }
   };
 

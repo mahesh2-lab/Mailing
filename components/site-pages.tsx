@@ -69,17 +69,14 @@ function ProfilePanel() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [firstNameOverride, setFirstNameOverride] = useState<string | null>(null);
+  const [lastNameOverride, setLastNameOverride] = useState<string | null>(null);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
 
-  useEffect(() => {
-    if (!user?.name) return;
-    const parts = user.name.trim().split(" ").filter(Boolean);
-    setFirstName(parts[0] ?? "");
-    setLastName(parts.slice(1).join(" ") ?? "");
-  }, [user?.name]);
+  const nameParts = (user?.name ?? "").trim().split(/\s+/).filter(Boolean);
+  const firstName = firstNameOverride ?? nameParts[0] ?? "";
+  const lastName = lastNameOverride ?? nameParts.slice(1).join(" ");
 
   const [showPwSection, setShowPwSection] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
@@ -123,8 +120,8 @@ function ProfilePanel() {
       if (error) throw new Error(error.message ?? "Failed to update avatar");
       await refetch();
       toast.success(`Avatar updated (${result.formattedCompressedSize})`);
-    } catch (err: any) {
-      setProfileError(err.message ?? "Failed to upload image");
+    } catch (err: unknown) {
+      setProfileError(err instanceof Error ? err.message : "Failed to upload image");
       setAvatarPreview(null);
     } finally {
       setAvatarUploading(false);
@@ -147,8 +144,8 @@ function ProfilePanel() {
       if (error) throw new Error(error.message ?? "Failed to save");
       toast.success("Profile updated successfully");
       await refetch();
-    } catch (err: any) {
-      setProfileError(err.message ?? "Failed to update profile");
+    } catch (err: unknown) {
+      setProfileError(err instanceof Error ? err.message : "Failed to update profile");
     } finally {
       setProfileSaving(false);
     }
@@ -183,8 +180,8 @@ function ProfilePanel() {
       setNewPw("");
       setConfirmPw("");
       setShowPwSection(false);
-    } catch (err: any) {
-      setPwError(err.message ?? "Failed to change password");
+    } catch (err: unknown) {
+      setPwError(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setPwSaving(false);
     }
@@ -303,7 +300,7 @@ function ProfilePanel() {
                 <label className="text-xs font-semibold text-foreground">First name</label>
                 <Input
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => setFirstNameOverride(e.target.value)}
                   placeholder="John"
                   required
                 />
@@ -312,7 +309,7 @@ function ProfilePanel() {
                 <label className="text-xs font-semibold text-foreground">Last name</label>
                 <Input
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => setLastNameOverride(e.target.value)}
                   placeholder="Doe"
                 />
               </div>
@@ -465,11 +462,15 @@ function ContactsPanel() {
   // Delete Target
   const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
 
-  async function loadContacts() {
+  async function loadContacts(): Promise<Contact[]> {
+    const res = await fetch("/api/v1/contacts").then((r) => r.json());
+    return Array.isArray(res?.data) ? res.data : [];
+  }
+
+  async function refreshContacts() {
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/contacts").then((r) => r.json());
-      if (res?.data) setContacts(res.data);
+      setContacts(await loadContacts());
     } catch {
       toast.error("Failed to load contacts");
     } finally {
@@ -478,7 +479,20 @@ function ContactsPanel() {
   }
 
   useEffect(() => {
-    loadContacts();
+    let active = true;
+    loadContacts()
+      .then((data) => {
+        if (active) setContacts(data);
+      })
+      .catch(() => {
+        if (active) toast.error("Failed to load contacts");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleCreateContact(e: React.FormEvent) {
@@ -499,7 +513,7 @@ function ContactsPanel() {
         setName("");
         setEmail("");
         setNotes("");
-        loadContacts();
+        refreshContacts();
       } else {
         toast.error(res?.error || "Failed to add contact");
       }
@@ -516,7 +530,7 @@ function ContactsPanel() {
       await fetch(`/api/v1/contacts/${deleteTarget.id}`, { method: "DELETE" });
       toast.success(`Contact "${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
-      loadContacts();
+      refreshContacts();
     } catch {
       toast.error("Failed to delete contact");
     }
