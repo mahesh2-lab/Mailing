@@ -101,7 +101,7 @@ function AppShell() {
         <>
           <button
             type="button"
-            onClick={openCompose}
+            onClick={() => openCompose()}
             aria-label="Compose email"
             className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 hidden size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg active:scale-95 max-md:flex"
           >
