@@ -823,7 +823,7 @@ export default function MailDetailPane() {
 
                     {/* Attachments (if any) */}
                     {message.attachments && message.attachments.length > 0 && (
-                      <div className="space-y-2 pt-6 mt-6 border-t border-border/40">
+                      <div className="space-y-2 pt-4 mt-4 border-t border-border/40">
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           Attachments ({message.attachments.length})
                         </span>

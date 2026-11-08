@@ -1,0 +1,1 @@
+CREATE INDEX "emails_user_folder_created_at_idx" ON "emails" USING btree ("user_id","folder","created_at");
