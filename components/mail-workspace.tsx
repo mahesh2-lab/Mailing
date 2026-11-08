@@ -61,7 +61,7 @@ function AppShell() {
   }, [composeOpen, openId, setComposeOpen, setOpenId, openCompose]);
 
   return (
-    <main className="h-screen w-full flex overflow-hidden bg-background text-foreground">
+    <main className="h-dvh w-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)] max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)] flex overflow-hidden bg-background text-foreground">
       {/* 3-Pane Shadcn Mail Structure with synchronized h-[52px] headers */}
       <MailSidebar />
 

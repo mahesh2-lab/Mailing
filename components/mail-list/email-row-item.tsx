@@ -166,7 +166,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                   : undefined,
             }}
             className={cn(
-              "w-full flex items-start gap-2.5 rounded-lg border py-2 px-2.5 text-left transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.995] cursor-pointer relative group select-none min-h-[72px] h-[72px] box-border animate-in fade-in-0 slide-in-from-bottom-1 duration-150 fill-mode-both",
+              "w-full flex items-start gap-2.5 rounded-lg border py-2 px-2.5 text-left transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.995] cursor-pointer relative group select-none min-h-[72px] h-[72px] max-md:min-h-[84px] max-md:h-[84px] box-border animate-in fade-in-0 slide-in-from-bottom-1 duration-150 fill-mode-both",
               isSelected
                 ? "bg-primary/5 dark:bg-primary/10 border-primary/40 ring-1 ring-primary/30 shadow-xs font-medium"
                 : isCurrentOpen
@@ -268,7 +268,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                     type="button"
                     onClick={(e) => onStarToggle(item.id, !!item.starred, e)}
                     className={cn(
-                      "size-5 flex items-center justify-center rounded-xs transition-all duration-150 active:scale-125 cursor-pointer",
+                      "size-10 md:size-5 flex items-center justify-center rounded-xs transition-all duration-150 active:scale-110 cursor-pointer [@media(hover:none)]:opacity-70",
                       item.starred
                         ? "opacity-100"
                         : "opacity-0 group-hover:opacity-60 hover:opacity-100",

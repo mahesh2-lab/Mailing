@@ -530,10 +530,10 @@ export default function ComposePanel() {
               : undefined
         }
         className={cn(
-          "fixed z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden rounded-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-6 duration-200 ease-out motion-reduce:animate-none transition-all",
+          "fixed z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden rounded-xl max-md:!inset-0 max-md:!h-dvh max-md:!w-full max-md:rounded-none max-md:border-0 max-md:pt-[env(safe-area-inset-top)] animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-6 duration-200 ease-out motion-reduce:animate-none transition-all",
           maximized
             ? "inset-4 md:inset-8"
-            : "bottom-0 right-4 md:right-8 w-full max-w-xl h-140"
+            : "bottom-0 right-4 md:right-8 w-full max-w-xl h-140 max-md:h-dvh max-md:max-w-none"
         )}
         onDragOver={(e) => {
           e.preventDefault();
@@ -551,15 +551,15 @@ export default function ComposePanel() {
           <>
             <div
               onPointerDown={(e) => startResize("top", e)}
-              className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-20"
+              className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-20 max-md:hidden"
             />
             <div
               onPointerDown={(e) => startResize("left", e)}
-              className="absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize z-20"
+              className="absolute top-0 bottom-0 left-0 w-1.5 cursor-ew-resize z-20 max-md:hidden"
             />
             <div
               onPointerDown={(e) => startResize("corner", e)}
-              className="absolute top-0 left-0 size-3 cursor-nwse-resize z-30"
+              className="absolute top-0 left-0 size-3 cursor-nwse-resize z-30 max-md:hidden"
             />
           </>
         )}
@@ -581,7 +581,7 @@ export default function ComposePanel() {
             <Button
               variant="ghost"
               size="icon-xs"
-              className="size-7 text-muted-foreground hover:text-foreground"
+              className="hidden md:flex size-7 text-muted-foreground hover:text-foreground"
               onClick={() => setMaximized((m) => !m)}
               aria-label={maximized ? "Restore window" : "Maximize window"}
             >
@@ -594,7 +594,7 @@ export default function ComposePanel() {
             <Button
               variant="ghost"
               size="icon-xs"
-              className="size-7 text-muted-foreground hover:text-foreground"
+              className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
               onClick={handleClose}
               aria-label="Close composer"
             >
@@ -610,7 +610,7 @@ export default function ComposePanel() {
               To
             </span>
             <Input
-              className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
+              className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm max-md:text-base rounded-none bg-transparent flex-1"
               placeholder="Recipients (comma separated)"
               value={to}
               onChange={(e) => setTo(e.target.value)}
@@ -636,7 +636,7 @@ export default function ComposePanel() {
                   Cc
                 </span>
                 <Input
-                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm max-md:text-base rounded-none bg-transparent flex-1"
                   placeholder="Cc recipients (comma separated)"
                   value={cc}
                   onChange={(e) => setCc(e.target.value)}
@@ -647,7 +647,7 @@ export default function ComposePanel() {
                   Bcc
                 </span>
                 <Input
-                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm rounded-none bg-transparent flex-1"
+                  className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 px-1 h-9 text-sm max-md:text-base rounded-none bg-transparent flex-1"
                   placeholder="Bcc recipients (comma separated)"
                   value={bcc}
                   onChange={(e) => setBcc(e.target.value)}
@@ -672,7 +672,7 @@ export default function ComposePanel() {
         {/* Textarea message surface */}
         <Textarea
           ref={textareaRef}
-          className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 p-4 text-sm rounded-none bg-transparent flex-1 resize-none leading-relaxed font-sans"
+          className="border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none focus:outline-none focus:ring-0 outline-none ring-0 p-4 text-sm max-md:text-base rounded-none bg-transparent flex-1 resize-none leading-relaxed font-sans"
           placeholder="Write your email message... (Ctrl+Enter to send)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -717,7 +717,7 @@ export default function ComposePanel() {
         )}
 
         {/* Footer actions */}
-        <div className="flex items-center justify-between p-3 border-t border-border bg-muted/20">
+        <div className="flex items-center justify-between p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border bg-muted/20 max-md:flex-wrap max-md:gap-2">
           <div className="flex items-center gap-3">
             <Button
               className="gap-1.5 h-8 px-3 text-xs"
@@ -753,7 +753,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Bold (Ctrl+B)"
                       onClick={() => applyFormatting("bold")}
                     />
@@ -770,7 +770,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Italic (Ctrl+I)"
                       onClick={() => applyFormatting("italic")}
                     />
@@ -787,7 +787,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Link (Ctrl+K)"
                       onClick={() => applyFormatting("link")}
                     />
@@ -804,7 +804,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Bulleted list"
                       onClick={() => applyFormatting("list")}
                     />
@@ -821,7 +821,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Quote block"
                       onClick={() => applyFormatting("quote")}
                     />
@@ -838,7 +838,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Code snippet"
                       onClick={() => applyFormatting("code")}
                     />
@@ -855,7 +855,7 @@ export default function ComposePanel() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
-                      className="size-7 text-muted-foreground hover:text-foreground"
+                      className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                       aria-label="Attach files"
                       onClick={() => fileInputRef.current?.click()}
                     />
@@ -881,7 +881,7 @@ export default function ComposePanel() {
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    className="size-7 text-muted-foreground hover:text-foreground"
+                    className="size-10 md:size-7 text-muted-foreground hover:text-foreground"
                     aria-label="More options"
                   />
                 }

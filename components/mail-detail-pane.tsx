@@ -371,13 +371,13 @@ export default function MailDetailPane() {
         )}
       >
         {/* Detail Top Header - exactly h-[52px] */}
-        <div className="h-13 border-b border-border px-4 flex items-center justify-between shrink-0 bg-background">
+        <div className="h-13 border-b border-border px-4 max-md:px-2 flex items-center justify-between shrink-0 bg-background">
           <div className="flex items-center gap-1">
             {/* Mobile Back Button */}
             <Button
               variant="ghost"
               size="icon-xs"
-              className="md:hidden size-8 text-muted-foreground mr-1"
+              className="md:hidden size-10 text-muted-foreground mr-1"
               onClick={() => setOpenId(null)}
               aria-label="Back to list"
             >
@@ -392,7 +392,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label="Archive (E)"
                         onClick={() =>
                           handleToolbarAction({
@@ -416,7 +416,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label="Move to trash (#)"
                         onClick={() =>
                           handleToolbarAction({
@@ -442,7 +442,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label={message.starred ? "Unstar (S)" : "Star (S)"}
                         onClick={starToggle}
                       >
@@ -470,7 +470,7 @@ export default function MailDetailPane() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                              className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                               aria-label="Manage labels (L)"
                             >
                               <Tag className="size-4" />
@@ -525,7 +525,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label="Reply (R)"
                         onClick={() =>
                           openCompose({
@@ -549,7 +549,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer max-md:hidden"
                         aria-label="Reply all"
                         onClick={() =>
                           openCompose({
@@ -573,7 +573,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer max-md:hidden"
                         aria-label="Forward (F)"
                         onClick={() =>
                           openCompose({
@@ -600,7 +600,7 @@ export default function MailDetailPane() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label="More options"
                       >
                         <MoreHorizontal className="size-4" />
@@ -612,6 +612,20 @@ export default function MailDetailPane() {
                     className="w-52 p-1.5 shadow-md"
                   >
                     <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          openCompose({
+                            to: [message.sender.email, ...(message.cc || [])],
+                            subject: message.subject.startsWith("Re:")
+                              ? message.subject
+                              : `Re: ${message.subject}`,
+                          })
+                        }
+                        className="text-xs cursor-pointer md:hidden"
+                      >
+                        <ReplyAll className="size-3.5 mr-2 text-muted-foreground" />
+                        <span className="flex-1">Reply all</span>
+                      </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={handleMarkAsUnread}
                         className="text-xs cursor-pointer"
@@ -729,7 +743,7 @@ export default function MailDetailPane() {
               className="flex-1 flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-200 ease-out"
             >
               {/* Header: Sender Info & Subject */}
-              <div className="flex items-start p-4 select-text">
+              <div className="flex items-start p-3 md:p-4 select-text">
                 <div className="flex items-start gap-3.5 text-sm min-w-0">
                   <Avatar className="size-10 shrink-0 ring-1 ring-border/50">
                     {message.sender.avatarUrl && (
@@ -863,14 +877,14 @@ export default function MailDetailPane() {
               <ContextMenu>
                 <ContextMenuTrigger
                   render={
-                    <div className="flex-1 overflow-y-auto p-4 select-text" />
+                    <div className="flex-1 overflow-y-auto p-3 md:p-4 select-text" />
                   }
                 >
                   <div className="w-full select-text">
                     {message.rawHtml ? (
                       <EmailHtmlFrame html={message.rawHtml} />
                     ) : message.rawText ? (
-                      <div className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground select-text [&_*]:select-text break-words">
+                      <div className="whitespace-pre-wrap font-sans text-base md:text-sm leading-relaxed text-foreground select-text [&_*]:select-text break-words">
                         {renderPlainTextWithLinks(message.rawText)}
                       </div>
                     ) : message.body ? (

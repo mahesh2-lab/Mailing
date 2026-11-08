@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   Check,
+  Menu,
   Search,
   Tag,
   Trash2,
@@ -67,6 +68,7 @@ export default function MailListPane() {
     setQuery,
     openId,
     setOpenId,
+    setMobileNavOpen,
     refreshTick,
     refresh,
   } = useMailContext();
@@ -635,7 +637,7 @@ export default function MailListPane() {
         {/* Header - proper 2-row layout */}
         <div className="border-b border-border shrink-0 bg-background">
           {/* Row 1: Folder Title OR Selection Actions Toolbar */}
-          <div className="h-13 px-4 flex items-center justify-between gap-2 shrink-0">
+          <div className="h-13 px-3 md:px-4 flex items-center justify-between gap-2 shrink-0">
             {selected.length > 0 ? (
               <>
                 <div className="flex items-center gap-2 shrink-0">
@@ -738,6 +740,15 @@ export default function MailListPane() {
               </>
             ) : (
               <div className="flex items-center gap-2 min-w-0 animate-in fade-in-0 duration-150">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden size-11 shrink-0 -ml-1 text-muted-foreground"
+                  onClick={() => setMobileNavOpen(true)}
+                  aria-label="Open navigation menu"
+                >
+                  <Menu className="size-4" />
+                </Button>
                 {!initialLoading && visible.length > 0 && (
                   <Checkbox
                     checked={false}
@@ -760,7 +771,7 @@ export default function MailListPane() {
           </div>
 
           {/* Row 2: Search + Filter tabs - ALWAYS VISIBLE */}
-          <div className="px-3 pb-2.5 h-10.5 flex items-center gap-2">
+          <div className="px-3 pb-2.5 h-14 md:h-10.5 flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
               <Input
@@ -768,7 +779,7 @@ export default function MailListPane() {
                 placeholder="Search..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="pl-8 pr-10 h-8 text-xs bg-muted/50 border-transparent focus-visible:border-border focus-visible:bg-background shadow-none rounded-lg"
+                className="pl-8 pr-10 h-11 md:h-8 text-base md:text-xs bg-muted/50 border-transparent focus-visible:border-border focus-visible:bg-background shadow-none rounded-lg"
               />
               {query ? (
                 <button
@@ -790,16 +801,16 @@ export default function MailListPane() {
               onValueChange={(val) => setFilterTab(val as "all" | "unread")}
               className="w-auto shrink-0"
             >
-              <TabsList className="h-8 p-0.5 bg-muted/60">
+              <TabsList className="h-11 md:h-8 p-0.5 bg-muted/60">
                 <TabsTrigger
                   value="all"
-                  className="h-7 px-2.5 text-xs font-medium"
+                  className="h-10 md:h-7 px-2.5 text-xs font-medium"
                 >
                   All
                 </TabsTrigger>
                 <TabsTrigger
                   value="unread"
-                  className="h-7 px-2.5 text-xs font-medium"
+                  className="h-10 md:h-7 px-2.5 text-xs font-medium"
                 >
                   Unread
                 </TabsTrigger>

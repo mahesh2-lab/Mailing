@@ -75,7 +75,7 @@ function ShellInner({
   }, [composeOpen, openCompose, setComposeOpen]);
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-background text-foreground select-none">
+    <div className="h-dvh w-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)] max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)] flex overflow-hidden bg-background text-foreground select-none">
       {/* Persistent Left Sidebar */}
       <MailSidebar hideThemeToggle />
 
@@ -96,7 +96,7 @@ function ShellInner({
             <Button
               variant="ghost"
               size="icon-xs"
-              className="md:hidden size-8 text-muted-foreground hover:text-foreground shrink-0"
+              className="md:hidden size-11 text-muted-foreground hover:text-foreground shrink-0"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Toggle navigation menu"
             >
