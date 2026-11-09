@@ -159,7 +159,7 @@ export function parseEmailThreadTurns(
  * Continuous SVG trunk connector and curved elbow into child avatar.
  * Guarantees zero seam, zero double-line, and exact vertical center alignment.
  */
-function ThreadStemConnector() {
+function ThreadStemConnector({ continues }: { continues: boolean }) {
   return (
     <svg
       className="absolute -left-7 top-0 w-7 h-full pointer-events-none text-neutral-400/80 dark:text-neutral-400"
@@ -168,14 +168,16 @@ function ThreadStemConnector() {
       aria-hidden="true"
     >
       {/* Continuous trunk line descending to next item */}
-      <line
-        x1="6"
-        y1="0"
-        x2="6"
-        y2="100%"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+      {continues && (
+        <line
+          x1="6"
+          y1="0"
+          x2="6"
+          y2="100%"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      )}
       {/* Curved elbow branching into avatar center at y=15 */}
       <path
         d="M 6 0 L 6 5 A 10 10 0 0 0 16 15 L 28 15"
@@ -210,13 +212,16 @@ function ThreadTerminatingConnector() {
 }
 
 interface ThreadReplyNodeProps {
-  reply: ThreadTurn;
+  replies: ThreadTurn[];
+  index: number;
 }
 
-function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
+function ThreadReplyNode({ replies, index }: ThreadReplyNodeProps) {
+  const reply = replies[index];
+
   return (
     <div className="relative pb-4 group">
-      <ThreadStemConnector />
+      <ThreadStemConnector continues={index < replies.length - 1} />
 
       <div className="flex items-start gap-3">
         <Avatar className="size-7 shrink-0 ring-2 ring-background mt-0.5">
@@ -246,6 +251,11 @@ function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
           </div>
         </div>
       </div>
+      {index < replies.length - 1 && (
+        <div className="ml-6 mt-3">
+          <ThreadReplyNode replies={replies} index={index + 1} />
+        </div>
+      )}
     </div>
   );
 }
@@ -309,13 +319,7 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
       {/* Connected Thread Tree */}
       <div className="relative pl-9 sm:pl-10 pt-1">
         {showReplies && (
-          <div className="flex flex-col">
-            {replies.map((reply, index) => (
-              <div key={reply.id} style={{ marginLeft: `${Math.min(index, 4) * 24}px` }}>
-                <ThreadReplyNode reply={reply} />
-              </div>
-            ))}
-          </div>
+          <ThreadReplyNode replies={replies} index={0} />
         )}
 
         {/* Collapsible replies toggle */}
