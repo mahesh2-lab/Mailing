@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const EMAIL_CSP = `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data:"><style>html,body{max-width:100%;overflow-x:auto}body{margin:0;font-family:Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img,video,table{max-width:100%!important;height:auto}</style>`;
+const EMAIL_CSP = `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data:"><style>html,body{max-width:100%;overflow-x:auto;background:transparent!important}body{margin:0;font-family:Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img,video,table{max-width:100%!important;height:auto}</style>`;
 
 export function EmailHtmlFrame({ html, title = "Email content" }: { html: string; title?: string }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState<number>(300);
+  const emailHtml = html.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, "");
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -42,9 +43,9 @@ export function EmailHtmlFrame({ html, title = "Email content" }: { html: string
       title={title}
       sandbox="allow-same-origin"
       referrerPolicy="no-referrer"
-      srcDoc={`${EMAIL_CSP}${html}`}
+      srcDoc={`${EMAIL_CSP}${emailHtml}`}
       style={{ height: `${height}px` }}
-      className="w-full border-0 bg-white"
+      className="w-full border-0 bg-transparent [color-scheme:light] dark:[color-scheme:dark]"
     />
   );
 }

@@ -30,7 +30,7 @@ import axios from "axios";
 import { useSendMail } from "../hooks/use-mail";
 import { useMessageDetail } from "../hooks/use-mail-message-detail";
 import { useMailContext } from "./mail-context";
-import { EmailHtmlFrame } from "./email-html-frame";
+import { ThreadHierarchyViewer } from "./mail-thread-hierarchy";
 import type { MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { formatFileSize } from "@/lib/image-compressor";
@@ -70,27 +70,6 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-
-function renderPlainTextWithLinks(text: string) {
-  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`]+[^\s<>"{}|\\^`.,;:!?])/g;
-  const parts = text.split(urlRegex);
-  return parts.map((part, i) => {
-    if (part.match(/^https?:\/\//)) {
-      return (
-        <a
-          key={i}
-          href={part}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary font-medium underline underline-offset-4 hover:text-primary/80 transition-colors break-all"
-        >
-          {part}
-        </a>
-      );
-    }
-    return part;
-  });
-}
 
 function MessageSkeleton() {
   return (
@@ -881,14 +860,8 @@ export default function MailDetailPane() {
                   }
                 >
                   <div className="w-full select-text">
-                    {message.rawHtml ? (
-                      <EmailHtmlFrame html={message.rawHtml} />
-                    ) : message.rawText ? (
-                      <div className="whitespace-pre-wrap font-sans text-base md:text-sm leading-relaxed text-foreground select-text [&_*]:select-text break-words">
-                        {renderPlainTextWithLinks(message.rawText)}
-                      </div>
-                    ) : message.body ? (
-                      <EmailHtmlFrame html={message.body} />
+                    {message.rawHtml || message.rawText || message.body ? (
+                      <ThreadHierarchyViewer message={message} />
                     ) : (
                       <p className="text-sm italic text-muted-foreground">
                         No content

@@ -15,9 +15,26 @@ export async function GET(
 
   try {
     const message = await db
-      .select()
+      .select({
+        id: emails.id,
+        from: emails.from,
+        to: emails.to,
+        cc: emails.cc,
+        bcc: emails.bcc,
+        subject: emails.subject,
+        text: emails.text,
+        html: emails.html,
+        createdAt: emails.createdAt,
+        folder: emails.folder,
+        status: emails.status,
+        unread: emails.unread,
+        starred: emails.starred,
+        labels: emails.labels,
+        attachments: emails.attachments,
+      })
       .from(emails)
-      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)));
+      .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)))
+      .limit(1);
 
     if (!message || message.length === 0) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });

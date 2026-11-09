@@ -317,8 +317,10 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
       <div className="relative pl-9 sm:pl-10 pt-1">
         {showReplies && (
           <div className="flex flex-col">
-            {replies.map((reply) => (
-              <ThreadReplyNode key={reply.id} reply={reply} />
+            {replies.map((reply, index) => (
+              <div key={reply.id} style={{ marginLeft: `${Math.min(index, 4) * 24}px` }}>
+                <ThreadReplyNode reply={reply} />
+              </div>
             ))}
           </div>
         )}
