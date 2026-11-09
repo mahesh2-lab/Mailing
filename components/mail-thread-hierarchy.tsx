@@ -214,10 +214,8 @@ interface ThreadReplyNodeProps {
 }
 
 function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
-  const handle = `@${reply.senderName.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase() || "user"}`;
-
   return (
-    <div className="relative pb-6 group">
+    <div className="relative pb-4 group">
       <ThreadStemConnector />
 
       <div className="flex items-start gap-3">
@@ -235,15 +233,10 @@ function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-foreground">
-              {handle}
+            <span className="text-sm font-semibold text-foreground">
+              {reply.senderName}
             </span>
-            {reply.senderEmail && (
-              <span className="text-[11px] text-muted-foreground/60 truncate">
-                &lt;{reply.senderEmail}&gt;
-              </span>
-            )}
-            <span className="text-[11px] text-muted-foreground ml-auto whitespace-nowrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
               {reply.dateStr}
             </span>
           </div>
