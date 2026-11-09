@@ -1,51 +1,91 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 
-const EMAIL_CSP = `<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data:"><style>html,body{max-width:100%;overflow-x:auto;background:transparent!important}body{margin:0;font-family:Arial,Helvetica,sans-serif;overflow-wrap:anywhere}img,video,table{max-width:100%!important;height:auto}</style>`;
+function prepareEmailHtml(rawHtml: string): string {
+  // Strip harmful/unsupported scripts
+  const cleaned = rawHtml.replace(
+    /<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi,
+    "",
+  );
 
-export function EmailHtmlFrame({ html, title = "Email content" }: { html: string; title?: string }) {
+  const injected = `
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: blob:; style-src 'unsafe-inline'; font-src data: https:;">
+<base target="_blank">
+<style>
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    font-family: Arial, Helvetica, sans-serif;
+    overflow-wrap: anywhere;
+  }
+  img, video {
+    max-width: 100% !important;
+    height: auto;
+  }
+  table {
+    max-width: 100% !important;
+  }
+  /* Sleek modern scrollbar */
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.35);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 150, 150, 0.6);
+  }
+</style>
+`;
+
+  if (/<\/head>/i.test(cleaned)) {
+    return cleaned.replace(/<\/head>/i, `${injected}</head>`);
+  }
+  if (/<head\b[^>]*>/i.test(cleaned)) {
+    return cleaned.replace(/<head\b[^>]*>/i, `$&${injected}`);
+  }
+  if (/<body\b[^>]*>/i.test(cleaned)) {
+    return cleaned.replace(/<body\b[^>]*>/i, `<head>${injected}</head>$&`);
+  }
+  if (/<html\b[^>]*>/i.test(cleaned)) {
+    return cleaned.replace(/<html\b[^>]*>/i, `$&<head>${injected}</head>`);
+  }
+  return `<!DOCTYPE html><html><head>${injected}</head><body>${cleaned}</body></html>`;
+}
+
+export function EmailHtmlFrame({
+  html,
+  title = "Email content",
+}: {
+  html: string;
+  title?: string;
+}) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState<number>(300);
-  const emailHtml = html.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, "");
-
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-
-    const syncHeight = () => {
-      try {
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (doc && doc.body) {
-          const contentHeight = Math.max(
-            doc.body.scrollHeight,
-            doc.documentElement.scrollHeight
-          );
-          if (contentHeight > 50) {
-            setHeight(contentHeight + 20);
-          }
-          const images = doc.querySelectorAll("img");
-          images.forEach((img) => img.addEventListener("load", syncHeight, { once: true }));
-        }
-      } catch {
-        // Fallback for sandboxed restrictions
-      }
-    };
-
-    iframe.addEventListener("load", syncHeight);
-    syncHeight();
-    return () => iframe.removeEventListener("load", syncHeight);
-  }, [html]);
+  const emailHtml = useMemo(() => prepareEmailHtml(html), [html]);
 
   return (
-    <iframe
-      ref={iframeRef}
-      title={title}
-      sandbox="allow-same-origin"
-      referrerPolicy="no-referrer"
-      srcDoc={`${EMAIL_CSP}${emailHtml}`}
-      style={{ height: `${height}px` }}
-      className="w-full border-0 bg-transparent [color-scheme:light] dark:[color-scheme:dark]"
-    />
+    <div className="w-full h-full flex-1 min-h-0 rounded-xl border border-border/80 p-[5px] bg-muted/40 dark:bg-muted/20 shadow-2xs isolate flex flex-col overflow-hidden">
+      <iframe
+        ref={iframeRef}
+        title={title}
+        sandbox="allow-same-origin"
+        referrerPolicy="no-referrer"
+        srcDoc={emailHtml}
+        style={{
+          width: "100%",
+          height: "100%",
+        }}
+        className="w-full h-full border-0 bg-card scheme-light dark:scheme-dark block rounded-lg overflow-y-auto"
+      />
+    </div>
   );
 }

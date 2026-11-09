@@ -13,6 +13,7 @@ import {
   Lock,
   Mail,
   Plus,
+  RefreshCw,
   Search,
   Shield,
   SlidersHorizontal,
@@ -721,6 +722,7 @@ function SettingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
 
@@ -812,6 +814,25 @@ function SettingsPanel() {
       toast.error("Failed to verify credentials");
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function handleSyncEmails() {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/sync", { method: "POST" });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        toast.error(result.message || "Failed to sync emails");
+        return;
+      }
+
+      const totalNew = result.stats?.totalNew ?? 0;
+      toast.success(totalNew ? `Synced ${totalNew} new email${totalNew === 1 ? "" : "s"}` : "Emails are up to date");
+    } catch {
+      toast.error("Failed to sync emails");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -997,17 +1018,30 @@ function SettingsPanel() {
                 )}
               </CardContent>
               <CardFooter className="justify-between border-t border-border pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleVerifyResend}
-                  disabled={verifying || !settings.resendApiKey.trim()}
-                  className="text-xs gap-1.5"
-                >
-                  {verifying ? <Spinner className="size-3.5" /> : <Shield className="size-3.5" />}
-                  <span>Verify Connection</span>
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleVerifyResend}
+                    disabled={verifying || !settings.resendApiKey.trim()}
+                    className="text-xs gap-1.5"
+                  >
+                    {verifying ? <Spinner className="size-3.5" /> : <Shield className="size-3.5" />}
+                    <span>Verify Connection</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncEmails}
+                    disabled={syncing || loading || !settings.resendApiKey.trim()}
+                    className="text-xs gap-1.5"
+                  >
+                    {syncing ? <Spinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
+                    <span>{syncing ? "Syncing…" : "Sync Emails"}</span>
+                  </Button>
+                </div>
                 <Button type="submit" disabled={saving} className="text-xs">
                   {saving ? <Spinner className="size-3.5" /> : "Save API Credentials"}
                 </Button>

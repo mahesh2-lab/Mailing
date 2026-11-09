@@ -11,4 +11,5 @@ export const pusherServer = new Pusher({
   secret,
   cluster,
   useTLS: true,
+  timeout: 3000,
 });

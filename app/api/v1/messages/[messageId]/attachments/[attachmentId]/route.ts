@@ -6,6 +6,11 @@ import { db } from "@/src";
 import { emails } from "@/src/db/schema";
 import { and, eq } from "drizzle-orm";
 import { isRecord } from "@/src/lib/errors";
+import dns from "node:dns";
+
+if (typeof dns.setDefaultResultOrder === "function") {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 export async function GET(
   request: Request,
@@ -28,50 +33,95 @@ export async function GET(
 
   try {
     const [emailRecord] = await db
-      .select({ attachments: emails.attachments })
+      .select({ attachments: emails.attachments, status: emails.status })
       .from(emails)
       .where(and(eq(emails.id, messageId), eq(emails.userId, session.user.id)))
       .limit(1);
-    if (!emailRecord) return new NextResponse("Message not found", { status: 404 });
 
-    const { data, error } = await resend.emails.receiving.attachments.get({
-      emailId: messageId,
-      id: attachmentId,
-    });
-
-    if (error || !data) {
-      console.error("Failed to fetch attachment from Resend:", error);
-      
-      if (emailRecord && Array.isArray(emailRecord.attachments)) {
-        const attachment = emailRecord.attachments.find(
-          (item) => isRecord(item) && item.id === attachmentId,
-        );
-        if (isRecord(attachment) && typeof attachment.download_url === "string") {
-          return NextResponse.redirect(attachment.download_url);
-        }
-      }
-      
-      return new NextResponse("Attachment has expired or was not found on the server.", { status: 404 });
+    if (!emailRecord) {
+      return new NextResponse("Message not found", { status: 404 });
     }
 
-    // If Resend returns a download_url, redirect to it
-    if (typeof data.download_url === "string") {
-      return NextResponse.redirect(data.download_url);
-    }
+    let downloadUrl: string | undefined;
+    let filename = "attachment";
+    let contentType = "application/octet-stream";
 
-    // The SDK's current response type only includes signed URLs; keep support for direct content if the API adds it.
-    const payload: unknown = data;
-    if (isRecord(payload) && typeof payload.content === "string") {
-      const buffer = Buffer.from(payload.content, "base64");
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": typeof payload.content_type === "string" ? payload.content_type : "application/octet-stream",
-          "Content-Disposition": `attachment; filename="${typeof payload.filename === "string" ? payload.filename : "attachment"}"`,
-        },
+    // 1. Try receiving attachments first
+    try {
+      const res = await resend.emails.receiving.attachments.get({
+        emailId: messageId,
+        id: attachmentId,
       });
+      if (res.data?.download_url) {
+        downloadUrl = res.data.download_url;
+        filename = res.data.filename || filename;
+        contentType = res.data.content_type || contentType;
+      }
+    } catch {
+      // Fallback
     }
 
-    return NextResponse.json(data);
+    // 2. If not found, try sent attachments
+    if (!downloadUrl) {
+      try {
+        const res = await resend.emails.attachments.get({
+          emailId: messageId,
+          id: attachmentId,
+        });
+        if (res.data?.download_url) {
+          downloadUrl = res.data.download_url;
+          filename = res.data.filename || filename;
+          contentType = res.data.content_type || contentType;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    // 3. If API didn't return a URL, check stored attachment metadata in DB
+    if (!downloadUrl && emailRecord.attachments && Array.isArray(emailRecord.attachments)) {
+      const attachment = emailRecord.attachments.find(
+        (item) => isRecord(item) && item.id === attachmentId,
+      );
+      if (isRecord(attachment)) {
+        if (typeof attachment.filename === "string") filename = attachment.filename;
+        if (typeof attachment.content_type === "string") contentType = attachment.content_type;
+        if (typeof attachment.download_url === "string") downloadUrl = attachment.download_url;
+      }
+    }
+
+    if (!downloadUrl) {
+      return new NextResponse("Attachment not found", { status: 404 });
+    }
+
+    // Fetch and proxy the file so the browser downloads it with proper Content-Disposition
+    const urlObj = new URL(request.url);
+    const forceDownload = urlObj.searchParams.get("download") === "1" || urlObj.searchParams.get("dl") === "1";
+    const dispositionType = forceDownload ? "attachment" : "inline";
+
+    try {
+      const fileRes = await fetch(downloadUrl);
+      if (fileRes.ok && fileRes.body) {
+        const resHeaders = new Headers();
+        resHeaders.set("Content-Type", fileRes.headers.get("content-type") || contentType);
+        resHeaders.set(
+          "Content-Disposition",
+          `${dispositionType}; filename="${encodeURIComponent(filename)}"`
+        );
+        const len = fileRes.headers.get("content-length");
+        if (len) resHeaders.set("Content-Length", len);
+        resHeaders.set("Cache-Control", "private, max-age=3600");
+
+        return new NextResponse(fileRes.body, {
+          status: 200,
+          headers: resHeaders,
+        });
+      }
+    } catch (fetchErr) {
+      console.warn("Direct stream fetch failed, redirecting to signed URL:", fetchErr);
+    }
+
+    return NextResponse.redirect(downloadUrl, 302);
   } catch (err) {
     console.error("Error fetching attachment:", err);
     return new NextResponse("Internal Server Error", { status: 500 });

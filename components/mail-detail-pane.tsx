@@ -31,6 +31,7 @@ import { useSendMail } from "../hooks/use-mail";
 import { useMessageDetail } from "../hooks/use-mail-message-detail";
 import { useMailContext } from "./mail-context";
 import { ThreadHierarchyViewer } from "./mail-thread-hierarchy";
+import { AttachmentPreviewPill } from "./attachment-preview-pill";
 import type { MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
 import { formatFileSize } from "@/lib/image-compressor";
@@ -98,6 +99,7 @@ export default function MailDetailPane() {
   const { sendMail, sending } = useSendMail();
 
   const [replyText, setReplyText] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
   const [replyAttachments, setReplyAttachments] = useState<
     Array<{
       id: string;
@@ -167,6 +169,12 @@ export default function MailDetailPane() {
       .then((res) => setAllLabels(res.data || []))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setIsReplying(false);
+    setReplyText("");
+    setReplyAttachments([]);
+  }, [openId]);
 
   async function handleToolbarAction(action: MailActionConfig) {
     if (!message) return;
@@ -280,6 +288,7 @@ export default function MailDetailPane() {
       toast.success("Reply dispatched");
       setReplyText("");
       setReplyAttachments([]);
+      setIsReplying(false);
       refresh();
     } catch {
       toast.error("Failed to send reply");
@@ -300,6 +309,7 @@ export default function MailDetailPane() {
       const key = e.key.toLowerCase();
       if (key === "r") {
         e.preventDefault();
+        setIsReplying(true);
         setTimeout(() => replyTextareaRef.current?.focus(), 50);
       } else if (key === "e") {
         e.preventDefault();
@@ -506,14 +516,10 @@ export default function MailDetailPane() {
                         size="icon"
                         className="size-10 md:size-8 text-muted-foreground hover:text-foreground cursor-pointer"
                         aria-label="Reply (R)"
-                        onClick={() =>
-                          openCompose({
-                            to: [message.sender.email],
-                            subject: message.subject.startsWith("Re:")
-                              ? message.subject
-                              : `Re: ${message.subject}`,
-                          })
-                        }
+                        onClick={() => {
+                          setIsReplying(true);
+                          setTimeout(() => replyTextareaRef.current?.focus(), 50);
+                        }}
                       >
                         <Reply className="size-4" />
                       </Button>
@@ -722,7 +728,7 @@ export default function MailDetailPane() {
               className="flex-1 flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-200 ease-out"
             >
               {/* Header: Sender Info & Subject */}
-              <div className="flex items-start p-3 md:p-4 select-text">
+              <div className="flex items-start p-3 md:p-4 select-text shrink-0">
                 <div className="flex items-start gap-3.5 text-sm min-w-0">
                   <Avatar className="size-10 shrink-0 ring-1 ring-border/50">
                     {message.sender.avatarUrl && (
@@ -756,66 +762,6 @@ export default function MailDetailPane() {
                         <span className="truncate">to: {message.to.join(", ")}</span>
                       )}
                     </div>
-                    {/* Compact Attachment Chips in Header */}
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-                        {message.attachments.map((att) => (
-                          <ContextMenu key={att.id}>
-                            <ContextMenuTrigger
-                              render={
-                                <a
-                                  href={att.url}
-                                  download={att.filename}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  title={att.filename}
-                                  onContextMenu={(e) => e.stopPropagation()}
-                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-border/80 bg-muted/60 hover:bg-muted text-[11px] transition-colors max-w-xs group cursor-pointer shadow-2xs"
-                                />
-                              }
-                            >
-                              <Paperclip className="size-3 text-muted-foreground shrink-0" />
-                              <span className="truncate max-w-40 font-medium text-foreground">
-                                {att.filename}
-                              </span>
-                              {att.sizeBytes > 0 && (
-                                <span className="text-[10px] text-muted-foreground shrink-0">
-                                  ({formatFileSize(att.sizeBytes)})
-                                </span>
-                              )}
-                              <Download className="size-3 text-muted-foreground group-hover:text-foreground shrink-0 ml-0.5 transition-colors" />
-                            </ContextMenuTrigger>
-                            <ContextMenuContent>
-                              <ContextMenuItem onClick={() => window.open(att.url, "_blank")}>
-                                <ExternalLink className="size-4 mr-2" />
-                                Open in new tab
-                              </ContextMenuItem>
-                              <ContextMenuItem
-                                onClick={() => {
-                                  const link = document.createElement("a");
-                                  link.href = att.url;
-                                  link.download = att.filename;
-                                  link.click();
-                                }}
-                              >
-                                <Download className="size-4 mr-2" />
-                                Download file
-                              </ContextMenuItem>
-                              <ContextMenuSeparator />
-                              <ContextMenuItem
-                                onClick={() => {
-                                  navigator.clipboard.writeText(att.url);
-                                  toast.success("Link copied to clipboard");
-                                }}
-                              >
-                                <Link2 className="size-4 mr-2" />
-                                Copy download link
-                              </ContextMenuItem>
-                            </ContextMenuContent>
-                          </ContextMenu>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -850,16 +796,16 @@ export default function MailDetailPane() {
                 </div>
               </div>
 
-              <Separator />
+              <Separator className="shrink-0" />
 
               {/* Email Body Content */}
               <ContextMenu>
                 <ContextMenuTrigger
                   render={
-                    <div className="flex-1 overflow-y-auto p-3 md:p-4 select-text" />
+                    <div className="flex-1 min-h-0 overflow-hidden p-3 md:p-4 select-text flex flex-col" />
                   }
                 >
-                  <div className="w-full select-text">
+                  <div className="w-full h-full flex-1 min-h-0 flex flex-col select-text">
                     {message.rawHtml || message.rawText || message.body ? (
                       <ThreadHierarchyViewer message={message} />
                     ) : (
@@ -872,6 +818,7 @@ export default function MailDetailPane() {
                 <ContextMenuContent>
                   <ContextMenuItem
                     onClick={() => {
+                      setIsReplying(true);
                       setTimeout(() => replyTextareaRef.current?.focus(), 50);
                     }}
                   >
@@ -1020,190 +967,291 @@ export default function MailDetailPane() {
                 </ContextMenuContent>
               </ContextMenu>
 
-              <Separator className="mt-auto" />
+              {/* Bottom Attachment Bar with On-Hover Previews */}
+              {message.attachments && message.attachments.length > 0 && (
+                <div className="px-3 md:px-4 py-2 bg-muted/20 border-t border-border/50 shrink-0 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground font-medium text-[11px] shrink-0 mr-0.5">
+                      <Paperclip className="size-3.5 text-muted-foreground" />
+                      <span>
+                        {message.attachments.length}{" "}
+                        {message.attachments.length === 1
+                          ? "attachment"
+                          : "attachments"}
+                        :
+                      </span>
+                    </span>
+                    {message.attachments.map((att) => (
+                      <AttachmentPreviewPill key={att.id} attachment={att} />
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              {/* Bottom Reply Area - Canonical shadcn Mail */}
-              <div className="p-4 bg-background shrink-0">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleSendReply();
-                  }}
-                >
-                  <div className="grid gap-3">
-                    {replyAttachments.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {replyAttachments.map((att) => (
-                          <span
-                            key={att.id}
-                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-xs font-medium text-foreground border border-border/60"
-                          >
-                            <Paperclip className="size-3 text-muted-foreground" />
-                            <span className="max-w-40 truncate">
-                              {att.name}
-                            </span>
-                            <span className="text-muted-foreground text-[10px]">
-                              ({formatFileSize(att.size)})
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setReplyAttachments((prev) =>
-                                  prev.filter((a) => a.id !== att.id),
-                                )
-                              }
-                              className="ml-0.5 text-muted-foreground hover:text-destructive cursor-pointer"
-                              aria-label="Remove attachment"
-                            >
-                              <X className="size-3" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <Textarea
-                      ref={replyTextareaRef}
-                      placeholder={`Reply ${message.sender.name}...`}
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                          e.preventDefault();
-                          handleSendReply();
-                        }
+              {/* Bottom Reply Area - Collapsible Button Bar to Maximize Body Space */}
+              {!isReplying ? (
+                <div className="px-4 py-2.5 bg-background border-t border-border/60 shrink-0 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsReplying(true);
+                        setTimeout(() => replyTextareaRef.current?.focus(), 60);
                       }}
-                      className="p-3 text-sm min-h-[96px] resize-none leading-relaxed bg-background border border-border shadow-none focus-visible:ring-1 focus-visible:ring-ring"
-                    />
-
-                    <div className="flex items-center justify-between">
-                      {/* Left: formatting & attachment tools */}
-                      <div className="flex items-center gap-1">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileAttach}
-                          multiple
-                          className="hidden"
-                        />
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() => fileInputRef.current?.click()}
-                                aria-label="Attach file"
-                              >
-                                <Paperclip className="size-4" />
-                              </Button>
+                      className="h-8.5 px-3.5 rounded-lg gap-2 text-xs font-medium cursor-pointer shadow-2xs hover:bg-muted transition-colors"
+                    >
+                      <Reply className="size-3.5 text-muted-foreground" />
+                      <span>Reply</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsReplying(true);
+                        setTimeout(() => replyTextareaRef.current?.focus(), 60);
+                      }}
+                      className="h-8.5 px-3.5 rounded-lg gap-2 text-xs font-medium cursor-pointer shadow-2xs hover:bg-muted transition-colors max-sm:hidden"
+                    >
+                      <ReplyAll className="size-3.5 text-muted-foreground" />
+                      <span>Reply all</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        openCompose({
+                          to: [],
+                          subject: message.subject.startsWith("Fwd:")
+                            ? message.subject
+                            : `Fwd: ${message.subject}`,
+                          body: `\n\n---------- Forwarded message ---------\nFrom: ${message.sender.name} <${message.sender.email}>\nSubject: ${message.subject}\n\n${message.rawText || ""}`,
+                        });
+                      }}
+                      className="h-8.5 px-3.5 rounded-lg gap-2 text-xs font-medium cursor-pointer shadow-2xs hover:bg-muted transition-colors max-sm:hidden"
+                    >
+                      <Forward className="size-3.5 text-muted-foreground" />
+                      <span>Forward</span>
+                    </Button>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1.5">
+                    Press <kbd className="px-1.5 py-0.5 rounded bg-muted border border-border text-[10px] font-mono">R</kbd> to reply
+                  </span>
+                </div>
+              ) : (
+                <div className="p-3 md:p-4 bg-background border-t border-border/60 shrink-0 animate-in fade-in-0 duration-150">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendReply();
+                    }}
+                  >
+                    <div className="grid gap-2.5">
+                      {/* Header bar of reply composer */}
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Reply className="size-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">
+                            Replying to <span className="font-medium text-foreground">{message.sender.name}</span>
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                          onClick={() => {
+                            if (!replyText.trim() || confirm("Discard unsaved reply?")) {
+                              setIsReplying(false);
+                              setReplyText("");
+                              setReplyAttachments([]);
                             }
-                          />
-                          <TooltipContent>Attach files</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() => insertFormatting("**")}
-                                aria-label="Bold (⌘B)"
-                              >
-                                <Bold className="size-4" />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Bold (⌘B)</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() => insertFormatting("*")}
-                                aria-label="Italic (⌘I)"
-                              >
-                                <Italic className="size-4" />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Italic (⌘I)</TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
-                                onClick={() =>
-                                  openCompose({
-                                    to: [message.sender.email],
-                                    subject: message.subject.startsWith("Re:")
-                                      ? message.subject
-                                      : `Re: ${message.subject}`,
-                                    body: replyText,
-                                  })
-                                }
-                                aria-label="Pop out composer"
-                              >
-                                <ExternalLink className="size-4" />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Pop out composer</TooltipContent>
-                        </Tooltip>
+                          }}
+                          title="Collapse reply (Esc)"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
                       </div>
 
-                      {/* Right: Send */}
-                      <div className="flex items-center gap-2">
-                        {replyText.trim() && (
+                      {replyAttachments.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {replyAttachments.map((att) => (
+                            <span
+                              key={att.id}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-xs font-medium text-foreground border border-border/60"
+                            >
+                              <Paperclip className="size-3 text-muted-foreground" />
+                              <span className="max-w-40 truncate">
+                                {att.name}
+                              </span>
+                              <span className="text-muted-foreground text-[10px]">
+                                ({formatFileSize(att.size)})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setReplyAttachments((prev) =>
+                                    prev.filter((a) => a.id !== att.id),
+                                  )
+                                }
+                                className="ml-0.5 text-muted-foreground hover:text-destructive cursor-pointer"
+                                aria-label="Remove attachment"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <Textarea
+                        ref={replyTextareaRef}
+                        placeholder={`Reply ${message.sender.name}...`}
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                            e.preventDefault();
+                            handleSendReply();
+                          } else if (e.key === "Escape" && !replyText) {
+                            setIsReplying(false);
+                          }
+                        }}
+                        className="p-3 text-sm min-h-[84px] max-h-48 resize-y leading-relaxed bg-background border border-border shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+
+                      <div className="flex items-center justify-between">
+                        {/* Left: formatting & attachment tools */}
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileAttach}
+                            multiple
+                            className="hidden"
+                          />
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  aria-label="Attach file"
+                                >
+                                  <Paperclip className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Attach files</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                                  onClick={() => insertFormatting("**")}
+                                  aria-label="Bold (⌘B)"
+                                >
+                                  <Bold className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Bold (⌘B)</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                                  onClick={() => insertFormatting("*")}
+                                  aria-label="Italic (⌘I)"
+                                >
+                                  <Italic className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Italic (⌘I)</TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                                  onClick={() => {
+                                    openCompose({
+                                      to: [message.sender.email],
+                                      subject: message.subject.startsWith("Re:")
+                                        ? message.subject
+                                        : `Re: ${message.subject}`,
+                                      body: replyText,
+                                    });
+                                    setIsReplying(false);
+                                  }}
+                                  aria-label="Pop out composer"
+                                >
+                                  <ExternalLink className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Pop out composer</TooltipContent>
+                          </Tooltip>
+                        </div>
+
+                        {/* Right: Cancel & Send */}
+                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-xs text-muted-foreground cursor-pointer h-8"
+                            className="text-xs text-muted-foreground cursor-pointer h-8 px-2.5"
                             onClick={() => {
+                              setIsReplying(false);
                               setReplyText("");
                               setReplyAttachments([]);
                             }}
                           >
-                            Clear
+                            Cancel
                           </Button>
-                        )}
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={
-                            sending ||
-                            (!replyText.trim() && replyAttachments.length === 0)
-                          }
-                          className="gap-1.5 h-8 px-3 font-medium cursor-pointer shadow-xs"
-                        >
-                          {sending ? (
-                            <Spinner className="size-3.5" />
-                          ) : (
-                            <Send className="size-3.5" />
-                          )}
-                          <span>Send</span>
-                        </Button>
+                          <Button
+                            type="submit"
+                            size="sm"
+                            disabled={
+                              sending ||
+                              (!replyText.trim() && replyAttachments.length === 0)
+                            }
+                            className="gap-1.5 h-8 px-3.5 font-medium cursor-pointer shadow-xs text-xs"
+                          >
+                            {sending ? (
+                              <Spinner className="size-3.5" />
+                            ) : (
+                              <Send className="size-3.5" />
+                            )}
+                            <span>Send</span>
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </form>
-              </div>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -155,54 +155,16 @@ export function parseEmailThreadTurns(
   return turns;
 }
 
-/**
- * Continuous SVG trunk connector and curved elbow into child avatar.
- * Guarantees zero seam, zero double-line, and exact vertical center alignment.
- */
-function ThreadStemConnector({ continues }: { continues: boolean }) {
+function ThreadBranchConnector() {
   return (
     <svg
-      className="absolute -left-7 top-0 w-7 h-full pointer-events-none text-neutral-400/80 dark:text-neutral-400"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      {/* Continuous trunk line descending to next item */}
-      {continues && (
-        <line
-          x1="6"
-          y1="0"
-          x2="6"
-          y2="100%"
-          stroke="currentColor"
-          strokeWidth="2"
-        />
-      )}
-      {/* Curved elbow branching into avatar center at y=15 */}
-      <path
-        d="M 6 0 L 6 5 A 10 10 0 0 0 16 15 L 28 15"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-      />
-    </svg>
-  );
-}
-
-/**
- * Terminating SVG branch into the "Hide replies" / "Show replies" toggle.
- * Curves directly into the button text and terminates at y=14 without any trailing line.
- */
-function ThreadTerminatingConnector() {
-  return (
-    <svg
-      className="absolute -left-7 top-0 w-7 h-7 pointer-events-none text-neutral-400/80 dark:text-neutral-400"
+      className="absolute -left-5.5 top-0 w-5.5 h-4 pointer-events-none text-neutral-400/80 dark:text-neutral-400"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
       <path
-        d="M 6 0 L 6 4 A 10 10 0 0 0 16 14 L 24 14"
+        d="M 0 0 L 0 5 A 10 10 0 0 0 10 15 L 22 15"
         stroke="currentColor"
         strokeWidth="2"
         fill="none"
@@ -212,16 +174,13 @@ function ThreadTerminatingConnector() {
 }
 
 interface ThreadReplyNodeProps {
-  replies: ThreadTurn[];
-  index: number;
+  reply: ThreadTurn;
 }
 
-function ThreadReplyNode({ replies, index }: ThreadReplyNodeProps) {
-  const reply = replies[index];
-
+function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
   return (
     <div className="relative pb-4 group">
-      <ThreadStemConnector continues={index < replies.length - 1} />
+      <ThreadBranchConnector />
 
       <div className="flex items-start gap-3">
         <Avatar className="size-7 shrink-0 ring-2 ring-background mt-0.5">
@@ -251,11 +210,6 @@ function ThreadReplyNode({ replies, index }: ThreadReplyNodeProps) {
           </div>
         </div>
       </div>
-      {index < replies.length - 1 && (
-        <div className="ml-6 mt-3">
-          <ThreadReplyNode replies={replies} index={index + 1} />
-        </div>
-      )}
     </div>
   );
 }
@@ -294,13 +248,13 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   if (turns.length <= 1) {
     if (message.rawHtml) {
       return (
-        <div className="mx-auto w-full max-w-[820px]">
+        <div className="w-full h-full flex-1 min-h-0 flex flex-col">
           <EmailHtmlFrame html={message.rawHtml} />
         </div>
       );
     }
     return (
-      <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text max-w-[820px] mx-auto w-full">
+      <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text w-full overflow-y-auto flex-1 min-h-0">
         {message.rawText || message.body}
       </div>
     );
@@ -310,7 +264,7 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   const replies = turns.slice(1);
 
   return (
-    <div className="reddit-thread-hierarchy space-y-4">
+    <div className="reddit-thread-hierarchy space-y-4 w-full overflow-y-auto flex-1 min-h-0 pr-2">
       {/* Root Turn Content */}
       <div className="text-sm text-foreground/95 leading-relaxed font-normal whitespace-pre-wrap">
         {rootTurn.content}
@@ -319,12 +273,43 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
       {/* Connected Thread Tree */}
       <div className="relative pl-9 sm:pl-10 pt-1">
         {showReplies && (
-          <ThreadReplyNode replies={replies} index={0} />
+          <>
+            <svg
+              className="absolute left-3.5 top-1 bottom-3 w-px text-neutral-400/80 dark:text-neutral-400"
+              aria-hidden="true"
+            >
+              <line
+                x1="0.5"
+                y1="0"
+                x2="0.5"
+                y2="100%"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+            </svg>
+            {replies.map((reply) => (
+              <ThreadReplyNode key={reply.id} reply={reply} />
+            ))}
+          </>
         )}
 
         {/* Collapsible replies toggle */}
-        <div className="relative">
-          <ThreadTerminatingConnector />
+        <div className="relative flex items-center pt-0.5">
+          {showReplies && (
+            <svg
+              className="absolute -left-5.5 top-0 w-5.5 h-3.5 pointer-events-none text-neutral-400/80 dark:text-neutral-400"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path
+                d="M 0 0 L 0 4 A 8 8 0 0 0 8 12 L 18 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+              />
+            </svg>
+          )}
 
           <button
             type="button"

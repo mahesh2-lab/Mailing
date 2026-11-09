@@ -9,12 +9,12 @@ async function main() {
   try {
     const allUsers = await db.select().from(user);
     console.log(`Found ${allUsers.length} users to sync.`);
-    
+
     for (const user of allUsers) {
       console.log(`Syncing for user ${user.id}...`);
       // 1. Sync sent emails
       await syncSentEmails(user.id);
-      
+
       // 2. Sync received emails
       await syncReceivedEmails(user.id);
     }

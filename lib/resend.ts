@@ -3,6 +3,11 @@ import { db } from '@/src';
 import { userApiKeys } from '@/src/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { decrypt } from '@/src/lib/crypto';
+import dns from 'node:dns';
+
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 
 
 export async function getResendClient(userId?: string | null): Promise<Resend | null> {

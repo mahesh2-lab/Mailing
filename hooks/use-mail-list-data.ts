@@ -42,10 +42,12 @@ function mapMailItem(e: ApiMailListRow): MailItem {
     starred: e.starred ?? false,
     labels: e.labels || [],
     attachments: (e.attachments || []).map((a) => ({
-      id: a.id,
-      filename: a.filename,
+      id: a.id || "attachment",
+      filename: a.filename || "attachment",
       sizeBytes: a.size || 0,
-      url: a.download_url || "#",
+      url: a.id
+        ? `/api/v1/messages/${e.id}/attachments/${a.id}`
+        : a.download_url || "#",
       type: a.content_type || "application/octet-stream",
     })),
   };
