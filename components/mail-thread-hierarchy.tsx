@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarColor, getInitials } from "@/lib/utils";
 import type { MailItem } from "../hooks/use-mail";
 import { EmailHtmlFrame } from "./email-html-frame";
@@ -155,16 +155,41 @@ export function parseEmailThreadTurns(
   return turns;
 }
 
-function ThreadBranchConnector() {
+interface ThreadStemConnectorProps {
+  continues: boolean;
+}
+
+function ThreadStemConnector({ continues }: ThreadStemConnectorProps) {
   return (
     <svg
-      className="absolute -left-5.5 top-0 w-5.5 h-4 pointer-events-none text-neutral-400/80 dark:text-neutral-400"
+      className="absolute -left-6 top-0 w-6 h-full pointer-events-none text-neutral-400/70 dark:text-neutral-500 overflow-visible"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
+      {/* If this node is not the last reply, the trunk line continues down 100% */}
+      {continues ? (
+        <line
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="100%"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      ) : (
+        <line
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="6"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      )}
+      {/* Curved elbow branching into avatar center at (24, 16) */}
       <path
-        d="M 0 0 L 0 5 A 10 10 0 0 0 10 15 L 22 15"
+        d="M 0 0 L 0 6 A 10 10 0 0 0 10 16 L 24 16"
         stroke="currentColor"
         strokeWidth="2"
         fill="none"
@@ -175,12 +200,13 @@ function ThreadBranchConnector() {
 
 interface ThreadReplyNodeProps {
   reply: ThreadTurn;
+  isLast: boolean;
 }
 
-function ThreadReplyNode({ reply }: ThreadReplyNodeProps) {
+function ThreadReplyNode({ reply, isLast }: ThreadReplyNodeProps) {
   return (
     <div className="relative pb-4 group">
-      <ThreadBranchConnector />
+      <ThreadStemConnector continues={!isLast} />
 
       <div className="flex items-start gap-3">
         <Avatar className="size-7 shrink-0 ring-2 ring-background mt-0.5">
@@ -264,62 +290,80 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   const replies = turns.slice(1);
 
   return (
-    <div className="reddit-thread-hierarchy space-y-4 w-full overflow-y-auto flex-1 min-h-0 pr-2">
-      {/* Root Turn Content */}
-      <div className="text-sm text-foreground/95 leading-relaxed font-normal whitespace-pre-wrap">
-        {rootTurn.content}
-      </div>
-
-      {/* Connected Thread Tree */}
-      <div className="relative pl-9 sm:pl-10 pt-1">
-        {showReplies && (
-          <>
-            <svg
-              className="absolute left-3.5 top-1 bottom-3 w-px text-neutral-400/80 dark:text-neutral-400"
-              aria-hidden="true"
-            >
-              <line
-                x1="0.5"
-                y1="0"
-                x2="0.5"
-                y2="100%"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
-            </svg>
-            {replies.map((reply) => (
-              <ThreadReplyNode key={reply.id} reply={reply} />
-            ))}
-          </>
+    <div className="reddit-thread-hierarchy w-full overflow-y-auto flex-1 min-h-0 pr-2">
+      {/* Root Turn (Latest Message in the Thread) */}
+      <div className="relative pb-4 group">
+        {showReplies && replies.length > 0 && (
+          <div
+            className="absolute left-3.25 top-8 bottom-0 w-0.5 bg-neutral-400/70 dark:bg-neutral-500 pointer-events-none"
+            aria-hidden="true"
+          />
         )}
 
-        {/* Collapsible replies toggle */}
-        <div className="relative flex items-center pt-0.5">
-          {showReplies && (
-            <svg
-              className="absolute -left-5.5 top-0 w-5.5 h-3.5 pointer-events-none text-neutral-400/80 dark:text-neutral-400"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <path
-                d="M 0 0 L 0 4 A 8 8 0 0 0 8 12 L 18 12"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
+        <div className="flex items-start gap-3">
+          <Avatar className="size-7 shrink-0 ring-2 ring-background mt-0.5">
+            {message.sender.avatarUrl && (
+              <AvatarImage
+                src={message.sender.avatarUrl}
+                alt={rootTurn.senderName}
               />
-            </svg>
-          )}
+            )}
+            <AvatarFallback
+              style={{
+                background: avatarColor(rootTurn.senderName),
+                color: "#ffffff",
+              }}
+              className="text-[10px] font-semibold"
+            >
+              {getInitials(rootTurn.senderName)}
+            </AvatarFallback>
+          </Avatar>
 
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-foreground">
+                {rootTurn.senderName}
+              </span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {rootTurn.dateStr}
+              </span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 leading-none">
+                Latest
+              </span>
+            </div>
+
+            <div className="text-sm text-foreground/95 mt-1 leading-relaxed whitespace-pre-wrap wrap-break-word font-normal">
+              {rootTurn.content}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Connected Thread Tree for Quoted Replies */}
+      {showReplies && replies.length > 0 && (
+        <div className="relative pl-9.5">
+          {replies.map((reply, index) => (
+            <ThreadReplyNode
+              key={reply.id}
+              reply={reply}
+              isLast={index === replies.length - 1}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Collapsible replies toggle button */}
+      {replies.length > 0 && (
+        <div className={showReplies ? "pl-9.5 pb-3" : "pt-1 pb-3"}>
           <button
             type="button"
             onClick={() => setShowReplies(!showReplies)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
           >
             <span>
               {showReplies
                 ? "Hide replies"
-                : `Show ${replies.length} ${replies.length === 1 ? "reply" : "replies"}`}
+                : `Show ${replies.length} earlier ${replies.length === 1 ? "reply" : "replies"}`}
             </span>
             {showReplies ? (
               <ChevronUp className="size-3.5" />
@@ -328,7 +372,7 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
             )}
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }

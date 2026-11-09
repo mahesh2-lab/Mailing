@@ -727,10 +727,42 @@ export default function MailDetailPane() {
               key={message.id}
               className="flex-1 flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-200 ease-out"
             >
-              {/* Header: Sender Info & Subject */}
-              <div className="flex items-start p-3 md:p-4 select-text shrink-0">
-                <div className="flex items-start gap-3.5 text-sm min-w-0">
-                  <Avatar className="size-10 shrink-0 ring-1 ring-border/50">
+              {/* Email Subject & Tags */}
+              <div className="px-4 md:px-5 pt-4 pb-2 flex items-start justify-between gap-4 select-text shrink-0">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground break-words select-text">
+                      {message.subject || "No Subject"}
+                    </h1>
+                    {message.labels && message.labels.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {message.labels.map((lbl) => (
+                          <Badge
+                            key={lbl}
+                            variant="secondary"
+                            className="text-[11px] h-5 gap-1 pr-1.5 pl-2 font-normal rounded-md bg-muted/60 text-muted-foreground border-border/60"
+                          >
+                            <span>{lbl}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeLabel(lbl)}
+                              className="hover:text-destructive cursor-pointer"
+                              aria-label={`Remove label ${lbl}`}
+                            >
+                              <X className="size-2.5" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sender & Recipient Metadata Row */}
+              <div className="px-4 md:px-5 pb-3 flex items-center justify-between gap-3 select-text shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar className="size-9 shrink-0 ring-1 ring-border/50">
                     {message.sender.avatarUrl && (
                       <AvatarImage
                         src={message.sender.avatarUrl}
@@ -747,52 +779,70 @@ export default function MailDetailPane() {
                       {getInitials(message.sender.name)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="grid gap-1 min-w-0">
-                    <div className="font-semibold text-sm text-foreground truncate">
-                      {message.sender.name}
-                    </div>
-                    <div className="text-xs text-foreground/90 font-medium">
-                      {message.subject}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
-                      <span className="truncate">
-                        <span className="font-medium text-foreground">Reply-To:</span> {message.sender.email}
+
+                  <div className="min-w-0 flex flex-col justify-center gap-0.5">
+                    <div className="flex items-baseline gap-2 flex-wrap text-sm leading-tight">
+                      <span className="font-semibold text-foreground truncate">
+                        {message.sender.name}
                       </span>
-                      {message.to && message.to.length > 0 && (
-                        <span className="truncate">to: {message.to.join(", ")}</span>
+                      <span className="text-xs text-muted-foreground font-normal truncate">
+                        &lt;{message.sender.email}&gt;
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                      <span className="text-muted-foreground/70">to</span>
+                      <span className="text-foreground/90 font-medium truncate">
+                        {message.to && message.to.length > 0
+                          ? message.to.join(", ")
+                          : "me"}
+                      </span>
+                      {message.cc && message.cc.length > 0 && (
+                        <>
+                          <span className="text-muted-foreground/40">•</span>
+                          <span className="text-muted-foreground/70">cc</span>
+                          <span className="text-foreground/90 font-medium truncate">
+                            {message.cc.join(", ")}
+                          </span>
+                        </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="ml-auto text-xs text-muted-foreground shrink-0 pl-4 text-right flex flex-col items-end gap-1.5">
-                  <span>
+                <div className="shrink-0 flex items-center gap-2 pl-3 text-right">
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(message.timestamp).toLocaleString(undefined, {
                       dateStyle: "medium",
                       timeStyle: "short",
                     })}
                   </span>
-                  {message.labels && message.labels.length > 0 && (
-                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                      {message.labels.map((lbl) => (
-                        <Badge
-                          key={lbl}
-                          variant="secondary"
-                          className="text-[10px] h-4.5 gap-1 pr-1 pl-2 font-normal rounded-md"
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={starToggle}
+                          className="size-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                          aria-label={message.starred ? "Unstar message" : "Star message"}
                         >
-                          <span>{lbl}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeLabel(lbl)}
-                            className="hover:text-destructive cursor-pointer"
-                            aria-label={`Remove label ${lbl}`}
-                          >
-                            <X className="size-2.5" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                          <Star
+                            className={cn(
+                              "size-4",
+                              message.starred
+                                ? "fill-amber-400 text-amber-400"
+                                : "text-muted-foreground/60 hover:text-foreground",
+                            )}
+                          />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>
+                      {message.starred ? "Starred" : "Star message"}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
