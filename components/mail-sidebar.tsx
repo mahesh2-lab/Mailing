@@ -538,7 +538,7 @@ export default function MailSidebar({
               ) : (
                 <div className="relative group/compose w-full">
                   <div
-                    className="absolute -inset-0.5 rounded-lg bg-primary/25 blur-[6px] opacity-65 group-hover/compose:opacity-100 group-hover/compose:bg-primary/35 group-hover/compose:blur-[8px] transition-all duration-300 animate-pulse pointer-events-none"
+                    className="absolute -inset-0.5 rounded-lg bg-primary/25 blur-[6px] opacity-65 group-hover/compose:opacity-100 group-hover/compose:bg-primary/35 group-hover/compose:blur-sm transition-all duration-300 animate-pulse pointer-events-none"
                     aria-hidden="true"
                   />
                   <Button
@@ -550,7 +550,7 @@ export default function MailSidebar({
                     className="relative w-full h-9 px-3 justify-between font-medium text-xs rounded-lg shadow-xs hover:bg-primary/90 active:scale-[0.985] cursor-pointer transition-all duration-200 select-none overflow-hidden"
                   >
                     <span
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover/compose:translate-x-full duration-700 ease-in-out transition-transform pointer-events-none"
+                      className="absolute inset-0 bg-linear-to-r from-transparent via-white/15 to-transparent -translate-x-full group-hover/compose:translate-x-full duration-700 ease-in-out transition-transform pointer-events-none"
                       aria-hidden="true"
                     />
                     <div className="flex items-center gap-2">

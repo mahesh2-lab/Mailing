@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   CircleHelp,
   Inbox,
+  LogOut,
   Menu,
   Settings,
   User,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { authClient } from "@/src/lib/auth-client";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -48,7 +51,23 @@ export function SiteNav({
   className?: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Signed out successfully");
+            router.push("/login");
+          },
+        },
+      });
+    } catch {
+      toast.error("Failed to sign out");
+    }
+  };
 
   const isActive = (href: string) => {
     if (current) {
@@ -113,8 +132,18 @@ export function SiteNav({
             </Link>
           );
         })}
-        <div className="ml-2 pl-2 border-l border-border">
+        <div className="ml-2 pl-2 border-l border-border flex items-center gap-1.5">
           <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="h-8 px-2.5 text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+            title="Sign out of account"
+          >
+            <LogOut className="size-3.5" />
+            <span>Sign out</span>
+          </Button>
         </div>
       </div>
 
@@ -181,6 +210,17 @@ export function SiteNav({
                   </Link>
                 );
               })}
+            </div>
+            <div className="p-3 border-t border-border mt-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full h-9 text-xs gap-2 text-destructive border-destructive/20 hover:bg-destructive/10 cursor-pointer justify-start"
+              >
+                <LogOut className="size-4" />
+                <span>Sign out</span>
+              </Button>
             </div>
           </SheetContent>
         </Sheet>

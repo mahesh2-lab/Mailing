@@ -2,12 +2,14 @@
 
 import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, Menu, Sparkles } from "lucide-react";
+import { Inbox, LogOut, Menu, Sparkles } from "lucide-react";
 import MailSidebar from "./mail-sidebar";
 import { MailProvider, useMailContext } from "./mail-context";
 import ComposePanel from "./compose-panel";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
+import { authClient } from "@/src/lib/auth-client";
+import { toast } from "sonner";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -73,6 +75,21 @@ function ShellInner({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [composeOpen, openCompose, setComposeOpen]);
+
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            toast.success("Signed out successfully");
+            router.push("/login");
+          },
+        },
+      });
+    } catch {
+      toast.error("Failed to sign out");
+    }
+  };
 
   return (
     <div className="h-dvh w-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)] max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)] flex overflow-hidden bg-background text-foreground select-none">
@@ -145,6 +162,18 @@ function ShellInner({
             </Button>
 
             <ThemeToggle />
+
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={handleLogout}
+              className="h-8 px-2.5 text-xs font-normal gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+              title="Sign out of account"
+              aria-label="Sign out"
+            >
+              <LogOut className="size-3.5" />
+              <span className="hidden sm:inline">Sign out</span>
+            </Button>
           </div>
         </header>
 
