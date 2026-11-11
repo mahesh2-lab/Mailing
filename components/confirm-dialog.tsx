@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "@/components/animate-ui/icons";
 import {
   AlertDialog,
   AlertDialogAction,

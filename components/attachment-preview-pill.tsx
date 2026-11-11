@@ -14,7 +14,7 @@ import {
   ExternalLink,
   Link2,
   Check,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { cn } from "@/lib/utils";
 import { formatFileSize } from "@/lib/image-compressor";
 import { toast } from "sonner";

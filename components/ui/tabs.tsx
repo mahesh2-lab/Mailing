@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
+import { Tabs as TabsPrimitive } from "@animate-ui/react/primitives/base-ui/tabs"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
@@ -95,7 +95,7 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
     <TabsPrimitive.Panel
       data-slot="tabs-content"
       className={cn(
-        "flex-1 text-sm outline-none focus-visible:outline-none animate-in fade-in-0 duration-150 ease-out",
+        "flex-1 text-sm outline-none focus-visible:outline-none duration-150 ease-out",
         className
       )}
       {...props}

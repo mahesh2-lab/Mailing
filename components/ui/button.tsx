@@ -1,10 +1,20 @@
+'use client'
+
 import { Button as ButtonPrimitive } from '@base-ui/react/button'
 import { cva, type VariantProps } from 'class-variance-authority'
+import { motion } from 'motion/react'
+import {
+  ReducedMotionConfig,
+  scale,
+  spring,
+  useShouldReduceMotion,
+  useTempoTransition,
+} from '@animate-ui/react/utils/motion'
 
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] outline-none select-none cursor-pointer focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98] active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] outline-none select-none cursor-pointer focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -44,12 +54,43 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  render,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  return (
+    <ReducedMotionConfig>
+      <ButtonContent
+        variant={variant}
+        size={size}
+        className={className}
+        render={render}
+        {...props}
+      />
+    </ReducedMotionConfig>
+  )
+}
+
+function ButtonContent({
+  className,
+  variant = 'default',
+  size = 'default',
+  render,
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const reduce = useShouldReduceMotion()
+  const press = useTempoTransition(spring.press)
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      render={render ?? (
+        <motion.button
+          initial={reduce ? undefined : { transform: 'scale(1)' }}
+          whileTap={reduce ? undefined : { transform: `scale(${scale.press})` }}
+          transition={press}
+        />
+      )}
       {...props}
     />
   )

@@ -1,4 +1,4 @@
-import { Globe, Key, Webhook } from "lucide-react";
+import { Globe, Key, Webhook } from "@/components/animate-ui/icons";
 import { DocsPager } from "@/components/docs/pager";
 import Link from "next/link";
 

@@ -13,7 +13,7 @@ import {
   User,
   Users,
   Zap,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { authClient } from "@/src/lib/auth-client";

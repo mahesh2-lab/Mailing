@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PreviewCard as PreviewCardPrimitive } from "@base-ui/react/preview-card";
+import { PreviewCard as PreviewCardPrimitive } from "@animate-ui/react/primitives/base-ui/preview-card";
 import { cn } from "@/lib/utils";
 
 function PreviewCard({ ...props }: PreviewCardPrimitive.Root.Props) {
@@ -41,7 +41,7 @@ function PreviewCardContent({
         <PreviewCardPrimitive.Popup
           data-slot="preview-card-content"
           className={cn(
-            "z-50 w-72 rounded-xl border border-border/80 bg-popover p-3 text-popover-foreground shadow-lg outline-hidden data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 duration-150",
+            "z-50 w-72 rounded-xl border border-border/80 bg-popover p-3 text-popover-foreground shadow-lg outline-hidden duration-150",
             className
           )}
           {...props}

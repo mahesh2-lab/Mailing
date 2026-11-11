@@ -13,10 +13,8 @@ import {
   Camera,
   ArrowRight,
   ArrowLeft,
-  Mail,
-  KeyRound,
   User,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import {
   compressImage,
   validateImageFile,

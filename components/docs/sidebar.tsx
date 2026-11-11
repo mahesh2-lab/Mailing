@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Book, Globe, Key, Webhook, Box, Database, FolderTree, Mail, Settings, Home, LucideIcon } from "lucide-react";
+import { Book, Globe, Key, Webhook, Box, Database, FolderTree, Mail, Settings, Home, LucideIcon } from "@/components/animate-ui/icons";
 import { cn } from "@/lib/utils";
 
 const gettingStartedItems = [
