@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function prepareEmailHtml(rawHtml: string): string {
   // Strip harmful/unsupported scripts
@@ -17,7 +17,9 @@ function prepareEmailHtml(rawHtml: string): string {
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: visible !important;
     overflow-x: auto !important;
     font-family: Arial, Helvetica, sans-serif;
     overflow-wrap: anywhere;
@@ -70,10 +72,51 @@ export function EmailHtmlFrame({
   title?: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [height, setHeight] = useState(300);
   const emailHtml = useMemo(() => prepareEmailHtml(html), [html]);
 
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const frame = iframe;
+
+    const resizeObserver = new ResizeObserver(() => syncHeight());
+    let observedDocument: Document | null = null;
+
+    function syncHeight() {
+      const doc = frame.contentDocument;
+      if (!doc?.body) return;
+      const contentHeight = Math.ceil(Math.max(doc.body.scrollHeight, doc.body.offsetHeight));
+      if (contentHeight > 50) {
+        setHeight(contentHeight + 8);
+      }
+    }
+
+    function observeContent() {
+      const doc = frame.contentDocument;
+      if (!doc?.body || doc === observedDocument) {
+        syncHeight();
+        return;
+      }
+      observedDocument?.removeEventListener("load", syncHeight, true);
+      resizeObserver.disconnect();
+      observedDocument = doc;
+      resizeObserver.observe(doc.body);
+      doc.addEventListener("load", syncHeight, true);
+      syncHeight();
+    }
+
+    frame.addEventListener("load", observeContent);
+    observeContent();
+    return () => {
+      frame.removeEventListener("load", observeContent);
+      observedDocument?.removeEventListener("load", syncHeight, true);
+      resizeObserver.disconnect();
+    };
+  }, [emailHtml]);
+
   return (
-    <div className="w-full h-full flex-1 min-h-0 rounded-xl border border-border/80 p-[5px] bg-muted/40 dark:bg-muted/20 shadow-2xs isolate flex flex-col overflow-hidden">
+    <div className="w-full flex-none rounded-xl border border-border/80 p-[5px] bg-muted/40 dark:bg-muted/20 shadow-2xs isolate">
       <iframe
         ref={iframeRef}
         title={title}
@@ -82,9 +125,9 @@ export function EmailHtmlFrame({
         srcDoc={emailHtml}
         style={{
           width: "100%",
-          height: "100%",
+          height: `${height}px`,
         }}
-        className="w-full h-full border-0 bg-card scheme-light dark:scheme-dark block rounded-lg overflow-y-auto"
+        className="block w-full border-0 bg-card scheme-light dark:scheme-dark rounded-lg"
       />
     </div>
   );

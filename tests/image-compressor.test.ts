@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   validateImageFile,
   validateProfileImagePayload,
@@ -6,7 +6,6 @@ import {
   compressImage,
   ALLOWED_IMAGE_TYPES,
   DEFAULT_MAX_INPUT_SIZE_BYTES,
-  SERVER_MAX_IMAGE_PAYLOAD_BYTES,
 } from "../lib/image-compressor";
 
 describe("Image Compressor & Restrictions Utility", () => {

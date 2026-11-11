@@ -9,7 +9,7 @@ import {
   Send,
   SquarePen,
   Star,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { Folder } from "../hooks/use-mail";
 import { MailProvider, useMailContext } from "./mail-context";
 import MailSidebar from "./mail-sidebar";

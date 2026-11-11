@@ -1,6 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useIsPresent } from "motion/react";
+import {
+  spring,
+  transition,
+  useShouldReduceMotion,
+  useTempoTransition,
+} from "@animate-ui/react/utils/motion";
 import axios from "axios";
 import {
   Maximize2,
@@ -19,7 +26,7 @@ import {
   FileImage,
   FileArchive,
   CheckCircle2,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { toast } from "sonner";
@@ -29,7 +36,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -95,6 +101,10 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function ComposePanel() {
+  const isPresent = useIsPresent();
+  const reduce = useShouldReduceMotion();
+  const enter = useTempoTransition(spring.dialog);
+  const exit = useTempoTransition(transition.dismiss);
   const { setComposeOpen, composeDefaults, refresh } = useMailContext();
   const { sendMail, sending } = useSendMail();
 
@@ -520,8 +530,16 @@ export default function ComposePanel() {
 
   return (
     <>
-      <div
+      <motion.div
         ref={panelRef}
+        inert={!isPresent}
+        initial={{ opacity: 0, transform: reduce ? "none" : "translateY(12px) scale(0.99)" }}
+        animate={{ opacity: 1, transform: "none", transition: enter }}
+        exit={{
+          opacity: 0,
+          transform: reduce ? "none" : "translateY(8px) scale(0.99)",
+          transition: exit,
+        }}
         style={
           maximized
             ? undefined
@@ -530,7 +548,7 @@ export default function ComposePanel() {
               : undefined
         }
         className={cn(
-          "fixed z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden rounded-xl max-md:!inset-0 max-md:!h-dvh max-md:!w-full max-md:rounded-none max-md:border-0 max-md:pt-[env(safe-area-inset-top)] animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-6 duration-200 ease-out motion-reduce:animate-none transition-all",
+          "fixed z-50 flex flex-col bg-card border border-border shadow-2xl overflow-hidden rounded-xl max-md:!inset-0 max-md:!h-dvh max-md:!w-full max-md:rounded-none max-md:border-0 max-md:pt-[env(safe-area-inset-top)] transition-[width,height,inset] duration-200",
           maximized
             ? "inset-4 md:inset-8"
             : "bottom-0 right-4 md:right-8 w-full max-w-xl h-140 max-md:h-dvh max-md:max-w-none"
@@ -914,7 +932,7 @@ export default function ComposePanel() {
             </DropdownMenu>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Discard / Save Alert Dialog */}
       <AlertDialog open={showClosePrompt} onOpenChange={setShowClosePrompt}>

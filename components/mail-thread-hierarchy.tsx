@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "@/components/animate-ui/icons";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarColor, getInitials } from "@/lib/utils";
 import type { MailItem } from "../hooks/use-mail";
@@ -273,11 +273,7 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   // Single turn: standard message view with no quotes
   if (turns.length <= 1) {
     if (message.rawHtml) {
-      return (
-        <div className="w-full h-full flex-1 min-h-0 flex flex-col">
-          <EmailHtmlFrame html={message.rawHtml} />
-        </div>
-      );
+      return <EmailHtmlFrame html={message.rawHtml} />;
     }
     return (
       <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text w-full overflow-y-auto flex-1 min-h-0">

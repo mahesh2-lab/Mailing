@@ -4,35 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Camera,
-  Check,
-  ChevronRight,
-  CircleHelp,
   Eye,
   EyeOff,
-  KeyRound,
-  Lock,
-  Mail,
-  Plus,
-  RefreshCw,
   Search,
-  Shield,
-  SlidersHorizontal,
   Trash2,
-  User,
   UserPlus,
   Users,
-  Zap,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { authClient } from "@/src/lib/auth-client";
 import ConfirmDialog from "./confirm-dialog";
-import { SiteNav } from "./site-nav";
 import { AuthenticatedPageShell } from "./authenticated-page-shell";
 import { SettingsView } from "./settings/settings-view";
 import { compressImage, validateImageFile } from "@/lib/image-compressor";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -42,12 +28,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -55,11 +35,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
-import { getInitials, avatarColor, cn } from "@/lib/utils";
+import { getInitials, avatarColor } from "@/lib/utils";
 
 // ── Profile Panel ────────────────────────────────────────────────────────────
 
@@ -356,7 +334,7 @@ function ProfilePanel() {
 
         {showPwSection && (
           <form onSubmit={handlePasswordSave}>
-            <CardContent className="space-y-4 border-t border-border pt-4">
+            <CardContent className="space-y-4 border-t border-border pt-4 pb-4">
               {pwError && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
                   {pwError}
@@ -812,30 +790,15 @@ export function SitePage({
 }: {
   type: "profile" | "contacts" | "settings" | "help";
 }) {
-  const meta = {
-    profile: {
-      title: "Profile Details",
-      description: "Manage your credentials, display name, and avatar.",
-    },
-    contacts: {
-      title: "Contacts",
-      description: "Address book, frequent correspondents, and recipient groups.",
-    },
-    settings: {
-      title: "Settings",
-      description: "Configure Resend API credentials, webhook endpoints, and app preferences.",
-    },
-    help: {
-      title: "Help & Support",
-      description: "Frequently asked questions, troubleshooting, and documentation.",
-    },
-  }[type];
+  const titles = {
+    profile: "Profile Details",
+    contacts: "Contacts",
+    settings: "Settings",
+    help: "Help & Support",
+  };
 
   return (
-    <AuthenticatedPageShell
-      title={meta.title}
-      description={meta.description}
-    >
+    <AuthenticatedPageShell title={titles[type]}>
       {type === "profile" && <ProfilePanel />}
       {type === "contacts" && <ContactsPanel />}
       {type === "settings" && <SettingsPanel />}

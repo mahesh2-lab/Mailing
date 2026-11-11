@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
   Bold,
   CheckCircle2,
   Copy,
-  Download,
   ExternalLink,
   Forward,
   Italic,
-  Link2,
   Mail,
   MailOpen,
   MoreHorizontal,
@@ -25,7 +23,7 @@ import {
   Tag,
   Trash2,
   X,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import axios from "axios";
 import { useSendMail } from "../hooks/use-mail";
 import { useMessageDetail } from "../hooks/use-mail-message-detail";
@@ -171,12 +169,38 @@ export default function MailDetailPane() {
   }, []);
 
   useEffect(() => {
+    // Reply state is scoped to the selected message and must reset when selection changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsReplying(false);
     setReplyText("");
     setReplyAttachments([]);
   }, [openId]);
 
-  async function handleToolbarAction(action: MailActionConfig) {
+  useEffect(() => {
+    if (!message?.unread) return;
+
+    const controller = new AbortController();
+    let active = true;
+    axios
+      .patch(`/api/v1/messages/${message.id}/read`, {}, {
+        signal: controller.signal,
+      })
+      .then(() => {
+        if (!active) return;
+        setMessage((current) =>
+          current?.id === message.id ? { ...current, unread: false } : current,
+        );
+        refresh();
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [message?.id, message?.unread, refresh, setMessage]);
+
+  const handleToolbarAction = useCallback(async (action: MailActionConfig) => {
     if (!message) return;
 
     if (action.id === "delete_permanent") {
@@ -199,11 +223,10 @@ export default function MailDetailPane() {
       refresh();
     } catch {
       toast.error("Failed to perform action");
-    } finally {
     }
-  }
+  }, [message, refresh, setOpenId]);
 
-  async function starToggle() {
+  const starToggle = useCallback(async () => {
     if (!message) return;
     try {
       const res = await axios.post(`/api/v1/messages/${message.id}/star`, {
@@ -215,9 +238,9 @@ export default function MailDetailPane() {
     } catch {
       toast.error("Failed to update star");
     }
-  }
+  }, [message, refresh, setMessage]);
 
-  async function handleMarkAsUnread() {
+  const handleMarkAsUnread = useCallback(async () => {
     if (!message) return;
     try {
       await axios.patch(`/api/v1/messages/${message.id}/read`, {
@@ -229,7 +252,7 @@ export default function MailDetailPane() {
     } catch {
       toast.error("Failed to mark as unread");
     }
-  }
+  }, [message, refresh, setOpenId]);
 
   function handlePrint() {
     if (!message) return;
@@ -349,7 +372,7 @@ export default function MailDetailPane() {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [message]);
+  }, [message, handleMarkAsUnread, handleToolbarAction, openCompose, starToggle]);
 
   return (
     <>

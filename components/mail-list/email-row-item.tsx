@@ -1,10 +1,18 @@
 "use client";
 
 import { memo, useCallback, useRef } from "react";
+import { motion } from "motion/react";
+import {
+  scale,
+  spring,
+  transition,
+  useShouldReduceMotion,
+  useTempoTransition,
+} from "@animate-ui/react/utils/motion";
 import {
   Archive, Check, CheckSquare, Copy, Forward, Mail, MailOpen, Paperclip,
   Reply, RotateCcw, Square, Star, Tag, Trash2,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import type { Folder, MailItem } from "../../hooks/use-mail";
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel,
@@ -69,6 +77,12 @@ export const EmailRowItem = memo(function EmailRowItem({
   onBulkAction,
   onBulkLabel,
 }: EmailRowItemProps) {
+  const reduce = useShouldReduceMotion();
+  const enter = useTempoTransition({
+    ...transition.reveal,
+    delay: index !== undefined ? Math.min(index * 0.02, 0.2) : 0,
+  });
+  const press = useTempoTransition(spring.press);
   const { openCompose } = useMailContext();
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressTriggeredRef = useRef(false);
@@ -145,7 +159,11 @@ export const EmailRowItem = memo(function EmailRowItem({
     <ContextMenu>
       <ContextMenuTrigger
         render={
-          <div
+          <motion.div
+            initial={{ opacity: 0, transform: "scale(1)" }}
+            animate={{ opacity: 1, transform: "scale(1)", transition: enter }}
+            whileTap={reduce ? undefined : { transform: `scale(${scale.choice})` }}
+            transition={press}
             role="button"
             tabIndex={0}
             onClick={handleClick}
@@ -159,14 +177,9 @@ export const EmailRowItem = memo(function EmailRowItem({
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerCancel}
-            style={{
-              animationDelay:
-                index !== undefined
-                  ? `${Math.min(index * 20, 200)}ms`
-                  : undefined,
-            }}
+            data-slot="email-row-item"
             className={cn(
-              "w-full flex items-start gap-2.5 rounded-lg border py-2 px-2.5 text-left transition-all duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.995] cursor-pointer relative group select-none min-h-[72px] h-[72px] max-md:min-h-[84px] max-md:h-[84px] box-border animate-in fade-in-0 slide-in-from-bottom-1 duration-150 fill-mode-both",
+              "w-full flex items-start gap-2.5 rounded-lg border py-2 px-2.5 text-left transition-[color,background-color,border-color,box-shadow] duration-150 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer relative group select-none min-h-[72px] h-[72px] max-md:min-h-[84px] max-md:h-[84px] box-border",
               isSelected
                 ? "bg-primary/5 dark:bg-primary/10 border-primary/40 ring-1 ring-primary/30 shadow-xs font-medium"
                 : isCurrentOpen
@@ -326,7 +339,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         }
       />
       <ContextMenuContent className="w-56">

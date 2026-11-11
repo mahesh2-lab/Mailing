@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useState,
   useEffect,
   ReactNode,
@@ -119,7 +120,7 @@ export function MailProvider({
     }
   }, []);
 
-  const setSidebarCollapsed = (value: boolean | ((prev: boolean) => boolean)) => {
+  const setSidebarCollapsed = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     setSidebarCollapsedState((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
       if (typeof window !== "undefined") {
@@ -127,11 +128,11 @@ export function MailProvider({
       }
       return next;
     });
-  };
+  }, []);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => !prev);
-  };
+  }, [setSidebarCollapsed]);
 
   // Keyboard shortcut to collapse/expand sidebar: '[' or 'Cmd/Ctrl + B'
   useEffect(() => {
@@ -154,12 +155,12 @@ export function MailProvider({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [toggleSidebar]);
 
-  function openCompose(defaults?: ComposeDefaults) {
+  const openCompose = useCallback((defaults?: ComposeDefaults) => {
     setComposeDefaults(defaults ?? null);
     setComposeOpen(true);
-  }
+  }, []);
 
   // Sync route changes without forcing component remounts
   useEffect(() => {
@@ -204,9 +205,9 @@ export function MailProvider({
     window.history.replaceState(null, "", url.toString());
   }, [openId]);
 
-  function refresh() {
+  const refresh = useCallback(() => {
     setRefreshTick((t) => t + 1);
-  }
+  }, []);
 
   // Listen to real-time events triggered by Pusher
   useEffect(() => {
@@ -217,7 +218,7 @@ export function MailProvider({
     return () => {
       window.removeEventListener("mail:refresh", handleMailRefresh);
     };
-  }, []);
+  }, [refresh]);
 
   return (
     <MailContext.Provider

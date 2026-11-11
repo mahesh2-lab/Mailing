@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, LogOut, Menu, Sparkles } from "lucide-react";
+import { Inbox, LogOut, Menu } from "@/components/animate-ui/icons";
 import MailSidebar from "./mail-sidebar";
 import { MailProvider, useMailContext } from "./mail-context";
 import ComposePanel from "./compose-panel";
@@ -19,17 +19,17 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
+import { AnimatePresence } from "motion/react";
+import { ReducedMotionConfig } from "@animate-ui/react/utils/motion";
 
 function ShellInner({
   title,
-  description,
   badge,
   actions,
   children,
   fullWidth = false,
 }: {
   title: string;
-  description?: string;
   badge?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;
@@ -198,14 +198,17 @@ function ShellInner({
       </div>
 
       {/* Floating Compose Window */}
-      {composeOpen && <ComposePanel />}
+      <ReducedMotionConfig>
+        <AnimatePresence>
+          {composeOpen && <ComposePanel key="compose" />}
+        </AnimatePresence>
+      </ReducedMotionConfig>
     </div>
   );
 }
 
 export function AuthenticatedPageShell(props: {
   title: string;
-  description?: string;
   badge?: ReactNode;
   actions?: ReactNode;
   children: ReactNode;

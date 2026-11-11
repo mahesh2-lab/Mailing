@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import {
   Archive,
   BookOpen,
@@ -10,14 +11,12 @@ import {
   Copy,
   ExternalLink,
   FileText,
-  Inbox,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Send,
   Settings,
-  SquarePen,
   Star,
   Tag,
   Trash2,
@@ -25,7 +24,9 @@ import {
   Users,
   X,
   Zap,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
+import { Mail as Inbox } from "@/components/animate-ui/icons/mail";
+import { Pencil as SquarePen } from "@/components/animate-ui/icons/pencil";
 import axios from "axios";
 import { DEFAULT_LABEL_NAMES, useMailSummary } from "../hooks/use-mail-summary";
 import { Folder } from "../hooks/use-mail";
@@ -80,7 +81,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
-const folderIcons: Record<Folder, typeof Inbox> = {
+const folderIcons: Record<Folder, React.ComponentType<{ className?: string }>> = {
   Inbox,
   Starred: Star,
   Sent: Send,
@@ -97,6 +98,9 @@ const folderRoutes: Record<Folder, string> = {
   Archive: "/archive",
   Trash: "/trash",
 };
+
+const sidebarNavItemClassName =
+  "before:pointer-events-none before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:scale-y-0 before:rounded-full before:bg-primary before:transition-transform before:duration-200 before:ease-out data-active:before:scale-y-100 motion-reduce:before:transition-none group-data-[collapsible=icon]:mx-auto";
 
 export interface MailSidebarProps {
   hideThemeToggle?: boolean;
@@ -593,16 +597,18 @@ export default function MailSidebar({
                         <ContextMenu>
                           <ContextMenuTrigger
                             render={
-                              <SidebarMenuButton
-                                isActive={isActive}
-                                isNavigating={isNavigating}
-                                tooltip={`${name}${count > 0 ? ` (${count})` : ""}`}
-                                onClick={() => selectFolder(name)}
-                                className="font-medium"
-                              >
-                                <Icon className="size-4 shrink-0" />
-                                <span>{name}</span>
-                              </SidebarMenuButton>
+                              <AnimateIcon animateOnHover asChild>
+                                <SidebarMenuButton
+                                  isActive={isActive}
+                                  isNavigating={isNavigating}
+                                  tooltip={`${name}${count > 0 ? ` (${count})` : ""}`}
+                                  onClick={() => selectFolder(name)}
+                                  className={`font-medium ${sidebarNavItemClassName}`}
+                                >
+                                  <Icon className="size-4 shrink-0" />
+                                  <span>{name}</span>
+                                </SidebarMenuButton>
+                              </AnimateIcon>
                             }
                           />
                           <ContextMenuContent>
@@ -641,10 +647,10 @@ export default function MailSidebar({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarSeparator className="mx-0 my-1 bg-sidebar-border/60" />
+            <SidebarSeparator className="mx-0 my-1 bg-sidebar-border/60 group-data-[collapsible=icon]:hidden" />
 
             {/* Custom Labels Section */}
-            <SidebarGroup className="p-0">
+            <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
               <div className="flex items-center justify-between h-7 px-2 select-none group-data-[collapsible=icon]:hidden">
                 <SidebarGroupLabel className="h-auto p-0 text-[10px] font-semibold text-muted-foreground/75 uppercase tracking-widest leading-none select-none">
                   Labels
@@ -710,15 +716,18 @@ export default function MailSidebar({
                         <ContextMenu>
                           <ContextMenuTrigger
                             render={
-                              <SidebarMenuButton
-                                isActive={isActive}
-                                isNavigating={isNavigating}
-                                tooltip={`${lbl.name}${count > 0 ? ` (${count})` : ""}`}
-                                onClick={() => selectLabel(lbl.name)}
-                              >
-                                <Tag className="size-3.5 shrink-0" />
-                                <span>{lbl.name}</span>
-                              </SidebarMenuButton>
+                              <AnimateIcon animateOnHover asChild>
+                                <SidebarMenuButton
+                                  isActive={isActive}
+                                  isNavigating={isNavigating}
+                                  tooltip={`${lbl.name}${count > 0 ? ` (${count})` : ""}`}
+                                  onClick={() => selectLabel(lbl.name)}
+                                  className={sidebarNavItemClassName}
+                                >
+                                  <Tag className="size-3.5 shrink-0" />
+                                  <span>{lbl.name}</span>
+                                </SidebarMenuButton>
+                              </AnimateIcon>
                             }
                           />
                           <ContextMenuContent>
@@ -782,10 +791,10 @@ export default function MailSidebar({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <SidebarSeparator className="mx-0 my-1 bg-sidebar-border/60" />
+            <SidebarSeparator className="mx-0 my-1 bg-sidebar-border/60 group-data-[collapsible=icon]:hidden" />
 
             {/* Connected Workspaces & Features */}
-            <SidebarGroup className="p-0">
+            <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
               <SidebarGroupLabel className="h-7 px-2 text-[10px] font-semibold text-muted-foreground/75 uppercase tracking-widest leading-none select-none">
                 Workspace
               </SidebarGroupLabel>
@@ -800,15 +809,18 @@ export default function MailSidebar({
 
                     return (
                       <SidebarMenuItem key={item.path}>
-                        <SidebarMenuButton
-                          isActive={isItemActive}
-                          isNavigating={isNavigating}
-                          tooltip={`${item.label}${item.badge ? ` (${item.badge})` : ""}`}
-                          onClick={() => navigateTo(item.path)}
-                        >
-                          <Icon className="size-4 shrink-0" />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
+                        <AnimateIcon animateOnHover asChild>
+                          <SidebarMenuButton
+                            isActive={isItemActive}
+                            isNavigating={isNavigating}
+                            tooltip={`${item.label}${item.badge ? ` (${item.badge})` : ""}`}
+                            onClick={() => navigateTo(item.path)}
+                            className={sidebarNavItemClassName}
+                          >
+                            <Icon className="size-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </AnimateIcon>
                         {item.badge && (
                           <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
                         )}

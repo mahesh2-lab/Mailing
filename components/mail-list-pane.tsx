@@ -8,7 +8,7 @@ import {
   Tag,
   Trash2,
   X,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import axios from "axios";
 import { useMailListData } from "../hooks/use-mail-list-data";
 import type { MailItem } from "../hooks/use-mail";
@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmailRowItem } from "./mail-list/email-row-item";
+import { ReducedMotionConfig } from "@animate-ui/react/utils/motion";
 
 function SkeletonRows() {
   return (
@@ -269,19 +270,10 @@ export default function MailListPane() {
   const isSelectionMode = selected.length > 0;
 
   const handleOpen = useCallback(
-    async (item: MailItem) => {
+    (item: MailItem) => {
       setOpenId(item.id);
-      if (item.unread) {
-        setMail((prev) =>
-          prev.map((m) => (m.id === item.id ? { ...m, unread: false } : m)),
-        );
-        try {
-          await axios.patch(`/api/v1/messages/${item.id}/read`);
-          refresh();
-        } catch {}
-      }
     },
-    [setOpenId, setMail, refresh],
+    [setOpenId],
   );
 
   const handleStarToggle = useCallback(
@@ -887,30 +879,32 @@ export default function MailListPane() {
             </div>
           ) : (
             <>
-              {visible.map((item, idx) => (
-                <EmailRowItem
-                  key={item.id}
-                  item={item}
-                  index={idx}
-                  isSelected={selected.includes(item.id)}
-                  isCurrentOpen={openId === item.id}
-                  isSelectionMode={isSelectionMode}
-                  folder={folder}
-                  allLabels={allLabels}
-                  selectedCount={selected.length}
-                  onOpen={handleOpen}
-                  onToggleSelect={toggleSelect}
-                  onStarToggle={handleStarToggle}
-                  onMarkReadToggle={handleSingleMarkRead}
-                  onArchive={handleSingleArchive}
-                  onTrash={handleSingleTrash}
-                  onRestore={handleSingleRestore}
-                  onDeletePermanent={handleSingleDeletePermanent}
-                  onApplyLabel={handleSingleLabel}
-                  onBulkAction={handleBulkAction}
-                  onBulkLabel={handleBulkLabel}
-                />
-              ))}
+              <ReducedMotionConfig>
+                {visible.map((item, idx) => (
+                  <EmailRowItem
+                    key={item.id}
+                    item={item}
+                    index={idx}
+                    isSelected={selected.includes(item.id)}
+                    isCurrentOpen={openId === item.id}
+                    isSelectionMode={isSelectionMode}
+                    folder={folder}
+                    allLabels={allLabels}
+                    selectedCount={selected.length}
+                    onOpen={handleOpen}
+                    onToggleSelect={toggleSelect}
+                    onStarToggle={handleStarToggle}
+                    onMarkReadToggle={handleSingleMarkRead}
+                    onArchive={handleSingleArchive}
+                    onTrash={handleSingleTrash}
+                    onRestore={handleSingleRestore}
+                    onDeletePermanent={handleSingleDeletePermanent}
+                    onApplyLabel={handleSingleLabel}
+                    onBulkAction={handleBulkAction}
+                    onBulkLabel={handleBulkLabel}
+                  />
+                ))}
+              </ReducedMotionConfig>
               {hasMore && (
                 <div className="flex justify-center py-3">
                   <Button variant="outline" size="sm" onClick={loadMore} disabled={isFetching}>

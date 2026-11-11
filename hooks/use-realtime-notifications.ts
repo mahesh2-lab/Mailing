@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { createElement, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authClient } from "@/src/lib/auth-client";
 import { getPusherClient } from "@/lib/pusher/client";
+import { Bell } from "@/components/animate-ui/icons/bell";
 import {
   emailChannelForUser,
   notificationChannelForUser,
@@ -15,6 +16,9 @@ import type {
   NotificationPayload,
   ToastPayload,
 } from "@/lib/pusher/types";
+
+const notificationIcon = () =>
+  createElement(Bell, { animateOnView: true, size: 18, "aria-hidden": true });
 
 export function useRealtimeNotifications() {
   const { data: session } = authClient.useSession();
@@ -50,6 +54,7 @@ export function useRealtimeNotifications() {
       const subject = data?.subject || "No Subject";
 
       toast.info(`New Email from ${from}`, {
+        icon: notificationIcon(),
         id: data?.emailId ? `email-${data.emailId}` : undefined,
         description: subject,
         duration: 6000,
@@ -101,6 +106,7 @@ export function useRealtimeNotifications() {
     // Notification Events
     notificationsChannel.bind("notification", (data: NotificationPayload) => {
       toast.info(data.title || "Notification", {
+        icon: notificationIcon(),
         description: data.message || data.description,
         duration: 5000,
       });
