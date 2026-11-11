@@ -11,10 +11,7 @@ export const metadata: Metadata = {
 
 export default function SettingsPage() {
   return (
-    <AuthenticatedPageShell
-      title="Settings"
-      description="Configure Resend API credentials, outbound sending profiles, and workspace security."
-    >
+    <AuthenticatedPageShell title="Settings">
       <SettingsView />
     </AuthenticatedPageShell>
   );

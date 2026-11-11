@@ -1,24 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 import {
   Eye,
   EyeOff,
   LogOut,
-  RefreshCw,
   Shield,
   SlidersHorizontal,
   Zap,
   CheckCircle2,
   AlertTriangle,
   User,
-  KeyRound,
-  Trash2,
-  Database,
-  ExternalLink,
-} from "lucide-react";
+  Settings as SettingsIcon,
+} from "@/components/animate-ui/icons";
 import { authClient } from "@/src/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +36,167 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { MotionGrid, MotionGridCells, type Frames } from "@animate-ui/react/primitives/motion-grid";
+import { useShouldReduceMotion } from "@animate-ui/react/utils/motion";
+import { RotatingText, RotatingTextContainer } from "@animate-ui/react/primitives/texts/rotating";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { avatarColor, getInitials, cn } from "@/lib/utils";
+
+const PREFERENCES_KEY = "mailing:preferences";
+const PREFERENCES_EVENT = "mailing:preferences-change";
+const DEFAULT_PREFERENCES = JSON.stringify({ density: "comfortable", reduceMotion: false });
+
+const IMPORTING_FRAMES: Frames = [
+  [[2, 2]],
+  [[1, 2], [2, 1], [2, 3], [3, 2]],
+  [[2, 2], [0, 2], [1, 1], [1, 3], [2, 0], [2, 4], [3, 1], [3, 3], [4, 2]],
+  [[0, 1], [0, 3], [1, 0], [1, 2], [1, 4], [2, 1], [2, 3], [3, 0], [3, 2], [3, 4], [4, 1], [4, 3]],
+  [[0, 0], [0, 2], [0, 4], [1, 1], [1, 3], [2, 0], [2, 2], [2, 4], [3, 1], [3, 3], [4, 0], [4, 2], [4, 4]],
+  [[0, 1], [0, 3], [1, 0], [1, 2], [1, 4], [2, 1], [2, 3], [3, 0], [3, 2], [3, 4], [4, 1], [4, 3]],
+  [[0, 0], [0, 2], [0, 4], [1, 1], [1, 3], [2, 0], [2, 4], [3, 1], [3, 3], [4, 0], [4, 2], [4, 4]],
+  [[0, 1], [1, 0], [3, 0], [4, 1], [0, 3], [1, 4], [3, 4], [4, 3]],
+  [[0, 0], [0, 4], [4, 0], [4, 4]],
+  [],
+];
+const SYNC_FRAMES: Frames = [
+  [[2, 0]],
+  [[1, 0], [2, 0], [3, 0], [2, 1]],
+  [[2, 0], [1, 1], [2, 1], [3, 1], [2, 2]],
+  [[2, 0], [2, 1], [1, 2], [2, 2], [3, 2], [2, 3]],
+  [[2, 1], [2, 2], [1, 3], [2, 3], [3, 3], [2, 4]],
+  [[2, 2], [2, 3], [1, 4], [2, 4], [3, 4]],
+  [[2, 3], [2, 4]],
+  [[2, 4]],
+  [],
+  [[2, 4]],
+  [[2, 3], [2, 4]],
+  [[2, 2], [2, 3], [1, 4], [2, 4], [3, 4]],
+  [[2, 1], [2, 2], [1, 3], [2, 3], [3, 3], [2, 4]],
+  [[2, 0], [2, 1], [1, 2], [2, 2], [3, 2], [2, 3]],
+  [[2, 0], [1, 1], [2, 1], [3, 1], [2, 2]],
+  [[1, 0], [2, 0], [3, 0], [2, 1]],
+  [[2, 0]],
+  [],
+];
+
+function subscribeToPreferences(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(PREFERENCES_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(PREFERENCES_EVENT, onChange);
+  };
+}
+
+function getPreferencesSnapshot() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PREFERENCES_KEY) || "{}");
+    return JSON.stringify({
+      density: saved.density === "compact" ? "compact" : "comfortable",
+      reduceMotion: saved.reduceMotion === true,
+    });
+  } catch {
+    return DEFAULT_PREFERENCES;
+  }
+}
+
+function savePreferences(preferences: { density: "comfortable" | "compact"; reduceMotion: boolean }) {
+  try {
+    localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
+  } catch {}
+  window.dispatchEvent(new Event(PREFERENCES_EVENT));
+}
+
+function GeneralSettingsSection() {
+  const { theme, setTheme } = useTheme();
+  const preferencesSnapshot = useSyncExternalStore(
+    subscribeToPreferences,
+    getPreferencesSnapshot,
+    () => DEFAULT_PREFERENCES,
+  );
+  const preferences = JSON.parse(preferencesSnapshot) as {
+    density: "comfortable" | "compact";
+    reduceMotion: boolean;
+  };
+
+  useEffect(() => {
+    document.documentElement.dataset.mailDensity = preferences.density;
+    document.documentElement.dataset.reduceMotion = String(preferences.reduceMotion);
+  }, [preferences.density, preferences.reduceMotion]);
+
+  return (
+    <Card className="border-border shadow-xs">
+      <CardHeader>
+        <CardTitle className="text-base font-semibold">Appearance &amp; accessibility</CardTitle>
+        <CardDescription className="text-xs">
+          Set how Mailing looks and how much motion it uses in this browser.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="divide-y divide-border">
+        <div className="flex flex-col gap-3 py-4 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-0.5">
+            <label htmlFor="settings-theme" className="text-sm font-medium">Theme</label>
+            <p className="text-xs text-muted-foreground">Choose light, dark, or follow your device.</p>
+          </div>
+          <Select value={theme ?? "system"} onValueChange={(value) => value && setTheme(value)}>
+            <SelectTrigger id="settings-theme" className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">System</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="dark">Dark</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium">Inbox density</p>
+            <p className="text-xs text-muted-foreground">Show more conversations at once or give each more room.</p>
+          </div>
+          <ToggleGroup
+            multiple={false}
+            value={[preferences.density]}
+            onValueChange={(values) => {
+              const density = values[0];
+              if (density === "comfortable" || density === "compact") {
+                savePreferences({ ...preferences, density });
+              }
+            }}
+            aria-label="Inbox density"
+            variant="outline"
+            size="sm"
+          >
+            <ToggleGroupItem value="comfortable">Comfortable</ToggleGroupItem>
+            <ToggleGroupItem value="compact">Compact</ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+
+        <div className="flex items-center justify-between gap-4 py-4 last:pb-0">
+          <div className="space-y-0.5">
+            <label htmlFor="settings-reduced-motion" className="text-sm font-medium">Reduce motion</label>
+            <p className="text-xs text-muted-foreground">Limit interface animations and transitions.</p>
+          </div>
+          <Checkbox
+            id="settings-reduced-motion"
+            checked={preferences.reduceMotion}
+            onCheckedChange={(checked) => savePreferences({ ...preferences, reduceMotion: checked === true })}
+            aria-label="Reduce motion"
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ── SKELETON LOADER ──────────────────────────────────────────────────────────
 
@@ -212,6 +369,7 @@ const ResendIntegrationSection = React.memo(function ResendIntegrationSection({
 }: ResendIntegrationProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showWebhookSecret, setShowWebhookSecret] = useState(false);
+  const reduceMotion = useShouldReduceMotion();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -357,8 +515,27 @@ const ResendIntegrationSection = React.memo(function ResendIntegrationSection({
               disabled={syncing || !resendApiKey.trim()}
               className="text-xs gap-1.5 h-8.5 font-medium cursor-pointer"
             >
-              {syncing ? <Spinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
-              <span>{syncing ? "Syncing…" : "Sync Emails"}</span>
+              <MotionGrid
+                key={syncing ? "syncing" : "importing"}
+                gridSize={[5, 5]}
+                frames={syncing ? SYNC_FRAMES : IMPORTING_FRAMES}
+                duration={140}
+                animate={!reduceMotion}
+                aria-hidden="true"
+                className="w-fit gap-0.5"
+              >
+                <MotionGridCells
+                  className="aspect-square size-0.75 rounded-full bg-current/20"
+                  activeProps={{ className: "bg-current/80" }}
+                />
+              </MotionGrid>
+              <RotatingTextContainer
+                text={syncing ? "Syncing…" : "Import Emails"}
+                align="start"
+                aria-live="polite"
+              >
+                <RotatingText className="text-xs" />
+              </RotatingTextContainer>
             </Button>
           </div>
           <Button
@@ -690,38 +867,46 @@ export function SettingsView() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          Preferences &amp; Integration
+          Settings
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure default sending profiles, API connections, and account security.
+          Manage your preferences, sending setup, integrations, and account.
         </p>
       </div>
 
-      <Tabs defaultValue="sending" className="space-y-6">
-        <TabsList className="bg-muted/80 h-9 p-1 flex-wrap">
+      <Tabs defaultValue="general" className="space-y-6">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-lg border border-border/60 bg-muted/60 p-1 sm:w-fit">
+          <TabsTrigger value="general" className="text-xs gap-1.5 cursor-pointer">
+            <SettingsIcon className="size-3.5" />
+            <span>General</span>
+          </TabsTrigger>
           <TabsTrigger value="sending" className="text-xs gap-1.5 cursor-pointer">
             <SlidersHorizontal className="size-3.5" />
-            <span>Sending Defaults</span>
+            <span>Sending</span>
           </TabsTrigger>
           <TabsTrigger value="integration" className="text-xs gap-1.5 cursor-pointer">
             <Zap className="size-3.5" />
-            <span>Resend Infrastructure</span>
+            <span>Integrations</span>
           </TabsTrigger>
           <TabsTrigger value="account" className="text-xs gap-1.5 cursor-pointer">
             <User className="size-3.5" />
-            <span>Account &amp; Session</span>
+            <span>Account</span>
           </TabsTrigger>
           <TabsTrigger
             value="danger"
             className="text-xs gap-1.5 text-destructive hover:text-destructive data-active:text-destructive cursor-pointer"
           >
             <Shield className="size-3.5" />
-            <span>Danger Zone</span>
+            <span>Advanced</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="general" className="focus-visible:outline-none">
+          <GeneralSettingsSection />
+        </TabsContent>
 
         {/* Sending Defaults Tab */}
         <TabsContent value="sending" className="focus-visible:outline-none">
