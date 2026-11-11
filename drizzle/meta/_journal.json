@@ -64,6 +64,13 @@
       "when": 1794140895133,
       "tag": "0008_emails_user_folder_created_at_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794367610852,
+      "tag": "0009_idempotent_email_send",
+      "breakpoints": true
     }
   ]
 }

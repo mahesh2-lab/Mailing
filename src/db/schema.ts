@@ -17,6 +17,9 @@ import type {
 
 export const emails = pgTable("emails", {
   id: text("id").primaryKey(),
+  providerId: text("provider_id"),
+  idempotencyKey: text("idempotency_key"),
+  requestHash: text("request_hash"),
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
@@ -53,6 +56,7 @@ export const emails = pgTable("emails", {
   labels: jsonb("labels").$type<string[]>().default([]),
 }, (table) => [
   index("emails_user_folder_created_at_idx").on(table.userId, table.folder, table.createdAt),
+  uniqueIndex("emails_user_idempotency_key_idx").on(table.userId, table.idempotencyKey),
 ]);
 
 export const webhookEvents = pgTable("webhook_events", {

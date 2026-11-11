@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { emails, userSettings } from "@/src/db/schema";
 import { db } from "@/src";
 import { sql, eq, and, or, desc, ne } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { getResendClient } from "@/lib/resend";
 import { pusherServer } from "@/src/lib/pusher";
 import { getAuthSession } from "@/src/lib/require-auth";
@@ -58,27 +59,29 @@ export async function GET(request: Request) {
     const userId = session.user.id;
 
     if (searchParams.get("summary") === "1") {
-      const rows = await db.select({
-        folder: emails.folder,
-        status: emails.status,
-        starred: emails.starred,
-        unread: emails.unread,
-        labels: emails.labels,
-      }).from(emails).where(eq(emails.userId, userId));
-      const counts: Record<string, number> = {};
-      for (const row of rows) {
-        const folderName = row.folder.toLowerCase();
-        if (row.unread) {
-          const key = folderName === "drafts" || row.status.toLowerCase() === "draft" ? "Drafts" :
-            folderName === "inbox" ? "Inbox" : folderName === "sent" ? "Sent" :
-            folderName === "archive" ? "Archive" : folderName === "trash" ? "Trash" : null;
-          if (key) counts[key] = (counts[key] || 0) + 1;
-          if (row.starred && folderName !== "trash") counts.Starred = (counts.Starred || 0) + 1;
-          if (folderName !== "trash") {
-            for (const name of row.labels || []) counts[name] = (counts[name] || 0) + 1;
-          }
-        }
-      }
+      const result = await db.execute(sql`
+        WITH unread AS (
+          SELECT lower(folder) AS folder, lower(status) AS status, starred, labels
+          FROM emails WHERE user_id = ${userId} AND unread = true
+        ), counts AS (
+          SELECT CASE
+            WHEN folder = 'drafts' OR status = 'draft' THEN 'Drafts'
+            WHEN folder = 'inbox' THEN 'Inbox'
+            WHEN folder = 'sent' THEN 'Sent'
+            WHEN folder = 'archive' THEN 'Archive'
+            WHEN folder = 'trash' THEN 'Trash'
+          END AS key, count(*)::int AS count
+          FROM unread GROUP BY 1
+          UNION ALL
+          SELECT 'Starred', count(*)::int FROM unread WHERE starred AND folder <> 'trash' HAVING count(*) > 0
+          UNION ALL
+          SELECT label.value, count(*)::int
+          FROM unread CROSS JOIN LATERAL jsonb_array_elements_text(coalesce(labels, '[]'::jsonb)) AS label(value)
+          WHERE folder <> 'trash' GROUP BY label.value
+        )
+        SELECT key, sum(count)::int AS count FROM counts WHERE key IS NOT NULL GROUP BY key
+      `);
+      const counts = Object.fromEntries(result.rows.map((row) => [String(row.key), Number(row.count)]));
       return NextResponse.json(counts);
     }
 
@@ -186,9 +189,64 @@ export async function POST(request: Request) {
       } : {}),
     };
 
+    const now = new Date().toISOString();
+    const storedAttachments = (attachments || []).map((att) => ({
+      id: att.id || crypto.randomUUID(),
+      filename: att.filename,
+      size: att.size || 0,
+      content_type: att.type || "application/octet-stream",
+      download_url: att.url || "#",
+    }));
     let emailId = crypto.randomUUID();
 
     if (!isDraft) {
+      // Clients without this header remain supported, but retries are idempotent only when they reuse it.
+      const idempotencyKey = request.headers.get("Idempotency-Key") || crypto.randomUUID();
+      if (idempotencyKey.length > 256) {
+        return NextResponse.json({ error: "Invalid Idempotency-Key" }, { status: 400 });
+      }
+      const requestHash = createHash("sha256").update(JSON.stringify(resendPayload)).digest("hex");
+      const existingByKey = async () => db.query.emails.findFirst({
+        where: and(eq(emails.userId, userId), eq(emails.idempotencyKey, idempotencyKey)),
+      });
+      let existing = await existingByKey();
+      if (existing) {
+        if (existing.requestHash !== requestHash) {
+          return NextResponse.json({ error: "Idempotency-Key was already used for a different email" }, { status: 409 });
+        }
+        emailId = existing.id;
+        if (existing.providerId) return NextResponse.json({ id: emailId, isDraft: false }, { status: 200 });
+      } else {
+        const [claimed] = await db.insert(emails).values({
+          id: emailId,
+          userId,
+          idempotencyKey,
+          requestHash,
+          to: recipients,
+          cc: ccList,
+          bcc: bccList,
+          from: fromAddress,
+          createdAt: now,
+          subject: subject || "No Subject",
+          html: htmlBody,
+          text: text || "",
+          attachments: storedAttachments,
+          status: "sending",
+          folder: "outbox",
+          starred: false,
+          unread: false,
+          labels: [],
+        }).onConflictDoNothing().returning({ id: emails.id });
+        if (!claimed) {
+          existing = await existingByKey();
+          if (!existing || existing.requestHash !== requestHash) {
+            return NextResponse.json({ error: "Email request is already being processed" }, { status: 409 });
+          }
+          emailId = existing.id;
+          if (existing.providerId) return NextResponse.json({ id: emailId, isDraft: false }, { status: 200 });
+        }
+      }
+
       const resend = await getResendClient(userId);
       if (!resend) {
         return NextResponse.json(
@@ -196,30 +254,18 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const { data, error } = await resend.emails.send(resendPayload);
+      // shortcut: Resend retains idempotency keys for 24 hours; reconcile an older pending outbox row before retrying it.
+      const { data, error } = await resend.emails.send(resendPayload, { idempotencyKey });
       if (error) {
-        return NextResponse.json({ error }, { status: 400 });
+        return NextResponse.json({ error }, { status: 502 });
       }
-      emailId = data?.id || emailId;
-    }
-
-    const now = new Date().toISOString();
-
-    const storedAttachments = (attachments || []).map(
-      (att) => ({
-        id: att.id || crypto.randomUUID(),
-        filename: att.filename,
-        size: att.size || 0,
-        content_type: att.type || "application/octet-stream",
-        download_url: att.url || "#",
-      }),
-    );
-
-    await db
-      .insert(emails)
-      .values({
+      if (!data?.id) return NextResponse.json({ error: "Email provider returned no message ID" }, { status: 502 });
+      await db.update(emails).set({ providerId: data.id, status: "sent", folder: "sent" })
+        .where(and(eq(emails.id, emailId), eq(emails.userId, userId)));
+    } else {
+      await db.insert(emails).values({
         id: emailId,
-        userId: userId,
+        userId,
         to: recipients,
         cc: ccList,
         bcc: bccList,
@@ -229,13 +275,13 @@ export async function POST(request: Request) {
         html: htmlBody,
         text: text || "",
         attachments: storedAttachments,
-        status: isDraft ? "draft" : "sent",
-        folder: isDraft ? "drafts" : "sent",
+        status: "draft",
+        folder: "drafts",
         starred: false,
         unread: false,
         labels: [],
-      })
-      .onConflictDoNothing();
+      }).onConflictDoNothing();
+    }
 
     if (!isDraft) {
       try {

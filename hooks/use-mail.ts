@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import axios from "axios";
 
 export type Folder = "Inbox" | "Starred" | "Sent" | "Drafts" | "Trash" | "Archive";
@@ -53,6 +53,7 @@ export interface SendMailOptions {
 export function useSendMail() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const retryKey = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const sendMail = async (
     toOrOptions: string | string[] | SendMailOptions,
@@ -73,7 +74,14 @@ export function useSendMail() {
           text: text || "",
         };
 
-      const response = await axios.post("/api/v1/messages", payload);
+      const fingerprint = JSON.stringify(payload);
+      if (retryKey.current?.fingerprint !== fingerprint) {
+        retryKey.current = { fingerprint, key: crypto.randomUUID() };
+      }
+      const response = await axios.post("/api/v1/messages", payload, {
+        headers: { "Idempotency-Key": retryKey.current.key },
+      });
+      retryKey.current = null;
       return response.data;
     } catch (err: unknown) {
       console.error("Failed to send message:", err);

@@ -1,6 +1,6 @@
 import { NextResponse, after } from "next/server";
 import { Webhook } from "svix";
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "@/src/index";
 import { emails, webhookEvents, userApiKeys } from "@/src/db/schema";
 import { pusherServer } from "@/src/lib/pusher";
@@ -149,28 +149,28 @@ async function handleStatusChange(
   switch (type) {
     case "email.clicked":
     case "email.opened": {
-      await db
+      const [updated] = await db
         .update(emails)
         .set({ status: "read" })
-        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
+        .where(and(or(eq(emails.providerId, emailId), eq(emails.id, emailId)), eq(emails.userId, resolvedUserId)))
+        .returning({ id: emails.id });
       try {
-        await pusherServer.trigger(emailChannelForUser(resolvedUserId), "read", {
-          emailId,
-        });
+        if (updated) await pusherServer.trigger(emailChannelForUser(resolvedUserId), "read", { emailId: updated.id });
       } catch {}
       break;
     }
     case "email.delivered": {
-      await db
+      const [updated] = await db
         .update(emails)
         .set({ status: "delivered" })
-        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
+        .where(and(or(eq(emails.providerId, emailId), eq(emails.id, emailId)), eq(emails.userId, resolvedUserId)))
+        .returning({ id: emails.id });
       try {
-        await pusherServer.trigger(
+        if (updated) await pusherServer.trigger(
           emailChannelForUser(resolvedUserId),
           "delivered",
           {
-            emailId,
+            emailId: updated.id,
             timestamp: new Date().toISOString(),
           },
         );
@@ -178,13 +178,14 @@ async function handleStatusChange(
       break;
     }
     case "email.bounced": {
-      await db
+      const [updated] = await db
         .update(emails)
         .set({ status: "bounced" })
-        .where(and(eq(emails.id, emailId), eq(emails.userId, resolvedUserId)));
+        .where(and(or(eq(emails.providerId, emailId), eq(emails.id, emailId)), eq(emails.userId, resolvedUserId)))
+        .returning({ id: emails.id });
       try {
-        await pusherServer.trigger(emailChannelForUser(resolvedUserId), "bounced", {
-          emailId,
+        if (updated) await pusherServer.trigger(emailChannelForUser(resolvedUserId), "bounced", {
+          emailId: updated.id,
           reason: eventData.bounce_summary || "Unknown",
           timestamp: new Date().toISOString(),
         });
