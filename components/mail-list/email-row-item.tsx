@@ -41,7 +41,7 @@ export interface EmailRowItemProps {
   isCurrentOpen: boolean;
   isSelectionMode: boolean;
   folder?: Folder;
-  allLabels?: Array<{ id: string; name: string; count?: number }>;
+  allLabels?: Array<{ id: string; name: string; color?: string | null; count?: number }>;
   selectedCount?: number;
   onOpen: (item: MailItem) => void;
   onToggleSelect: (id: string, e?: React.MouseEvent) => void;
@@ -321,15 +321,19 @@ export const EmailRowItem = memo(function EmailRowItem({
                 </span>
                 {item.labels && item.labels.length > 0 && (
                   <div className="flex items-center gap-1 shrink-0 ml-1.5">
-                    {item.labels.slice(0, 2).map((lbl) => (
-                      <Badge
-                        key={lbl}
-                        variant="secondary"
-                        className="text-[9px] h-3.5 px-1.5 py-0 font-normal rounded-xs shrink-0"
-                      >
-                        {lbl}
-                      </Badge>
-                    ))}
+                    {item.labels.slice(0, 2).map((lbl) => {
+                      const labelColor = allLabels?.find((itemLabel) => itemLabel.name === lbl)?.color;
+                      return (
+                        <Badge
+                          key={lbl}
+                          variant="secondary"
+                          className="text-[9px] h-3.5 px-1.5 py-0 font-normal rounded-xs shrink-0 gap-1"
+                        >
+                          {labelColor && <span className="size-1.5 rounded-full" style={{ backgroundColor: labelColor }} />}
+                          {lbl}
+                        </Badge>
+                      );
+                    })}
                     {item.labels.length > 2 && (
                       <span className="text-[9px] text-muted-foreground leading-none">
                         +{item.labels.length - 2}
@@ -390,7 +394,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                       key={l.id}
                       onClick={() => onBulkLabel?.(l.name)}
                     >
-                      <Tag />
+                      <Tag style={{ color: l.color || undefined }} />
                       <span>{l.name}</span>
                     </ContextMenuItem>
                   ))}
@@ -507,7 +511,7 @@ export const EmailRowItem = memo(function EmailRowItem({
                       key={l.id}
                       onClick={() => onApplyLabel?.(item.id, l.name)}
                     >
-                      <Tag />
+                      <Tag style={{ color: l.color || undefined }} />
                       <span>{l.name}</span>
                     </ContextMenuItem>
                   ))}

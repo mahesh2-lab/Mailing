@@ -38,6 +38,7 @@ export function useMessageDetail(id: string | null) {
               sender: {
                 name: sender.name,
                 email: sender.email,
+                avatarUrl: e.avatarUrl,
               },
               to: Array.isArray(e.to) ? e.to : e.to ? [e.to] : [],
               cc: Array.isArray(e.cc) ? e.cc : e.cc ? [e.cc] : [],

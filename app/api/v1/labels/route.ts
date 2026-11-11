@@ -4,8 +4,14 @@ import { emails, customLabels } from "@/src/db/schema";
 import { sql, ne, eq, and } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { getErrorCode, getErrorMessage } from "@/src/lib/errors";
+import { z } from "zod";
+import { DEFAULT_LABEL_COLORS } from "@/lib/label-colors";
 
 const DEFAULT_LABELS = ["Important", "Work", "Personal"];
+const LabelInput = z.object({
+  name: z.string().trim().min(1).max(50),
+  color: z.string().regex(/^#[\da-f]{6}$/i).optional(),
+});
 
 
 async function ensureLabelsInitialized(userId: string) {
@@ -64,7 +70,7 @@ export async function GET() {
     const result = allLabels.map((lbl) => ({
       id: lbl.id,
       name: lbl.name,
-      color: lbl.color,
+      color: lbl.color || DEFAULT_LABEL_COLORS[lbl.name] || null,
       count: labelCounts[lbl.name] || 0,
       createdAt: lbl.createdAt,
     }));
@@ -83,16 +89,9 @@ export async function POST(request: Request) {
 
     await ensureLabelsInitialized(session.user.id);
 
-    const { name, color } = await request.json();
-    const trimmed = (name || "").trim();
-
-    if (!trimmed) {
-      return NextResponse.json({ error: "Label name is required" }, { status: 400 });
-    }
-
-    if (trimmed.length > 50) {
-      return NextResponse.json({ error: "Label name is too long" }, { status: 400 });
-    }
+    const parsed = LabelInput.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: "Provide a label name and valid hex color" }, { status: 400 });
+    const { name: trimmed, color } = parsed.data;
 
     const newLabel = {
       id: `lbl_${crypto.randomUUID()}`,

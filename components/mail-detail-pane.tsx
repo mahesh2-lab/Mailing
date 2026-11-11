@@ -113,7 +113,7 @@ export default function MailDetailPane() {
   const [labelDropOpen, setLabelDropOpen] = useState(false);
   const [labelSearch, setLabelSearch] = useState("");
   const [allLabels, setAllLabels] = useState<
-    Array<{ id: string; name: string }>
+    Array<{ id: string; name: string; color?: string | null }>
   >([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -515,7 +515,10 @@ export default function MailDetailPane() {
                             className="flex items-center justify-between text-xs px-2 py-1.5 rounded-md hover:bg-accent text-left"
                             onClick={() => addLabel(l.name)}
                           >
-                            <span className="truncate">{l.name}</span>
+                            <span className="flex min-w-0 items-center gap-2 truncate">
+                              {l.color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: l.color }} />}
+                              {l.name}
+                            </span>
                             {(message.labels || []).includes(l.name) && (
                               <CheckCircle2 className="size-3.5 text-primary" />
                             )}
@@ -759,23 +762,27 @@ export default function MailDetailPane() {
                     </h1>
                     {message.labels && message.labels.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {message.labels.map((lbl) => (
-                          <Badge
-                            key={lbl}
-                            variant="secondary"
-                            className="text-[11px] h-5 gap-1 pr-1.5 pl-2 font-normal rounded-md bg-muted/60 text-muted-foreground border-border/60"
-                          >
-                            <span>{lbl}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeLabel(lbl)}
-                              className="hover:text-destructive cursor-pointer"
-                              aria-label={`Remove label ${lbl}`}
+                        {message.labels.map((lbl) => {
+                          const labelColor = allLabels.find((item) => item.name === lbl)?.color;
+                          return (
+                            <Badge
+                              key={lbl}
+                              variant="secondary"
+                              className="text-[11px] h-5 gap-1 pr-1.5 pl-2 font-normal rounded-md bg-muted/60 text-muted-foreground border-border/60"
                             >
-                              <X className="size-2.5" />
-                            </button>
-                          </Badge>
-                        ))}
+                              {labelColor && <span className="size-1.5 rounded-full" style={{ backgroundColor: labelColor }} />}
+                              <span>{lbl}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeLabel(lbl)}
+                                className="hover:text-destructive cursor-pointer"
+                                aria-label={`Remove label ${lbl}`}
+                              >
+                                <X className="size-2.5" />
+                              </button>
+                            </Badge>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

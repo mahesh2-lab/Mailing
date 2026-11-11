@@ -3,6 +3,7 @@ import { emails } from "@/src/db/schema";
 import { db } from "@/src";
 import { and, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { gravatarUrl } from "@/lib/gravatar";
 
 export async function GET(
   request: Request,
@@ -39,7 +40,7 @@ export async function GET(
     if (!message || message.length === 0) {
       return NextResponse.json({ error: "Message not found" }, { status: 404 });
     }
-    return NextResponse.json(message[0]);
+    return NextResponse.json({ ...message[0], avatarUrl: gravatarUrl(message[0].from) });
   } catch (error) {
     console.error("Failed to fetch single message:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

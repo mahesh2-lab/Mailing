@@ -101,7 +101,7 @@ export default function MailListPane() {
   const [bulkTrashConfirmOpen, setBulkTrashConfirmOpen] = useState(false);
 
   const [allLabels, setAllLabels] = useState<
-    Array<{ id: string; name: string }>
+    Array<{ id: string; name: string; color?: string | null }>
   >([]);
 
   useEffect(() => {
@@ -719,7 +719,7 @@ export default function MailListPane() {
                             onClick={() => handleBulkLabel(lbl.name)}
                             className="text-xs gap-2"
                           >
-                            <Tag className="size-3.5 text-muted-foreground" />
+                            <Tag className="size-3.5" style={{ color: lbl.color || undefined }} />
                             <span>{lbl.name}</span>
                           </DropdownMenuItem>
                         ))

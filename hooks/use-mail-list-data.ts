@@ -5,6 +5,7 @@ import { toast } from "sonner";
 interface ApiMailListRow {
   id: string;
   from?: string | null;
+  avatarUrl?: string;
   createdAt?: string;
   created_at?: string;
   subject?: string | null;
@@ -29,6 +30,7 @@ function mapMailItem(e: ApiMailListRow): MailItem {
     sender: {
       name: e.from?.split("<")[0].trim() || e.from || "Unknown",
       email: e.from || "",
+      avatarUrl: e.avatarUrl,
     },
     subject: e.subject || "No Subject",
     preview: e.preview || "",

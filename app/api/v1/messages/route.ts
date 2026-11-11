@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { getResendClient } from "@/lib/resend";
 import { pusherServer } from "@/src/lib/pusher";
 import { getAuthSession } from "@/src/lib/require-auth";
+import { gravatarUrl } from "@/lib/gravatar";
 import { emailChannelForUser } from "@/lib/realtime-channels";
 import { escapeHtml } from "@/lib/utils";
 import { z } from "zod";
@@ -120,10 +121,16 @@ export async function GET(request: Request) {
       labels: emails.labels,
       attachments: emails.attachments,
     }).from(emails).where(and(...filters)).orderBy(desc(emails.createdAt));
-    if (pageLimit === null) return NextResponse.json(await query);
+    if (pageLimit === null) {
+      const rows = await query;
+      return NextResponse.json(rows.map((row) => ({ ...row, avatarUrl: gravatarUrl(row.from) })));
+    }
 
     const rows = await query.limit(pageLimit + 1).offset(offset);
-    return NextResponse.json(rows.slice(0, pageLimit), {
+    return NextResponse.json(rows.slice(0, pageLimit).map((row) => ({
+      ...row,
+      avatarUrl: gravatarUrl(row.from),
+    })), {
       headers: { "x-has-more": String(rows.length > pageLimit) },
     });
   } catch (error) {

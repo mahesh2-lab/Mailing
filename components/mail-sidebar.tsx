@@ -62,6 +62,7 @@ import {
 import { ThemeToggle } from "./theme-toggle";
 import { authClient } from "@/src/lib/auth-client";
 import { getInitials } from "@/lib/utils";
+import { DEFAULT_LABEL_COLORS } from "@/lib/label-colors";
 import {
   Sidebar,
   SidebarContent,
@@ -98,6 +99,8 @@ const folderRoutes: Record<Folder, string> = {
   Archive: "/archive",
   Trash: "/trash",
 };
+
+const LABEL_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899"];
 
 const sidebarNavItemClassName =
   "before:pointer-events-none before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:scale-y-0 before:rounded-full before:bg-primary before:transition-transform before:duration-200 before:ease-out data-active:before:scale-y-100 motion-reduce:before:transition-none group-data-[collapsible=icon]:mx-auto";
@@ -145,6 +148,8 @@ export default function MailSidebar({
 
   const [creatingLabel, setCreatingLabel] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState("#3b82f6");
+  const [editingLabelColor, setEditingLabelColor] = useState<string | null>(null);
   const [creatingLoading, setCreatingLoading] = useState(false);
   const [deleteLabelTarget, setDeleteLabelTarget] = useState<string | null>(
     null,
@@ -203,9 +208,10 @@ export default function MailSidebar({
 
     setCreatingLoading(true);
     try {
-      await axios.post("/api/v1/labels", { name: trimmed });
+      await axios.post("/api/v1/labels", { name: trimmed, color: newLabelColor });
       toast.success(`Label "${trimmed}" created`);
       setNewLabelName("");
+      setNewLabelColor("#3b82f6");
       setCreatingLabel(false);
       refresh();
     } catch (error: unknown) {
@@ -213,6 +219,24 @@ export default function MailSidebar({
         ? error.response?.data?.error
         : undefined;
       toast.error(message || "Failed to create label");
+    } finally {
+      setCreatingLoading(false);
+    }
+  }
+
+  async function handleSaveLabelColor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLabelColor) return;
+    setCreatingLoading(true);
+    try {
+      await axios.patch(`/api/v1/labels/${encodeURIComponent(editingLabelColor)}`, {
+        color: newLabelColor,
+      });
+      toast.success(`Updated color for "${editingLabelColor}"`);
+      setEditingLabelColor(null);
+      refresh();
+    } catch {
+      toast.error("Failed to update label color");
     } finally {
       setCreatingLoading(false);
     }
@@ -247,12 +271,15 @@ export default function MailSidebar({
   }
 
   const mergedLabels = useMemo(() => {
-    const list = [...labels];
-    DEFAULT_LABEL_NAMES.forEach((name) => {
-      if (!list.some((l) => l.name.toLowerCase() === name.toLowerCase())) {
-        list.push({ id: name, name, count: 0 });
-      }
-    });
+    const list = labels.map((item) => ({
+      ...item,
+      color: item.color || DEFAULT_LABEL_COLORS[item.name],
+    }));
+    if (labels.length === 0) {
+      DEFAULT_LABEL_NAMES.forEach((name) => {
+        list.push({ id: name, name, color: DEFAULT_LABEL_COLORS[name], count: 0 });
+      });
+    }
     return list;
   }, [labels]);
 
@@ -657,7 +684,10 @@ export default function MailSidebar({
                 </SidebarGroupLabel>
                 <SidebarGroupAction
                   className="relative top-auto right-auto flex size-5 items-center justify-center rounded-md p-0 text-muted-foreground/75 hover:text-foreground hover:bg-sidebar-accent transition-colors cursor-pointer"
-                  onClick={() => setCreatingLabel((prev) => !prev)}
+                  onClick={() => {
+                    setEditingLabelColor(null);
+                    setCreatingLabel((prev) => !prev);
+                  }}
                   title="Create new label"
                   aria-label="Create new label"
                 >
@@ -666,38 +696,59 @@ export default function MailSidebar({
               </div>
               <SidebarGroupContent>
                 {/* Inline Create Label Form */}
-                {creatingLabel && (
+                {(creatingLabel || editingLabelColor) && (
                   <form
-                    onSubmit={handleCreateLabel}
-                    className="flex items-center gap-1 px-1 py-1 mb-1"
+                    onSubmit={editingLabelColor ? handleSaveLabelColor : handleCreateLabel}
+                    className="space-y-2 rounded-lg border border-sidebar-border/70 bg-sidebar-accent/30 p-2 mb-1"
                   >
-                    <Input
-                      placeholder="Label name..."
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      className="h-7 text-xs px-2"
-                      autoFocus
-                    />
-                    <Button
-                      type="submit"
-                      size="xs"
-                      disabled={creatingLoading || !newLabelName.trim()}
-                      className="h-7 px-2 text-xs"
-                    >
-                      {creatingLoading ? <Spinner className="size-3" /> : "Add"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="size-7"
-                      onClick={() => {
-                        setCreatingLabel(false);
-                        setNewLabelName("");
-                      }}
-                    >
-                      <X className="size-3.5" />
-                    </Button>
+                    {editingLabelColor ? (
+                      <p className="truncate text-xs font-medium">Color for {editingLabelColor}</p>
+                    ) : (
+                      <Input
+                        placeholder="Label name..."
+                        value={newLabelName}
+                        onChange={(e) => setNewLabelName(e.target.value)}
+                        className="h-7 text-xs px-2"
+                        autoFocus
+                      />
+                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground">Color</span>
+                      <div className="flex items-center gap-1.5">
+                        {LABEL_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            aria-label={`Set label color ${color}`}
+                            aria-pressed={newLabelColor === color}
+                            onClick={() => setNewLabelColor(color)}
+                            className={`size-4 rounded-full ring-offset-1 ring-offset-sidebar ${newLabelColor === color ? "ring-2 ring-sidebar-ring" : "hover:scale-110"}`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        onClick={() => {
+                          setCreatingLabel(false);
+                          setEditingLabelColor(null);
+                          setNewLabelName("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="xs"
+                        disabled={creatingLoading || (!editingLabelColor && !newLabelName.trim())}
+                      >
+                        {creatingLoading ? <Spinner className="size-3" /> : editingLabelColor ? "Save" : "Add"}
+                      </Button>
+                    </div>
                   </form>
                 )}
 
@@ -705,9 +756,6 @@ export default function MailSidebar({
                   {mergedLabels.map((lbl) => {
                     const isActive = label === lbl.name;
                     const count = counts[lbl.name] || lbl.count || 0;
-                    const isDefault = DEFAULT_LABEL_NAMES.some(
-                      (n) => n.toLowerCase() === lbl.name.toLowerCase(),
-                    );
                     const labelHref = `/labels/${encodeURIComponent(lbl.name)}`;
                     const isNavigating = navigatingKey === `label:${lbl.name}`;
 
@@ -724,7 +772,7 @@ export default function MailSidebar({
                                   onClick={() => selectLabel(lbl.name)}
                                   className={sidebarNavItemClassName}
                                 >
-                                  <Tag className="size-3.5 shrink-0" />
+                                  <Tag className="size-3.5 shrink-0" style={{ color: lbl.color || undefined }} />
                                   <span>{lbl.name}</span>
                                 </SidebarMenuButton>
                               </AnimateIcon>
@@ -753,37 +801,42 @@ export default function MailSidebar({
                               <Copy className="size-4 mr-2" />
                               Copy label name
                             </ContextMenuItem>
-                            {!isDefault && (
-                              <>
-                                <ContextMenuSeparator />
-                                <ContextMenuItem
-                                  variant="destructive"
-                                  onClick={() => setDeleteLabelTarget(lbl.name)}
-                                >
-                                  <Trash2 className="size-4 mr-2" />
-                                  Delete label
-                                </ContextMenuItem>
-                              </>
-                            )}
+                            <ContextMenuItem
+                              onClick={() => {
+                                setCreatingLabel(false);
+                                setNewLabelColor(lbl.color || DEFAULT_LABEL_COLORS[lbl.name] || "#3b82f6");
+                                setEditingLabelColor(lbl.name);
+                              }}
+                            >
+                              <Tag className="size-4 mr-2" />
+                              Change color
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem
+                              variant="destructive"
+                              onClick={() => setDeleteLabelTarget(lbl.name)}
+                            >
+                              <Trash2 className="size-4 mr-2" />
+                              Delete label
+                            </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
                         {count > 0 && (
-                          <SidebarMenuBadge>
+                          <SidebarMenuBadge className="right-2 transition-[right] duration-150 group-hover/menu-item:right-10 group-focus-within/menu-item:right-10">
                             {count > 99 ? "99+" : count}
                           </SidebarMenuBadge>
                         )}
-                        {!isDefault && (
-                          <SidebarMenuAction
-                            showOnHover
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteLabelTarget(lbl.name);
-                            }}
-                            aria-label={`Delete label "${lbl.name}"`}
-                          >
-                            <Trash2 className="size-3" />
-                          </SidebarMenuAction>
-                        )}
+                        <SidebarMenuAction
+                            className="right-0 translate-x-1 scale-95 transition-[opacity,transform,background-color] duration-150 group-hover/menu-item:translate-x-0 group-hover/menu-item:scale-100 group-focus-within/menu-item:translate-x-0 group-focus-within/menu-item:scale-100 active:scale-90 motion-reduce:transition-none"
+                          showOnHover
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteLabelTarget(lbl.name);
+                          }}
+                          aria-label={`Delete label "${lbl.name}"`}
+                        >
+                          <Trash2 className="size-3 transition-transform duration-150 group-hover/menu-item:rotate-6 motion-reduce:transition-none" />
+                        </SidebarMenuAction>
                       </SidebarMenuItem>
                     );
                   })}
