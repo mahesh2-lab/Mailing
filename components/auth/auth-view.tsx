@@ -15,14 +15,12 @@ import {
   ArrowRight,
   Zap,
   Inbox,
-  FileText,
   Send,
   Star,
-  Layers,
   CheckCircle2,
   SlidersHorizontal,
   Search,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { authClient } from "@/src/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -476,17 +474,12 @@ export function AuthView({ initialMode = "login" }: AuthViewProps) {
                   Password
                 </label>
                 {mode === "login" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      toast.info(
-                        "Password reset instructions will be sent to your email.",
-                      )
-                    }
+                  <Link
+                    href="/forgot-password"
                     className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-4 decoration-border cursor-pointer transition-colors"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 )}
               </div>
               <div className="relative">
@@ -621,7 +614,7 @@ export function AuthView({ initialMode = "login" }: AuthViewProps) {
           <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground pt-0.5">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="size-3.5 text-emerald-500" />
-              <span>End-to-end encrypted</span>
+              <span>Encrypted credentials</span>
             </span>
             <span className="text-border">•</span>
             <span className="inline-flex items-center gap-1.5">
@@ -636,25 +629,18 @@ export function AuthView({ initialMode = "login" }: AuthViewProps) {
           <p>
             By continuing, you agree to our{" "}
             <Link
-              href="/docs"
-              className="text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
-            >
-              Documentation
-            </Link>
-            ,{" "}
-            <a
-              href="#"
+              href="/terms"
               className="text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
             >
               Terms of Service
-            </a>{" "}
+            </Link>{" "}
             and{" "}
-            <a
-              href="#"
+            <Link
+              href="/privacy"
               className="text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
             >
               Privacy Policy
-            </a>
+            </Link>
             .
           </p>
         </footer>
