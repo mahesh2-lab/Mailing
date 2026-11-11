@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { syncAutomationSchedule } from "@/lib/automation-schedules";
 import { getErrorMessage } from "@/src/lib/errors";
+import { automationCreateInput } from "@/lib/automation-validation";
 
 export async function GET() {
   try {
@@ -24,7 +25,9 @@ export async function POST(request: Request) {
     const session = await getAuthSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await request.json();
+    const parsed = automationCreateInput.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: "Invalid automation data" }, { status: 400 });
+    const body = parsed.data;
     const id = body.id || crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -32,13 +35,13 @@ export async function POST(request: Request) {
       id,
       name: body.name || "Untitled Automation",
       description: body.description || "",
-      enabled: Boolean(body.enabled),
+      enabled: body.enabled ?? false,
       nodes: body.nodes || [],
       edges: body.edges || [],
-      runCount: String(body.runCount || 0),
-      successRate: String(body.successRate || 100),
-      lastRunAt: body.lastRunAt || null,
-      createdAt: body.createdAt || now,
+      runCount: "0",
+      successRate: "100",
+      lastRunAt: null,
+      createdAt: now,
       userId: session.user.id,
       updatedAt: now,
     };

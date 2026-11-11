@@ -14,7 +14,7 @@ import {
   Wrench,
   Sparkles,
   GitBranch,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,

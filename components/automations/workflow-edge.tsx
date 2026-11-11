@@ -7,7 +7,7 @@ import {
   getBezierPath,
   type EdgeProps,
 } from "@xyflow/react";
-import { X } from "lucide-react";
+import { X } from "@/components/animate-ui/icons";
 
 /**
  * Concrete edge colours. We avoid `var(--brand)` here because arrow markers are

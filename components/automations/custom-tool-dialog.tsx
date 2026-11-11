@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2, Wrench } from "lucide-react";
+import { Plus, Trash2, Wrench } from "@/components/animate-ui/icons";
 import {
   Dialog,
   DialogContent,

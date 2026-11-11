@@ -13,11 +13,9 @@ import {
   Forward,
   GitBranch,
   Globe,
-  GripVertical,
   Inbox,
   Mail,
   PanelLeftClose,
-  PanelLeftOpen,
   Plus,
   RefreshCw,
   Search,
@@ -26,8 +24,7 @@ import {
   Star,
   Tag,
   Wrench,
-  Zap,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,34 +43,6 @@ interface NodeItemDef {
   icon: React.ComponentType<{ className?: string }>;
   customToolId?: string;
 }
-
-const CATEGORY_STYLES: Record<NodeCategory, { bg: string; text: string; badge: string }> = {
-  trigger: {
-    bg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    text: "text-emerald-600 dark:text-emerald-400",
-    badge: "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
-  },
-  logic: {
-    bg: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    text: "text-amber-600 dark:text-amber-400",
-    badge: "border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/10",
-  },
-  ai: {
-    bg: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-    text: "text-violet-600 dark:text-violet-400",
-    badge: "border-violet-500/30 text-violet-600 dark:text-violet-400 bg-violet-500/10",
-  },
-  email: {
-    bg: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    text: "text-blue-600 dark:text-blue-400",
-    badge: "border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10",
-  },
-  tool: {
-    bg: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
-    text: "text-cyan-600 dark:text-cyan-400",
-    badge: "border-cyan-500/30 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10",
-  },
-};
 
 const PREDEFINED_NODE_ITEMS: NodeItemDef[] = [
   // TRIGGERS

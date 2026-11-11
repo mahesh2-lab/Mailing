@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { ArrowLeft, Play, Save } from "lucide-react";
+import { ArrowLeft, Play, Save } from "@/components/animate-ui/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,12 +50,6 @@ export function AutomationBuilder({
   const isMobile = useIsMobile();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean | null>(null);
   const isSidebarCollapsed = sidebarCollapsed ?? isMobile;
-
-  // Connecting context (if user clicked + on a specific node)
-  const [targetParentId, setTargetParentId] = useState<string | null>(null);
-  const [targetBranchCondition, setTargetBranchCondition] = useState<
-    "true" | "false" | undefined
-  >(undefined);
 
   const selectedNode =
     automation.nodes.find((n) => n.id === selectedNodeId) || null;
@@ -129,15 +123,6 @@ export function AutomationBuilder({
     });
   }, []);
 
-  const handleAddChildNode = useCallback(
-    (parentId: string, condition?: "true" | "false") => {
-      setTargetParentId(parentId);
-      setTargetBranchCondition(condition);
-      toast.info("Select an action from the left sidebar to connect as next step");
-    },
-    []
-  );
-
   function handleAddNodeFromPicker(item: {
     type: NodeType;
     category: NodeCategory;
@@ -169,34 +154,18 @@ export function AutomationBuilder({
         }));
         setSelectedNodeId(existingTrigger.id);
         setConfigPanelOpen(true);
-        setTargetParentId(null);
-        setTargetBranchCondition(undefined);
         toast.success(`Workflow trigger updated to "${item.title}"`);
         return;
       }
     }
 
     const newId = generateId();
-    const parentNode = targetParentId
-      ? automation.nodes.find((n) => n.id === targetParentId)
-      : selectedNodeId
-      ? automation.nodes.find((n) => n.id === selectedNodeId)
-      : automation.nodes[automation.nodes.length - 1];
+    const parentNode = automation.nodes.find((n) => n.id === selectedNodeId)
+      ?? automation.nodes.at(-1);
 
-    let posX = 260;
-    let posY = 100;
-    if (parentNode) {
-      if (targetBranchCondition === "true") {
-        posX = parentNode.position.x + 320;
-        posY = parentNode.position.y - 100;
-      } else if (targetBranchCondition === "false") {
-        posX = parentNode.position.x + 320;
-        posY = parentNode.position.y + 100;
-      } else {
-        posX = parentNode.position.x + 320;
-        posY = parentNode.position.y;
-      }
-    }
+    const position = parentNode
+      ? { x: parentNode.position.x + 320, y: parentNode.position.y }
+      : { x: 260, y: 100 };
 
     const defaultNodeConfig = item.customTool
       ? {
@@ -218,8 +187,7 @@ export function AutomationBuilder({
       title: item.title,
       description: item.description,
       config: defaultNodeConfig,
-      position: { x: posX, y: posY },
-      branch: targetBranchCondition,
+      position,
     };
 
     const newEdges = [...automation.edges];
@@ -228,8 +196,6 @@ export function AutomationBuilder({
         id: generateId(),
         from: parentNode.id,
         to: newId,
-        condition: targetBranchCondition,
-        label: targetBranchCondition === "true" ? "Yes" : targetBranchCondition === "false" ? "No" : undefined,
       });
     }
 
@@ -241,9 +207,6 @@ export function AutomationBuilder({
 
     setSelectedNodeId(newId);
     setConfigPanelOpen(true);
-    setTargetParentId(null);
-    setTargetBranchCondition(undefined);
-
     toast.success(`Added "${newNode.title}" to workflow`);
   }
 
@@ -409,7 +372,6 @@ export function AutomationBuilder({
           selectedNodeId={selectedNodeId}
           onSelectNode={handleSelectNode}
           onDeleteNode={handleDeleteNode}
-          onAddChildNode={handleAddChildNode}
           onUpdateNodePosition={handleUpdateNodePosition}
           onConnectEdge={handleConnectEdge}
           onDeleteEdge={handleDeleteEdge}

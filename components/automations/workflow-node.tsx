@@ -13,9 +13,7 @@ import {
   GitBranch,
   Globe,
   Inbox,
-  Mail,
   MoreHorizontal,
-  Plus,
   RefreshCw,
   Send,
   Settings,
@@ -24,10 +22,8 @@ import {
   Tag,
   Trash2,
   Wrench,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { createElement } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +38,6 @@ interface WorkflowNodeComponentProps {
   selected: boolean;
   onSelect: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
-  onAddChild?: (nodeId: string, condition?: "true" | "false") => void;
 }
 
 const CATEGORY_COLORS: Record<
@@ -107,7 +102,6 @@ export function WorkflowNodeCard({
   selected,
   onSelect,
   onDelete,
-  onAddChild,
 }: WorkflowNodeComponentProps) {
   const colors = CATEGORY_COLORS[node.category] || CATEGORY_COLORS.tool;
   const Icon = getNodeIcon(node.type);

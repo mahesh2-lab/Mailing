@@ -9,13 +9,11 @@ import {
   Zap,
   CheckCircle2,
   XCircle,
-  Clock,
   ChevronRight,
   Mail,
   ArrowRight,
   Activity,
-  SlidersHorizontal,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {

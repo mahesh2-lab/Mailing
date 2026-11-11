@@ -4,18 +4,13 @@ import { useState } from "react";
 import {
   CheckCircle2,
   XCircle,
-  Clock,
   Search,
-  Filter,
-  ArrowRight,
-  RotateCcw,
-} from "lucide-react";
+} from "@/components/animate-ui/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExecutionRun } from "./automation-types";
 import { ExecutionDetails } from "./execution-details";
-import { toast } from "sonner";
 
 interface ExecutionHistoryProps {
   history: ExecutionRun[];

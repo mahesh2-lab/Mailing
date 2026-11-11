@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Braces, Check } from "lucide-react";
+import { Braces, Check } from "@/components/animate-ui/icons";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

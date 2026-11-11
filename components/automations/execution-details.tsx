@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, XCircle, Clock, RotateCcw, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, AlertTriangle } from "@/components/animate-ui/icons";
 import {
   Dialog,
   DialogContent,

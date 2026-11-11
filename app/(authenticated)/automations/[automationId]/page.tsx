@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "@/components/animate-ui/icons";
 import { Button } from "@/components/ui/button";
 import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import { AutomationBuilder } from "@/components/automations/automation-builder";
@@ -154,7 +153,6 @@ export default function AutomationEditorPage() {
   return (
     <AuthenticatedPageShell
       title={automation.name || "Workflow Editor"}
-      description="Visual automation graph builder"
       fullWidth={true}
     >
       <div className="flex-1 flex w-full h-full overflow-hidden">

@@ -6,6 +6,7 @@ import { automationQueue } from "@/lib/queue";
 import { getAuthSession } from "@/src/lib/require-auth";
 import { syncAutomationSchedule } from "@/lib/automation-schedules";
 import { getErrorMessage } from "@/src/lib/errors";
+import { automationUpdateInput, validateWorkflowGraph } from "@/lib/automation-validation";
 
 export async function GET(
   request: Request,
@@ -39,7 +40,18 @@ export async function PUT(
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { automationId } = await params;
-    const body = await request.json();
+    const parsed = automationUpdateInput.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: "Invalid automation data" }, { status: 400 });
+    const body = parsed.data;
+    const current = await db.query.automations.findFirst({
+      where: and(eq(automations.id, automationId), eq(automations.userId, session.user.id)),
+    });
+    if (!current) return NextResponse.json({ error: "Automation not found" }, { status: 404 });
+    const nodes = body.nodes ?? current.nodes;
+    const edges = body.edges ?? current.edges;
+    if (!validateWorkflowGraph(nodes, edges)) {
+      return NextResponse.json({ error: "Workflow edges must reference unique node IDs" }, { status: 400 });
+    }
     const now = new Date().toISOString();
 
     await db
@@ -48,8 +60,8 @@ export async function PUT(
         name: body.name,
         description: body.description,
         enabled: body.enabled !== undefined ? Boolean(body.enabled) : undefined,
-        nodes: body.nodes !== undefined ? body.nodes : undefined,
-        edges: body.edges !== undefined ? body.edges : undefined,
+        nodes: body.nodes,
+        edges: body.edges,
         updatedAt: now,
       })
       .where(and(eq(automations.id, automationId), eq(automations.userId, session.user.id)));

@@ -39,7 +39,6 @@ interface WorkflowCanvasProps {
   selectedNodeId: string | null;
   onSelectNode: (id: string | null) => void;
   onDeleteNode: (id: string) => void;
-  onAddChildNode: (parentId: string, condition?: "true" | "false") => void;
   onUpdateNodePosition?: (id: string, pos: { x: number; y: number }) => void;
   onConnectEdge?: (connection: { source: string; target: string }) => void;
   onDeleteEdge?: (edgeId: string) => void;
@@ -53,7 +52,6 @@ type WorkflowNodeData = {
   node: WorkflowNode;
   onSelectNode: (id: string | null) => void;
   onDeleteNode: (id: string) => void;
-  onAddChildNode: (parentId: string, condition?: "true" | "false") => void;
 };
 
 const HANDLE_CLASS =
@@ -101,7 +99,6 @@ function WorkflowFlowNode({
         selected={Boolean(selected)}
         onSelect={data.onSelectNode}
         onDelete={data.onDeleteNode}
-        onAddChild={data.onAddChildNode}
       />
 
       <Handle
@@ -120,7 +117,6 @@ function CanvasInner({
   selectedNodeId,
   onSelectNode,
   onDeleteNode,
-  onAddChildNode,
   onUpdateNodePosition,
   onConnectEdge,
   onDeleteEdge,
@@ -148,7 +144,7 @@ function CanvasInner({
           id: node.id,
           type: "workflowNode",
           position: node.position,
-          data: { node, onSelectNode, onDeleteNode, onAddChildNode },
+          data: { node, onSelectNode, onDeleteNode },
           selected: selectedNodeId === node.id,
         };
         return existing
@@ -161,7 +157,6 @@ function CanvasInner({
     selectedNodeId,
     onSelectNode,
     onDeleteNode,
-    onAddChildNode,
     setRfNodes,
   ]);
 

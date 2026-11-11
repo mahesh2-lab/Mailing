@@ -1,22 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Check,
   History,
-  Inbox,
   Plus,
-  Sparkles,
-  Zap,
-} from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+} from "@/components/animate-ui/icons";
+import { Button } from "@/components/ui/button";
 import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import {
   Automation,
-  CustomTool,
   ExecutionRun,
   WorkflowEdge,
   WorkflowNode,
@@ -34,15 +28,12 @@ export function AutomationPage() {
 
   // State synced with backend database
   const [automations, setAutomations] = useState<Automation[]>([]);
-  const [customTools, setCustomTools] = useState<CustomTool[]>([]);
   const [history, setHistory] = useState<ExecutionRun[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Load live data from PostgreSQL backend API
   async function loadData() {
     return Promise.all([
       fetch("/api/v1/automations").then((r) => r.json()),
-      fetch("/api/v1/automations/tools").then((r) => r.json()),
       fetch("/api/v1/automations/history").then((r) => r.json()),
     ]);
   }
@@ -50,7 +41,7 @@ export function AutomationPage() {
   useEffect(() => {
     let active = true;
     loadData()
-      .then(([autosRes, toolsRes, histRes]) => {
+      .then(([autosRes, histRes]) => {
         if (!active) return;
         if (autosRes?.data) {
           type AutomationRecord = Omit<Automation, "runCount" | "successRate"> & {
@@ -65,15 +56,11 @@ export function AutomationPage() {
             }))
           );
         }
-        if (toolsRes?.data) setCustomTools(toolsRes.data);
         if (histRes?.data) setHistory(histRes.data);
       })
-      .catch((err: unknown) => {
-        console.error("Failed to load automations from backend:", err);
+      .catch((error: unknown) => {
+        console.error("Failed to load automations from backend:", error);
         if (active) toast.error("Failed to load automations from server");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -106,19 +93,23 @@ export function AutomationPage() {
     };
 
     try {
-      const res = await fetch("/api/v1/automations", {
+      const response = await fetch("/api/v1/automations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newAuto),
-      }).then((r) => r.json());
+      });
+      const res = await response.json();
 
-      if (res.data) {
-        setAutomations([newAuto, ...automations]);
-        toast.success("Created new automation workflow");
-        router.push(`/automations/${newAuto.id}`);
+      if (!response.ok || !res.data) {
+        toast.error(res.error || "Failed to create automation");
+        return;
       }
-    } catch (err) {
+
+      setAutomations((previous) => [newAuto, ...previous]);
+      toast.success("Created new automation workflow");
       router.push(`/automations/${newAuto.id}`);
+    } catch {
+      toast.error("Failed to create automation");
     }
   }
 
@@ -127,19 +118,23 @@ export function AutomationPage() {
   }
 
   async function handleToggleEnabled(id: string, enabled: boolean) {
-    // Optimistic update
-    setAutomations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, enabled } : a))
-    );
-
     try {
-      await fetch(`/api/v1/automations/${id}`, {
+      const response = await fetch(`/api/v1/automations/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled }),
       });
+      if (!response.ok) throw new Error("Request failed");
+      setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, enabled } : a)));
       toast.success(enabled ? "Automation activated" : "Automation paused");
     } catch {
+      try {
+        const response = await fetch(`/api/v1/automations/${id}`);
+        if (response.ok) {
+          const { data } = await response.json();
+          setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, enabled: data.enabled } : a)));
+        }
+      } catch {}
       toast.error("Failed to update status on server");
     }
   }
@@ -186,12 +181,16 @@ export function AutomationPage() {
 
   async function handleDelete(id: string) {
     const target = automations.find((a) => a.id === id);
-    setAutomations((prev) => prev.filter((a) => a.id !== id));
-
     try {
-      await fetch(`/api/v1/automations/${id}`, { method: "DELETE" });
+      const response = await fetch(`/api/v1/automations/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Request failed");
+      setAutomations((prev) => prev.filter((a) => a.id !== id));
       toast.success(`Deleted "${target?.name || "Automation"}"`);
     } catch {
+      try {
+        const response = await fetch(`/api/v1/automations/${id}`);
+        if (response.status === 404) setAutomations((prev) => prev.filter((a) => a.id !== id));
+      } catch {}
       toast.error("Failed to delete automation from server");
     }
   }
@@ -294,7 +293,6 @@ export function AutomationPage() {
   return (
     <AuthenticatedPageShell
       title="Automations"
-      description="Build automated rules and intelligent workflows triggered by incoming emails."
       actions={
         <div className="flex items-center gap-1.5">
           {view === "list" ? (
@@ -360,7 +358,7 @@ export function AutomationPage() {
             onDuplicate={handleDuplicate}
             onDelete={handleDelete}
             onTestRun={handleTestRun}
-            onViewHistoryForAutomation={(autoId) => setView("history")}
+            onViewHistoryForAutomation={() => setView("history")}
           />
         )}
 
