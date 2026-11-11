@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Braces, Check } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -43,10 +44,12 @@ export function VariablePicker({
             type="button"
             variant="outline"
             size={size === "icon-xs" ? "icon-xs" : "xs"}
-            className="h-7 text-xs font-normal gap-1.5 px-2 text-muted-foreground hover:text-foreground border-border/80"
+            className="h-7 text-xs font-normal gap-1.5 px-2 text-muted-foreground hover:text-foreground border-border/80 cursor-pointer"
             title="Insert workflow variable"
           >
-            <Braces className="size-3.5 text-brand" />
+            <AnimateIcon animateOnHover>
+              <Braces className="size-3.5 text-brand" />
+            </AnimateIcon>
             {size !== "icon-xs" && <span>{label}</span>}
           </Button>
         }
@@ -78,7 +81,9 @@ export function VariablePicker({
                       </span>
                     </div>
                     {copiedKey === v.key ? (
-                      <Check className="size-3 text-emerald-500 shrink-0" />
+                      <AnimateIcon animateOnHover>
+                        <Check className="size-3 text-emerald-500 shrink-0" />
+                      </AnimateIcon>
                     ) : (
                       <span className="text-[10px] text-muted-foreground/60 group-hover:text-foreground shrink-0 font-mono">
                         ↵

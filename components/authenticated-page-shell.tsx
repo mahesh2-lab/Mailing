@@ -1,8 +1,8 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Inbox, LogOut, Menu } from "@/components/animate-ui/icons";
+import { Inbox, LogOut, Menu, PanelLeftClose, PanelLeftOpen } from "@/components/animate-ui/icons";
 import MailSidebar from "./mail-sidebar";
 import { MailProvider, useMailContext } from "./mail-context";
 import ComposePanel from "./compose-panel";
@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { authClient } from "@/src/lib/auth-client";
 import { toast } from "sonner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,21 +27,36 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence } from "motion/react";
 import { ReducedMotionConfig } from "@animate-ui/react/utils/motion";
 
+export interface AuthenticatedPageShellProps {
+  title: string;
+  badge?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+  fullWidth?: boolean;
+  hideSidebar?: boolean;
+}
+
 function ShellInner({
   title,
   badge,
   actions,
   children,
   fullWidth = false,
-}: {
-  title: string;
-  badge?: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
-  fullWidth?: boolean;
-}) {
+  hideSidebar: hideSidebarProp,
+}: AuthenticatedPageShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const isAutomationEditor =
+    Boolean(pathname?.startsWith("/automations/") && pathname !== "/automations");
+  const shouldHideSidebarDefault =
+    hideSidebarProp !== undefined ? hideSidebarProp : isAutomationEditor;
+
+  const [sidebarVisible, setSidebarVisible] = useState(!shouldHideSidebarDefault);
+
+  useEffect(() => {
+    setSidebarVisible(!shouldHideSidebarDefault);
+  }, [shouldHideSidebarDefault]);
+
   const {
     mobileNavOpen,
     setMobileNavOpen,
@@ -45,7 +65,7 @@ function ShellInner({
     openCompose,
   } = useMailContext();
 
-  // Keyboard shortcut listener for Compose (C) and Escape
+  // Keyboard shortcut listener for Compose (C), Sidebar toggle ([, Cmd/Ctrl+B) and Escape
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (
@@ -53,6 +73,15 @@ function ShellInner({
         e.target instanceof HTMLTextAreaElement ||
         (e.target as HTMLElement)?.isContentEditable
       ) {
+        return;
+      }
+
+      if (
+        e.key === "[" ||
+        ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b")
+      ) {
+        e.preventDefault();
+        setSidebarVisible((prev) => !prev);
         return;
       }
 
@@ -93,8 +122,15 @@ function ShellInner({
 
   return (
     <div className="h-dvh w-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)] max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)] flex overflow-hidden bg-background text-foreground select-none">
-      {/* Persistent Left Sidebar */}
-      <MailSidebar hideThemeToggle />
+      {/* Left Sidebar */}
+      <div
+        className={cn(
+          "h-full shrink-0 flex transition-all duration-200",
+          !sidebarVisible && "hidden"
+        )}
+      >
+        <MailSidebar hideThemeToggle />
+      </div>
 
       {/* Mobile Sidebar Backdrop */}
       {mobileNavOpen && (
@@ -119,6 +155,30 @@ function ShellInner({
             >
               <Menu className="size-4" />
             </Button>
+
+            {/* Desktop Sidebar Toggle */}
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="hidden md:inline-flex size-8 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                    onClick={() => setSidebarVisible((v) => !v)}
+                    aria-label={sidebarVisible ? "Hide sidebar ([)" : "Show sidebar ([)"}
+                  >
+                    {sidebarVisible ? (
+                      <PanelLeftClose className="size-4" />
+                    ) : (
+                      <PanelLeftOpen className="size-4" />
+                    )}
+                  </Button>
+                }
+              />
+              <TooltipContent side="bottom">
+                {sidebarVisible ? "Hide sidebar ([)" : "Show sidebar ([)"}
+              </TooltipContent>
+            </Tooltip>
 
             {/* Breadcrumb Navigation */}
             <Breadcrumb>
@@ -207,13 +267,7 @@ function ShellInner({
   );
 }
 
-export function AuthenticatedPageShell(props: {
-  title: string;
-  badge?: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
-  fullWidth?: boolean;
-}) {
+export function AuthenticatedPageShell(props: AuthenticatedPageShellProps) {
   return (
     <MailProvider>
       <ShellInner {...props} />

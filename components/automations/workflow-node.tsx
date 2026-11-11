@@ -23,7 +23,9 @@ import {
   Trash2,
   Wrench,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { createElement } from "react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,17 +134,19 @@ export function WorkflowNodeCard({
         e.stopPropagation();
         onSelect(node.id);
       }}
-      className={`relative w-64 rounded-sm bg-card/95 backdrop-blur-sm border text-card-foreground transition-colors cursor-pointer group flex shadow-2xs outline-none focus:outline-none focus:ring-0 ${
+      className={`relative w-64 rounded-sm bg-card/95 backdrop-blur-sm border text-card-foreground transition-all cursor-pointer group flex shadow-2xs outline-none focus:outline-none focus:ring-0 active:scale-[0.99] ${
         selected
           ? "border-brand ring-1 ring-brand/20 shadow-xs"
           : "hover:border-foreground/30 border-border/80"
       }`}
     >
-      {/* Left Colored Icon Block */}
+      {/* Left Colored Icon Block with AnimateIcon hover */}
       <div
-        className={`w-12 flex-shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}
+        className={`w-12 shrink-0 flex items-center justify-center rounded-l-sm border-r border-border/40 ${colors.bg} ${colors.text}`}
       >
-        {createElement(Icon, { className: "size-5" })}
+        <AnimateIcon animateOnHover>
+          {createElement(Icon, { className: "size-5" })}
+        </AnimateIcon>
       </div>
 
       {/* Right Content Area */}
@@ -153,22 +157,40 @@ export function WorkflowNodeCard({
           </div>
 
           {/* Action Menu (Visible on hover or selected) */}
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div
+            className={`flex items-center transition-opacity ${
+              selected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <button
-                  type="button"
-                  className="size-5 rounded-sm grid place-items-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="size-6 text-muted-foreground hover:text-foreground p-0 cursor-pointer"
+                    aria-label="Node options"
+                  />
+                }
+              >
+                <AnimateIcon animateOnHover>
                   <MoreHorizontal className="size-3.5" />
-                </button>
+                </AnimateIcon>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 className="w-36 text-xs p-1 rounded-sm"
               >
-                <DropdownMenuItem onClick={() => onSelect(node.id)}>
-                  <Settings className="size-3.5 mr-2" /> Configure
+                <DropdownMenuItem
+                  onClick={() => onSelect(node.id)}
+                  className="cursor-pointer"
+                >
+                  <AnimateIcon animateOnHover>
+                    <Settings className="size-3.5 mr-2" />
+                  </AnimateIcon>
+                  <span>Configure</span>
                 </DropdownMenuItem>
                 {node.category !== "trigger" && (
                   <>
@@ -177,7 +199,10 @@ export function WorkflowNodeCard({
                       onClick={() => onDelete(node.id)}
                       className="text-destructive focus:text-destructive cursor-pointer"
                     >
-                      <Trash2 className="size-3.5 mr-2" /> Delete
+                      <AnimateIcon animateOnHover>
+                        <Trash2 className="size-3.5 mr-2" />
+                      </AnimateIcon>
+                      <span>Delete</span>
                     </DropdownMenuItem>
                   </>
                 )}

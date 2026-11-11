@@ -154,6 +154,7 @@ export default function AutomationEditorPage() {
     <AuthenticatedPageShell
       title={automation.name || "Workflow Editor"}
       fullWidth={true}
+      hideSidebar={true}
     >
       <div className="flex-1 flex w-full h-full overflow-hidden">
         <AutomationBuilder

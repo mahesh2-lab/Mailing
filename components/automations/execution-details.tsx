@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, XCircle, RotateCcw, AlertTriangle } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import {
   Dialog,
   DialogContent,
@@ -47,11 +48,13 @@ export function ExecutionDetails({
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {isSuccess ? (
-                <CheckCircle2 className="size-5 text-emerald-500" />
-              ) : (
-                <XCircle className="size-5 text-destructive" />
-              )}
+              <AnimateIcon animateOnHover>
+                {isSuccess ? (
+                  <CheckCircle2 className="size-5 text-emerald-500" />
+                ) : (
+                  <XCircle className="size-5 text-destructive" />
+                )}
+              </AnimateIcon>
               <DialogTitle className="text-base font-semibold text-foreground" title={run.id}>
                 Run #{run.id.length > 8 ? run.id.slice(0, 8) : run.id}
               </DialogTitle>
@@ -81,7 +84,10 @@ export function ExecutionDetails({
           {run.error && (
             <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-1">
               <div className="font-semibold flex items-center gap-1.5">
-                <AlertTriangle className="size-4 shrink-0" /> Execution Error
+                <AnimateIcon animateOnHover>
+                  <AlertTriangle className="size-4 shrink-0" />
+                </AnimateIcon>
+                <span>Execution Error</span>
               </div>
               <p className="font-mono text-[11px] leading-relaxed pl-5">
                 {run.error}
@@ -216,9 +222,12 @@ export function ExecutionDetails({
             variant="outline"
             size="sm"
             onClick={handleRetry}
-            className="text-xs gap-1.5"
+            className="text-xs gap-1.5 cursor-pointer"
           >
-            <RotateCcw className="size-3.5" /> Retry Execution
+            <AnimateIcon animateOnHover>
+              <RotateCcw className="size-3.5" />
+            </AnimateIcon>
+            <span>Retry Execution</span>
           </Button>
           <Button
             type="button"

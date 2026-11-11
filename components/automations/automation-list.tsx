@@ -14,6 +14,7 @@ import {
   ArrowRight,
   Activity,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -214,7 +215,9 @@ export function AutomationList({
         {/* Search & Status Filters */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-1">
           <div className="relative w-full sm:w-80 group">
-            <Search className="size-3.5 absolute left-3 top-3 text-muted-foreground group-focus-within:text-foreground transition-colors pointer-events-none" />
+            <AnimateIcon animateOnHover>
+              <Search className="size-3.5 absolute left-3 top-3 text-muted-foreground group-focus-within:text-foreground transition-colors pointer-events-none" />
+            </AnimateIcon>
             <Input
               placeholder="Search workflows..."
               value={search}
@@ -229,7 +232,7 @@ export function AutomationList({
               variant={statusFilter === "all" ? "secondary" : "ghost"}
               size="xs"
               onClick={() => setStatusFilter("all")}
-              className={`h-7 text-xs rounded-md transition-all ${
+              className={`h-7 text-xs rounded-md transition-all cursor-pointer ${
                 statusFilter === "all"
                   ? "bg-background shadow-xs font-medium text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -242,7 +245,7 @@ export function AutomationList({
               variant={statusFilter === "active" ? "secondary" : "ghost"}
               size="xs"
               onClick={() => setStatusFilter("active")}
-              className={`h-7 text-xs rounded-md transition-all ${
+              className={`h-7 text-xs rounded-md transition-all cursor-pointer ${
                 statusFilter === "active"
                   ? "bg-background shadow-xs font-medium text-emerald-600 dark:text-emerald-400"
                   : "text-muted-foreground hover:text-foreground"
@@ -255,7 +258,7 @@ export function AutomationList({
               variant={statusFilter === "paused" ? "secondary" : "ghost"}
               size="xs"
               onClick={() => setStatusFilter("paused")}
-              className={`h-7 text-xs rounded-md transition-all ${
+              className={`h-7 text-xs rounded-md transition-all cursor-pointer ${
                 statusFilter === "paused"
                   ? "bg-background shadow-xs font-medium text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -284,7 +287,9 @@ export function AutomationList({
           {filtered.length === 0 && (
             <div className="rounded-xl border border-border bg-card text-center py-12 px-4 space-y-3 shadow-xs">
               <div className="size-10 rounded-full bg-muted grid place-items-center mx-auto text-muted-foreground">
-                <Zap className="size-5" />
+                <AnimateIcon animateOnHover>
+                  <Zap className="size-5" />
+                </AnimateIcon>
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-foreground">
@@ -301,9 +306,12 @@ export function AutomationList({
                   type="button"
                   onClick={onCreateNew}
                   size="sm"
-                  className="text-xs font-semibold"
+                  className="text-xs font-semibold cursor-pointer"
                 >
-                  <Plus className="size-3.5 mr-1" /> Create Workflow
+                  <AnimateIcon animateOnHover>
+                    <Plus className="size-3.5 mr-1" />
+                  </AnimateIcon>
+                  <span>Create Workflow</span>
                 </Button>
               </div>
             </div>
@@ -342,7 +350,10 @@ export function AutomationList({
             <div className="p-3 rounded-lg bg-muted/40 border border-border/60">
               <div className="text-[11px] text-muted-foreground">Queue Worker</div>
               <div className="text-xs font-semibold text-foreground mt-1.5 flex items-center gap-1">
-                <Activity className="size-3 text-brand" /> Active
+                <AnimateIcon animateOnHover>
+                  <Activity className="size-3 text-brand" />
+                </AnimateIcon>
+                <span>Active</span>
               </div>
             </div>
           </div>
@@ -355,7 +366,9 @@ export function AutomationList({
               <h2 className="text-sm font-semibold text-foreground">Quick Templates</h2>
               <p className="text-xs text-muted-foreground">Click to instantiate pre-built logic.</p>
             </div>
-            <Sparkles className="size-4 text-primary" />
+            <AnimateIcon animateOnHover>
+              <Sparkles className="size-4 text-primary" />
+            </AnimateIcon>
           </div>
 
           <div className="space-y-2 pt-1">
@@ -364,18 +377,22 @@ export function AutomationList({
                 key={tpl.name}
                 type="button"
                 onClick={() => onCreateFromTemplate?.(tpl)}
-                className="w-full text-left p-3 rounded-lg border border-border hover:border-foreground/30 bg-background hover:bg-muted/40 transition-all group flex items-start justify-between gap-3 cursor-pointer"
+                className="w-full text-left p-3 rounded-lg border border-border hover:border-foreground/30 bg-background hover:bg-muted/40 active:scale-[0.98] transition-all group flex items-start justify-between gap-3 cursor-pointer select-none"
               >
                 <div className="space-y-0.5 min-w-0">
                   <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                    <tpl.icon className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                    <AnimateIcon animateOnHover>
+                      <tpl.icon className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                    </AnimateIcon>
                     <span className="truncate">{tpl.name}</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
                     {tpl.description}
                   </p>
                 </div>
-                <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-foreground shrink-0 mt-0.5 transition-colors" />
+                <AnimateIcon animateOnHover>
+                  <ChevronRight className="size-3.5 text-muted-foreground/50 group-hover:text-foreground shrink-0 mt-0.5 transition-colors" />
+                </AnimateIcon>
               </button>
             ))}
           </div>
@@ -388,7 +405,9 @@ export function AutomationList({
               <h2 className="text-sm font-semibold text-foreground">Recent Activity</h2>
               <p className="text-xs text-muted-foreground">Latest execution audit traces.</p>
             </div>
-            <History className="size-4 text-muted-foreground" />
+            <AnimateIcon animateOnHover>
+              <History className="size-4 text-muted-foreground" />
+            </AnimateIcon>
           </div>
 
           <div className="space-y-2 pt-1">
@@ -403,11 +422,13 @@ export function AutomationList({
                   className="p-2 rounded-md border border-border/60 bg-muted/20 flex items-center justify-between text-xs gap-2"
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    {run.status === "success" ? (
-                      <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
-                    ) : (
-                      <XCircle className="size-3.5 text-rose-500 shrink-0" />
-                    )}
+                    <AnimateIcon animateOnHover>
+                      {run.status === "success" ? (
+                        <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
+                      ) : (
+                        <XCircle className="size-3.5 text-rose-500 shrink-0" />
+                      )}
+                    </AnimateIcon>
                     <span className="font-medium text-foreground truncate max-w-40">
                       {run.automationName}
                     </span>
@@ -422,10 +443,12 @@ export function AutomationList({
             <button
               type="button"
               onClick={onOpenHistory}
-              className="text-button text-xs w-full justify-between pt-2 text-muted-foreground hover:text-foreground"
+              className="text-button text-xs w-full justify-between pt-2 text-muted-foreground hover:text-foreground group flex items-center cursor-pointer"
             >
               <span>View full history audit</span>
-              <ArrowRight className="size-3" />
+              <AnimateIcon animateOnHover>
+                <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+              </AnimateIcon>
             </button>
           </div>
         </div>

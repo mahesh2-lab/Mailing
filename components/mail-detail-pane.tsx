@@ -732,7 +732,7 @@ export default function MailDetailPane() {
         </div>
 
         {/* Detail Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           {loading ? (
             <MessageSkeleton />
           ) : !message ? (
@@ -751,13 +751,13 @@ export default function MailDetailPane() {
           ) : (
             <div
               key={message.id}
-              className="flex-1 flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-200 ease-out"
+              className="flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in-0 slide-in-from-right-3 duration-200 ease-out"
             >
               {/* Email Subject & Tags */}
               <div className="px-4 md:px-5 pt-4 pb-2 flex items-start justify-between gap-4 select-text shrink-0">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground break-words select-text">
+                    <h1 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground wrap-break-word select-text">
                       {message.subject || "No Subject"}
                     </h1>
                     {message.labels && message.labels.length > 0 && (
@@ -882,10 +882,13 @@ export default function MailDetailPane() {
               <ContextMenu>
                 <ContextMenuTrigger
                   render={
-                    <div className="flex-1 min-h-0 overflow-hidden p-3 md:p-4 select-text flex flex-col" />
+                    <div
+                      tabIndex={0}
+                      className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4 select-text flex flex-col focus:outline-none"
+                    />
                   }
                 >
-                  <div className="w-full h-full flex-1 min-h-0 flex flex-col select-text">
+                  <div className="w-full min-h-full flex-1 flex flex-col select-text">
                     {message.rawHtml || message.rawText || message.body ? (
                       <ThreadHierarchyViewer message={message} />
                     ) : (
@@ -1200,7 +1203,7 @@ export default function MailDetailPane() {
                             setIsReplying(false);
                           }
                         }}
-                        className="p-3 text-sm min-h-[84px] max-h-48 resize-y leading-relaxed bg-background border border-border shadow-none focus-visible:ring-1 focus-visible:ring-ring"
+                        className="p-3 text-sm min-h-21 max-h-48 resize-y leading-relaxed bg-background border border-border shadow-none focus-visible:ring-1 focus-visible:ring-ring"
                       />
 
                       <div className="flex items-center justify-between">

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Trash2, X } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,7 +95,9 @@ export function NodeConfigPanel({
           title="Close configuration panel"
           aria-label="Close"
         >
-          <X className="size-4" />
+          <AnimateIcon animateOnHover>
+            <X className="size-4" />
+          </AnimateIcon>
         </button>
       </div>
 
@@ -493,9 +496,12 @@ export function NodeConfigPanel({
               onDeleteNode(node.id);
               onOpenChange(false);
             }}
-            className="text-xs text-destructive hover:bg-destructive/10 gap-1.5 h-8 px-2.5 rounded-md font-medium"
+            className="text-xs text-destructive hover:bg-destructive/10 gap-1.5 h-8 px-2.5 rounded-md font-medium cursor-pointer"
           >
-            <Trash2 className="size-3.5" /> Delete
+            <AnimateIcon animateOnHover>
+              <Trash2 className="size-3.5" />
+            </AnimateIcon>
+            <span>Delete</span>
           </Button>
         ) : (
           <div />

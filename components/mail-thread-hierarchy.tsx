@@ -273,10 +273,14 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   // Single turn: standard message view with no quotes
   if (turns.length <= 1) {
     if (message.rawHtml) {
-      return <EmailHtmlFrame html={message.rawHtml} />;
+      return (
+        <div className="w-full min-h-full flex-1 flex flex-col">
+          <EmailHtmlFrame html={message.rawHtml} />
+        </div>
+      );
     }
     return (
-      <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text w-full overflow-y-auto flex-1 min-h-0">
+      <div className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed select-text w-full min-h-full flex-1">
         {message.rawText || message.body}
       </div>
     );
@@ -286,7 +290,7 @@ export function ThreadHierarchyViewer({ message }: ThreadHierarchyViewerProps) {
   const replies = turns.slice(1);
 
   return (
-    <div className="reddit-thread-hierarchy w-full overflow-y-auto flex-1 min-h-0 pr-2">
+    <div className="reddit-thread-hierarchy w-full min-h-full flex-1 pr-2">
       {/* Root Turn (Latest Message in the Thread) */}
       <div className="relative pb-4 group">
         {showReplies && replies.length > 0 && (

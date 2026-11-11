@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { ArrowLeft, Play, Save } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -154,7 +155,6 @@ export function AutomationBuilder({
         }));
         setSelectedNodeId(existingTrigger.id);
         setConfigPanelOpen(true);
-        toast.success(`Workflow trigger updated to "${item.title}"`);
         return;
       }
     }
@@ -207,7 +207,6 @@ export function AutomationBuilder({
 
     setSelectedNodeId(newId);
     setConfigPanelOpen(true);
-    toast.success(`Added "${newNode.title}" to workflow`);
   }
 
   const handleDropNode = useCallback(
@@ -236,7 +235,6 @@ export function AutomationBuilder({
           }));
           setSelectedNodeId(existingTrigger.id);
           setConfigPanelOpen(true);
-          toast.success(`Trigger updated to "${item.title}"`);
           return;
         }
       }
@@ -272,14 +270,12 @@ export function AutomationBuilder({
 
       setSelectedNodeId(newId);
       setConfigPanelOpen(true);
-      toast.success(`Added "${newNode.title}" to workflow`);
     },
     [automation.nodes]
   );
 
   function handleSave() {
     onSaveAutomation(automation);
-    toast.success("Workflow saved successfully");
   }
 
   return (
@@ -292,10 +288,12 @@ export function AutomationBuilder({
             variant="ghost"
             size="icon-xs"
             onClick={onBack}
-            className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shadow-xs shrink-0"
+            className="size-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all shadow-xs shrink-0 cursor-pointer"
             title="Back to automations list"
           >
-            <ArrowLeft className="size-4" />
+            <AnimateIcon animateOnHover>
+              <ArrowLeft className="size-4" />
+            </AnimateIcon>
           </Button>
 
           <div className="w-px h-5 bg-border/80 shrink-0" />
@@ -340,18 +338,24 @@ export function AutomationBuilder({
             variant="outline"
             size="sm"
             onClick={() => onRunTest(automation)}
-            className="h-8 text-xs gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-lg border-border/70 hover:bg-muted/80 text-foreground font-semibold shadow-xs transition-colors"
+            className="h-8 text-xs gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-lg border-border/70 hover:bg-muted/80 text-foreground font-semibold shadow-xs transition-colors cursor-pointer"
           >
-            <Play className="size-3.5 text-brand" /> Test
+            <AnimateIcon animateOnHover>
+              <Play className="size-3.5 text-brand" />
+            </AnimateIcon>
+            <span>Test</span>
           </Button>
 
           <Button
             type="button"
             size="sm"
             onClick={handleSave}
-            className="h-8 text-xs gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-lg bg-brand text-brand-fg hover:opacity-90 font-semibold shadow-md transition-opacity"
+            className="h-8 text-xs gap-1 sm:gap-1.5 px-2.5 sm:px-3 rounded-lg bg-brand text-brand-fg hover:opacity-90 font-semibold shadow-md transition-opacity cursor-pointer"
           >
-            <Save className="size-3.5" /> Save
+            <AnimateIcon animateOnHover>
+              <Save className="size-3.5" />
+            </AnimateIcon>
+            <span>Save</span>
           </Button>
         </div>
       </div>

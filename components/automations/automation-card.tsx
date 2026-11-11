@@ -15,6 +15,7 @@ import {
   Sparkles,
   GitBranch,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,7 +88,7 @@ export function AutomationCard({
   return (
     <div
       onClick={() => onEdit(automation)}
-      className="p-5 rounded-xl border border-border bg-card hover:border-foreground/25 hover:shadow-xs transition-all duration-200 cursor-pointer group space-y-4"
+      className="p-5 rounded-xl border border-border bg-card hover:border-foreground/25 hover:shadow-xs active:scale-[0.99] transition-all duration-200 cursor-pointer group space-y-4"
     >
       {/* Top Header: Title, Status, Native Toggle, and Actions */}
       <div className="flex items-start justify-between gap-3">
@@ -152,10 +153,12 @@ export function AutomationCard({
               variant="outline"
               size="xs"
               onClick={() => onTestRun(automation)}
-              className="text-xs h-7 gap-1"
+              className="text-xs h-7 gap-1 cursor-pointer"
               title="Run test execution"
             >
-              <Play className="size-3 text-primary fill-primary" />
+              <AnimateIcon animateOnHover>
+                <Play className="size-3 text-primary fill-primary" />
+              </AnimateIcon>
               <span>Test</span>
             </Button>
 
@@ -164,9 +167,11 @@ export function AutomationCard({
               variant="outline"
               size="xs"
               onClick={() => onEdit(automation)}
-              className="text-xs h-7 gap-1"
+              className="text-xs h-7 gap-1 cursor-pointer"
             >
-              <Edit className="size-3" />
+              <AnimateIcon animateOnHover>
+                <Edit className="size-3" />
+              </AnimateIcon>
               <span>Edit</span>
             </Button>
           </div>
@@ -178,29 +183,47 @@ export function AutomationCard({
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  className="size-7 text-muted-foreground hover:text-foreground"
+                  className="size-7 text-muted-foreground hover:text-foreground cursor-pointer"
                   aria-label="More options"
                 />
               }
             >
-              <MoreHorizontal className="size-4" />
+              <AnimateIcon animateOnHover>
+                <MoreHorizontal className="size-4" />
+              </AnimateIcon>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40 text-xs p-1">
               <DropdownMenuItem onClick={() => onEdit(automation)}>
-                <Edit className="size-3.5 mr-2" /> Edit workflow
+                <AnimateIcon animateOnHover asChild>
+                  <span className="flex items-center w-full cursor-pointer">
+                    <Edit className="size-3.5 mr-2" /> Edit workflow
+                  </span>
+                </AnimateIcon>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate(automation)}>
-                <Copy className="size-3.5 mr-2" /> Duplicate
+                <AnimateIcon animateOnHover asChild>
+                  <span className="flex items-center w-full cursor-pointer">
+                    <Copy className="size-3.5 mr-2" /> Duplicate
+                  </span>
+                </AnimateIcon>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onViewHistory(automation.id)}>
-                <History className="size-3.5 mr-2" /> View history
+                <AnimateIcon animateOnHover asChild>
+                  <span className="flex items-center w-full cursor-pointer">
+                    <History className="size-3.5 mr-2" /> View history
+                  </span>
+                </AnimateIcon>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onDelete(automation.id)}
                 className="text-destructive focus:text-destructive cursor-pointer"
               >
-                <Trash2 className="size-3.5 mr-2" /> Delete
+                <AnimateIcon animateOnHover asChild>
+                  <span className="flex items-center w-full cursor-pointer">
+                    <Trash2 className="size-3.5 mr-2" /> Delete
+                  </span>
+                </AnimateIcon>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -215,11 +238,15 @@ export function AutomationCard({
           return (
             <div key={n.id} className="flex items-center gap-2">
               <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium shadow-2xs ${style.bg} ${style.border} ${style.text}`}>
-                <Icon className="size-3.5 shrink-0" />
+                <AnimateIcon animateOnHover>
+                  <Icon className="size-3.5 shrink-0" />
+                </AnimateIcon>
                 <span className="truncate max-w-44">{n.title}</span>
               </span>
               {idx < automation.nodes.length - 1 && (
-                <ArrowRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+                <AnimateIcon animateOnHover>
+                  <ArrowRight className="size-3.5 text-muted-foreground/40 shrink-0" />
+                </AnimateIcon>
               )}
             </div>
           );
@@ -230,7 +257,9 @@ export function AutomationCard({
       <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5 border-t border-border/40">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1">
-            <Clock className="size-3" />
+            <AnimateIcon animateOnHover>
+              <Clock className="size-3" />
+            </AnimateIcon>
             Last run:{" "}
             <span className="text-foreground font-medium">
               {automation.lastRunAt
@@ -250,7 +279,10 @@ export function AutomationCard({
         </div>
 
         <span className="text-[11px] text-muted-foreground group-hover:text-foreground font-medium flex items-center gap-1 transition-colors">
-          Open workflow <ArrowRight className="size-3" />
+          Open workflow{" "}
+          <AnimateIcon animateOnHover>
+            <ArrowRight className="size-3" />
+          </AnimateIcon>
         </span>
       </div>
     </div>

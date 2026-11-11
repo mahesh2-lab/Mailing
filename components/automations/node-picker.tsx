@@ -25,6 +25,7 @@ import {
   Tag,
   Wrench,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -280,10 +281,12 @@ export function NodePicker({
           variant="ghost"
           size="icon-xs"
           onClick={onToggleCollapse}
-          className="size-8 text-muted-foreground hover:text-foreground"
+          className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
           title="Expand Workflow Steps panel"
         >
-          <Plus className="size-4" />
+          <AnimateIcon animateOnHover>
+            <Plus className="size-4" />
+          </AnimateIcon>
         </Button>
         <div className="mt-4 flex flex-col items-center gap-2">
           <span className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase [writing-mode:vertical-lr] rotate-180">
@@ -311,7 +314,10 @@ export function NodePicker({
               className="h-6 text-[10px] gap-1 px-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
               title="Create Custom HTTP Tool"
             >
-              <Plus className="size-3" /> Tool
+              <AnimateIcon animateOnHover>
+                <Plus className="size-3" />
+              </AnimateIcon>
+              <span>Tool</span>
             </Button>
             {onToggleCollapse && (
               <Button
@@ -322,7 +328,9 @@ export function NodePicker({
                 className="size-6 text-muted-foreground hover:text-foreground cursor-pointer"
                 title="Collapse sidebar"
               >
-                <PanelLeftClose className="size-3.5" />
+                <AnimateIcon animateOnHover>
+                  <PanelLeftClose className="size-3.5" />
+                </AnimateIcon>
               </Button>
             )}
           </div>
@@ -355,7 +363,9 @@ export function NodePicker({
         </div>
 
         <div className="relative">
-          <Search className="size-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+          <AnimateIcon animateOnHover>
+            <Search className="size-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+          </AnimateIcon>
           <Input
             placeholder="Search..."
             value={search}
@@ -413,10 +423,14 @@ export function NodePicker({
                       draggable={true}
                       onDragStart={handleDragStart}
                       onClick={handleSelect}
-                      className="w-full text-left p-2 rounded-md hover:bg-accent hover:text-foreground transition-all flex items-start gap-2.5 group cursor-pointer border border-transparent hover:border-border/60 select-none"
+                      className="w-full text-left p-2 rounded-md hover:bg-accent hover:text-foreground transition-all flex items-start gap-2.5 group cursor-pointer border border-transparent hover:border-border/60 select-none active:scale-[0.98]"
                     >
-                      <div className="size-6 rounded bg-muted grid place-items-center shrink-0 mt-0.5 text-muted-foreground group-hover:text-foreground group-hover:bg-background transition-colors shadow-xs">
-                        <Icon className="size-3.5" />
+                      <div
+                        className="size-6 rounded bg-muted grid place-items-center shrink-0 mt-0.5 text-muted-foreground group-hover:text-foreground group-hover:bg-background transition-colors shadow-xs"
+                      >
+                        <AnimateIcon animateOnHover>
+                          <Icon className="size-3.5" />
+                        </AnimateIcon>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-medium text-foreground truncate">

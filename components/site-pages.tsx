@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   Search,
+  Edit,
   Trash2,
   UserPlus,
   Users,
@@ -432,6 +433,7 @@ function ContactsPanel() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   // New Contact Form State
   const [name, setName] = useState("");
@@ -475,30 +477,59 @@ function ContactsPanel() {
     };
   }, []);
 
-  async function handleCreateContact(e: React.FormEvent) {
+  function openNewContact() {
+    setEditingContact(null);
+    setName("");
+    setEmail("");
+    setNotes("");
+    setDialogOpen(true);
+  }
+
+  function openEditContact(contact: Contact) {
+    setEditingContact(contact);
+    setName(contact.name);
+    setEmail(contact.email);
+    setNotes(contact.notes || "");
+    setDialogOpen(true);
+  }
+
+  async function handleSaveContact(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
     setSaving(true);
     try {
-      const res = await fetch("/api/v1/contacts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: email.trim(), notes: notes.trim() }),
-      }).then((r) => r.json());
+      const res = await fetch(
+        editingContact ? `/api/v1/contacts/${editingContact.id}` : "/api/v1/contacts",
+        {
+          method: editingContact ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: name.trim(), email: email.trim(), notes: notes.trim() }),
+        },
+      ).then((response) => response.json());
 
       if (res?.data) {
-        toast.success(`Contact "${name}" added`);
+        const savedContact = res.data as Contact;
+        setContacts((current) =>
+          editingContact
+            ? current.map((contact) => contact.id === savedContact.id ? savedContact : contact)
+            : [savedContact, ...current],
+        );
+        toast.success(
+          editingContact
+            ? `Contact "${savedContact.name}" updated`
+            : `Contact "${savedContact.name}" added`,
+        );
         setDialogOpen(false);
+        setEditingContact(null);
         setName("");
         setEmail("");
         setNotes("");
-        refreshContacts();
       } else {
-        toast.error(res?.error || "Failed to add contact");
+        toast.error(res?.error || `Failed to ${editingContact ? "update" : "add"} contact`);
       }
     } catch {
-      toast.error("Failed to add contact");
+      toast.error(`Failed to ${editingContact ? "update" : "add"} contact`);
     } finally {
       setSaving(false);
     }
@@ -523,70 +554,73 @@ function ContactsPanel() {
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Address Book</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage personal and professional contacts to auto-complete recipients in compose.
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-1.5 self-start">
-          <UserPlus className="size-4" data-icon="inline-start" />
-          <span>Add Contact</span>
-        </Button>
-      </div>
-
-      {/* Search Filter */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or email..."
-          className="pl-9 h-9 bg-card"
-        />
-      </div>
-
-      {/* Contacts List / Table */}
-      {loading ? (
-        <div className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <Spinner className="size-6 text-primary" />
-          <p className="text-xs text-muted-foreground">Loading your address book...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <Card className="p-12 text-center flex flex-col items-center justify-center gap-3">
-          <div className="size-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-            <Users className="size-6" />
+    <div className="mx-auto w-full max-w-6xl space-y-6 sm:space-y-8">
+      <header className="flex flex-col gap-5 border-b border-border/70 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="hidden size-12 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
+            <Users className="size-5" />
           </div>
-          <div className="space-y-1">
-            <h3 className="font-semibold text-sm text-foreground">
-              {search ? "No contacts found" : "No contacts yet"}
-            </h3>
-            <p className="text-xs text-muted-foreground max-w-xs">
-              {search
-                ? `No contact matches your query "${search}"`
-                : "Add your frequently emailed contacts for rapid access and auto-complete."}
+          <div className="min-w-0">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">Address Book</h2>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">
+              Keep the people you write to close at hand. Contacts appear as recipient suggestions when you compose.
             </p>
           </div>
-          {!search && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDialogOpen(true)}
-              className="mt-2 text-xs"
-            >
-              Add first contact
-            </Button>
-          )}
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map((c) => (
-            <Card key={c.id} className="p-4 flex items-center justify-between gap-3 hover:border-border/80 transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="size-10 border border-border shrink-0">
+        </div>
+        <Button onClick={openNewContact} className="h-10 gap-2 self-start sm:self-auto">
+          <UserPlus className="size-4" data-icon="inline-start" />
+          <span>Add contact</span>
+        </Button>
+      </header>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-lg">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search contacts by name or email"
+            className="h-10 border-border/70 bg-card/60 pl-9"
+          />
+        </div>
+        <span className="px-1 text-xs text-muted-foreground" aria-live="polite">
+          {loading ? "Loading contacts…" : `${filtered.length} ${filtered.length === 1 ? "contact" : "contacts"}`}
+        </span>
+      </div>
+
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-card/30">
+        {loading ? (
+          <div className="flex min-h-48 flex-col items-center justify-center gap-3 p-8">
+            <Spinner className="size-5 text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your address book…</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex min-h-64 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+            <div className="flex size-12 items-center justify-center rounded-2xl border border-border bg-muted/50 text-muted-foreground">
+              <Users className="size-5" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-semibold text-foreground">
+                {search ? "No contacts found" : "Your address book is empty"}
+              </h3>
+              <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
+                {search
+                  ? `No contact matches “${search}”. Try another name or email.`
+                  : "Add the people you email often and they’ll be ready as recipient suggestions."}
+              </p>
+            </div>
+            {!search && (
+              <Button variant="outline" size="sm" onClick={openNewContact} className="mt-1">
+                <UserPlus className="size-4" data-icon="inline-start" />
+                Add your first contact
+              </Button>
+            )}
+          </div>
+        ) : (
+          <ul className="divide-y divide-border/60">
+            {filtered.map((c) => (
+              <li key={c.id} className="group flex min-w-0 items-center gap-3 px-4 py-4 transition-colors hover:bg-accent/30 sm:gap-4 sm:px-5">
+                <Avatar className="size-11 shrink-0 ring-1 ring-border/70">
                   <AvatarFallback
                     style={{ background: avatarColor(c.name), color: "#ffffff" }}
                     className="text-xs font-semibold"
@@ -594,43 +628,52 @@ function ContactsPanel() {
                     {getInitials(c.name)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-semibold text-sm text-foreground truncate">
-                    {c.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {c.email}
-                  </span>
-                  {c.notes && (
-                    <span className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
-                      {c.notes}
-                    </span>
-                  )}
+                <div className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center sm:gap-6">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{c.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{c.email}</p>
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground/80 sm:text-sm">
+                    {c.notes || <span className="text-muted-foreground/50">No notes</span>}
+                  </p>
                 </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                onClick={() => setDeleteTarget(c)}
-                aria-label={`Delete ${c.name}`}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </Card>
-          ))}
-        </div>
-      )}
+                <div className="flex shrink-0 items-center gap-1 sm:opacity-0 sm:transition-opacity sm:duration-150 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="size-9 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:scale-95"
+                    onClick={() => openEditContact(c)}
+                    aria-label={`Edit ${c.name}`}
+                  >
+                    <Edit className="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    className="size-9 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive active:scale-95"
+                    onClick={() => setDeleteTarget(c)}
+                    aria-label={`Delete ${c.name}`}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {/* Add Contact Modal Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) setEditingContact(null);
+      }}>
         <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleCreateContact}>
+          <form onSubmit={handleSaveContact}>
             <DialogHeader>
-              <DialogTitle>Add Contact</DialogTitle>
+              <DialogTitle>{editingContact ? "Edit Contact" : "Add Contact"}</DialogTitle>
               <DialogDescription>
-                Add a new recipient to your Mailing address book.
+                {editingContact ? "Update this contact in your address book." : "Add a new recipient to your Mailing address book."}
               </DialogDescription>
             </DialogHeader>
 
@@ -675,7 +718,7 @@ function ContactsPanel() {
                 Cancel
               </Button>
               <Button type="submit" disabled={saving || !name.trim() || !email.trim()} className="text-xs">
-                {saving ? <Spinner className="size-3.5" /> : "Save Contact"}
+                {saving ? <Spinner className="size-3.5" /> : editingContact ? "Save changes" : "Save Contact"}
               </Button>
             </DialogFooter>
           </form>

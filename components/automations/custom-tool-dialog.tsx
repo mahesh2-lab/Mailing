@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Trash2, Wrench } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import {
   Dialog,
   DialogContent,
@@ -108,7 +109,9 @@ export function CustomToolDialog({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="size-8 rounded-lg bg-brand/10 text-brand grid place-items-center">
-              <Wrench className="size-4" />
+              <AnimateIcon animateOnHover>
+                <Wrench className="size-4" />
+              </AnimateIcon>
             </div>
             <div>
               <DialogTitle className="text-base font-semibold">
@@ -212,9 +215,12 @@ export function CustomToolDialog({
                 variant="ghost"
                 size="xs"
                 onClick={handleAddHeader}
-                className="h-6 text-[11px] gap-1 px-1.5"
+                className="h-6 text-[11px] gap-1 px-1.5 cursor-pointer"
               >
-                <Plus className="size-3" /> Add Header
+                <AnimateIcon animateOnHover>
+                  <Plus className="size-3" />
+                </AnimateIcon>
+                <span>Add Header</span>
               </Button>
             </div>
             <div className="space-y-1.5">
@@ -237,9 +243,11 @@ export function CustomToolDialog({
                     variant="ghost"
                     size="icon-xs"
                     onClick={() => handleRemoveHeader(i)}
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
                   >
-                    <Trash2 className="size-3.5" />
+                    <AnimateIcon animateOnHover>
+                      <Trash2 className="size-3.5" />
+                    </AnimateIcon>
                   </Button>
                 </div>
               ))}

@@ -7,6 +7,7 @@ import {
   History,
   Plus,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Button } from "@/components/ui/button";
 import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import {
@@ -302,18 +303,22 @@ export function AutomationPage() {
                 variant="outline"
                 size="xs"
                 onClick={() => setView("history")}
-                className="text-xs gap-1.5 h-8"
+                className="text-xs gap-1.5 h-8 cursor-pointer"
               >
-                <History className="size-3.5" />
+                <AnimateIcon animateOnHover>
+                  <History className="size-3.5" />
+                </AnimateIcon>
                 <span>History {history.length > 0 && `(${history.length})`}</span>
               </Button>
               <Button
                 type="button"
                 size="xs"
                 onClick={handleCreateNew}
-                className="text-xs gap-1.5 h-8 font-medium shadow-xs"
+                className="text-xs gap-1.5 h-8 font-medium shadow-xs cursor-pointer"
               >
-                <Plus className="size-3.5" />
+                <AnimateIcon animateOnHover>
+                  <Plus className="size-3.5" />
+                </AnimateIcon>
                 <span>New workflow</span>
               </Button>
             </>
@@ -323,9 +328,11 @@ export function AutomationPage() {
               variant="outline"
               size="xs"
               onClick={() => setView("list")}
-              className="text-xs gap-1.5 h-8"
+              className="text-xs gap-1.5 h-8 cursor-pointer"
             >
-              <ArrowLeft className="size-3.5" />
+              <AnimateIcon animateOnHover>
+                <ArrowLeft className="size-3.5" />
+              </AnimateIcon>
               <span>Back to Workflows</span>
             </Button>
           )}

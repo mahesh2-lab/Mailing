@@ -6,6 +6,7 @@ import {
   XCircle,
   Search,
 } from "@/components/animate-ui/icons";
+import { AnimateIcon } from "@animate-ui/react/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,7 +43,9 @@ export function ExecutionHistory({
       {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search className="size-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+          <AnimateIcon animateOnHover>
+            <Search className="size-3.5 absolute left-2.5 top-2.5 text-muted-foreground pointer-events-none" />
+          </AnimateIcon>
           <Input
             placeholder="Search executions by workflow or trigger..."
             value={search}
@@ -57,7 +60,7 @@ export function ExecutionHistory({
             variant={statusFilter === "all" ? "secondary" : "ghost"}
             size="xs"
             onClick={() => setStatusFilter("all")}
-            className="h-7 text-xs"
+            className="h-7 text-xs cursor-pointer"
           >
             All Runs ({history.length})
           </Button>
@@ -66,20 +69,24 @@ export function ExecutionHistory({
             variant={statusFilter === "success" ? "secondary" : "ghost"}
             size="xs"
             onClick={() => setStatusFilter("success")}
-            className="h-7 text-xs gap-1 text-emerald-600 dark:text-emerald-400"
+            className="h-7 text-xs gap-1 text-emerald-600 dark:text-emerald-400 cursor-pointer"
           >
-            <CheckCircle2 className="size-3" /> Successful (
-            {history.filter((h) => h.status === "success").length})
+            <AnimateIcon animateOnHover>
+              <CheckCircle2 className="size-3" />
+            </AnimateIcon>
+            <span>Successful ({history.filter((h) => h.status === "success").length})</span>
           </Button>
           <Button
             type="button"
             variant={statusFilter === "failed" ? "secondary" : "ghost"}
             size="xs"
             onClick={() => setStatusFilter("failed")}
-            className="h-7 text-xs gap-1 text-destructive"
+            className="h-7 text-xs gap-1 text-destructive cursor-pointer"
           >
-            <XCircle className="size-3" /> Failed (
-            {history.filter((h) => h.status === "failed").length})
+            <AnimateIcon animateOnHover>
+              <XCircle className="size-3" />
+            </AnimateIcon>
+            <span>Failed ({history.filter((h) => h.status === "failed").length})</span>
           </Button>
         </div>
       </div>
@@ -94,15 +101,17 @@ export function ExecutionHistory({
             <div
               key={run.id}
               onClick={() => setSelectedRun(run)}
-              className="p-3.5 hover:bg-muted/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer group"
+              className="p-3.5 hover:bg-muted/40 active:scale-[0.99] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer group"
             >
               <div className="flex items-start sm:items-center gap-3 min-w-0">
                 <div className="pt-0.5 sm:pt-0">
-                  {isSuccess ? (
-                    <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
-                  ) : (
-                    <XCircle className="size-4 text-destructive shrink-0" />
-                  )}
+                  <AnimateIcon animateOnHover>
+                    {isSuccess ? (
+                      <CheckCircle2 className="size-4 text-emerald-500 shrink-0" />
+                    ) : (
+                      <XCircle className="size-4 text-destructive shrink-0" />
+                    )}
+                  </AnimateIcon>
                 </div>
 
                 <div className="min-w-0 space-y-0.5">
@@ -155,7 +164,7 @@ export function ExecutionHistory({
                     e.stopPropagation();
                     setSelectedRun(run);
                   }}
-                  className="h-6 text-[11px] px-2 text-muted-foreground group-hover:text-foreground"
+                  className="h-6 text-[11px] px-2 text-muted-foreground group-hover:text-foreground cursor-pointer"
                 >
                   Inspect
                 </Button>
