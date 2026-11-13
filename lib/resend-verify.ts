@@ -181,8 +181,9 @@ export async function verifyResendCredentials({
     if (!whError && whData) {
       webhooksCount = whData.data.length;
     }
-  } catch {
+  } catch (whErr: unknown) {
     // Non-fatal if key does not have webhooks:read scope
+    console.warn("Could not list Resend webhooks for key verification:", whErr);
   }
 
   // 4. Optional domain check against senderEmail

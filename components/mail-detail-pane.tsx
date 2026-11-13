@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials, avatarColor, cn, escapeHtml } from "@/lib/utils";
+import { getInitials, avatarColor, cn, escapeHtml, extractErrorMessage } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -165,7 +165,7 @@ export default function MailDetailPane() {
     axios
       .get("/api/v1/labels")
       .then((res) => setAllLabels(res.data || []))
-      .catch(() => {});
+      .catch((err) => console.warn("Failed to load labels:", err));
   }, []);
 
   useEffect(() => {
@@ -192,7 +192,9 @@ export default function MailDetailPane() {
         );
         refresh();
       })
-      .catch(() => {});
+      .catch((err) => {
+        if (!axios.isCancel(err)) console.warn("Failed to mark message read:", err);
+      });
 
     return () => {
       active = false;
@@ -221,8 +223,9 @@ export default function MailDetailPane() {
       }
       setOpenId(null);
       refresh();
-    } catch {
-      toast.error("Failed to perform action");
+    } catch (err: unknown) {
+      console.error("Failed to perform action:", err);
+      toast.error(extractErrorMessage(err, "Failed to perform action"));
     }
   }, [message, refresh, setOpenId]);
 
@@ -235,8 +238,9 @@ export default function MailDetailPane() {
       setMessage({ ...message, starred: res.data.starred });
       toast.success(res.data.starred ? "Starred" : "Unstarred");
       refresh();
-    } catch {
-      toast.error("Failed to update star");
+    } catch (err: unknown) {
+      console.error("Failed to update star:", err);
+      toast.error(extractErrorMessage(err, "Failed to update star"));
     }
   }, [message, refresh, setMessage]);
 
@@ -249,8 +253,9 @@ export default function MailDetailPane() {
       toast.success("Marked as unread");
       setOpenId(null);
       refresh();
-    } catch {
-      toast.error("Failed to mark as unread");
+    } catch (err: unknown) {
+      console.error("Failed to mark as unread:", err);
+      toast.error(extractErrorMessage(err, "Failed to mark as unread"));
     }
   }, [message, refresh, setOpenId]);
 
@@ -268,8 +273,9 @@ export default function MailDetailPane() {
       setLabelDropOpen(false);
       setLabelSearch("");
       refresh();
-    } catch {
-      toast.error("Failed to add label");
+    } catch (err: unknown) {
+      console.error("Failed to add label:", err);
+      toast.error(extractErrorMessage(err, "Failed to add label"));
     }
   }
 
@@ -285,8 +291,9 @@ export default function MailDetailPane() {
       });
       toast.success(`Removed tag "${lbl}"`);
       refresh();
-    } catch {
-      toast.error("Failed to remove label");
+    } catch (err: unknown) {
+      console.error("Failed to remove label:", err);
+      toast.error(extractErrorMessage(err, "Failed to remove label"));
     }
   }
 
@@ -313,8 +320,9 @@ export default function MailDetailPane() {
       setReplyAttachments([]);
       setIsReplying(false);
       refresh();
-    } catch {
-      toast.error("Failed to send reply");
+    } catch (err: unknown) {
+      console.error("Failed to send reply:", err);
+      toast.error(extractErrorMessage(err, "Failed to send reply"));
     }
   }
 

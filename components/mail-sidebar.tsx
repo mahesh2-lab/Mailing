@@ -61,7 +61,7 @@ import {
 } from "@/components/ui/context-menu";
 import { ThemeToggle } from "./theme-toggle";
 import { authClient } from "@/src/lib/auth-client";
-import { getInitials } from "@/lib/utils";
+import { getInitials, extractErrorMessage } from "@/lib/utils";
 import { DEFAULT_LABEL_COLORS } from "@/lib/label-colors";
 import {
   Sidebar,
@@ -235,8 +235,9 @@ export default function MailSidebar({
       toast.success(`Updated color for "${editingLabelColor}"`);
       setEditingLabelColor(null);
       refresh();
-    } catch {
-      toast.error("Failed to update label color");
+    } catch (err: unknown) {
+      console.error("Failed to update label color:", err);
+      toast.error(extractErrorMessage(err, "Failed to update label color"));
     } finally {
       setCreatingLoading(false);
     }
@@ -255,8 +256,9 @@ export default function MailSidebar({
         router.push("/inbox", { scroll: false });
       }
       refresh();
-    } catch {
-      toast.error("Failed to delete label");
+    } catch (err: unknown) {
+      console.error("Failed to delete label:", err);
+      toast.error(extractErrorMessage(err, "Failed to delete label"));
     }
   }
 

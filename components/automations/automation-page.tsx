@@ -19,7 +19,7 @@ import {
 import { AutomationList } from "./automation-list";
 import { ExecutionHistory } from "./execution-history";
 import { toast } from "sonner";
-import { generateId } from "@/lib/utils";
+import { generateId, extractErrorMessage } from "@/lib/utils";
 import { authClient } from "@/src/lib/auth-client";
 
 export function AutomationPage() {
@@ -109,8 +109,9 @@ export function AutomationPage() {
       setAutomations((previous) => [newAuto, ...previous]);
       toast.success("Created new automation workflow");
       router.push(`/automations/${newAuto.id}`);
-    } catch {
-      toast.error("Failed to create automation");
+    } catch (err: unknown) {
+      console.error("Failed to create automation:", err);
+      toast.error(extractErrorMessage(err, "Failed to create automation"));
     }
   }
 
@@ -128,15 +129,18 @@ export function AutomationPage() {
       if (!response.ok) throw new Error("Request failed");
       setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, enabled } : a)));
       toast.success(enabled ? "Automation activated" : "Automation paused");
-    } catch {
+    } catch (err: unknown) {
+      console.error("Failed to toggle automation status:", err);
       try {
         const response = await fetch(`/api/v1/automations/${id}`);
         if (response.ok) {
           const { data } = await response.json();
           setAutomations((prev) => prev.map((a) => (a.id === id ? { ...a, enabled: data.enabled } : a)));
         }
-      } catch {}
-      toast.error("Failed to update status on server");
+      } catch (revertErr) {
+        console.warn("Failed to refetch automation state:", revertErr);
+      }
+      toast.error(extractErrorMessage(err, "Failed to update status on server"));
     }
   }
 
@@ -168,15 +172,20 @@ export function AutomationPage() {
     };
 
     try {
-      await fetch("/api/v1/automations", {
+      const response = await fetch("/api/v1/automations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(duplicated),
       });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Failed with status ${response.status}`);
+      }
       setAutomations([duplicated, ...automations]);
       toast.success(`Duplicated "${automation.name}"`);
-    } catch {
-      toast.error("Failed to duplicate automation");
+    } catch (err: unknown) {
+      console.error("Failed to duplicate automation:", err);
+      toast.error(extractErrorMessage(err, "Failed to duplicate automation"));
     }
   }
 
@@ -187,12 +196,15 @@ export function AutomationPage() {
       if (!response.ok) throw new Error("Request failed");
       setAutomations((prev) => prev.filter((a) => a.id !== id));
       toast.success(`Deleted "${target?.name || "Automation"}"`);
-    } catch {
+    } catch (err: unknown) {
+      console.error("Failed to delete automation:", err);
       try {
         const response = await fetch(`/api/v1/automations/${id}`);
         if (response.status === 404) setAutomations((prev) => prev.filter((a) => a.id !== id));
-      } catch {}
-      toast.error("Failed to delete automation from server");
+      } catch (checkErr) {
+        console.warn("Failed to verify automation deletion:", checkErr);
+      }
+      toast.error(extractErrorMessage(err, "Failed to delete automation from server"));
     }
   }
 
@@ -242,7 +254,7 @@ export function AutomationPage() {
       }
     } catch (err: unknown) {
       console.error("Test run error:", err);
-      toast.error(`Execution error: ${err instanceof Error ? err.message : "Unknown error"}`, { id: "test-run" });
+      toast.error(`Execution error: ${extractErrorMessage(err, "Unknown error")}`, { id: "test-run" });
     }
   }
 
@@ -279,16 +291,22 @@ export function AutomationPage() {
     };
 
     try {
-      await fetch("/api/v1/automations", {
+      const response = await fetch("/api/v1/automations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newAuto),
       });
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.error || `Failed with status ${response.status}`);
+      }
       setAutomations([newAuto, ...automations]);
       toast.success(`Created "${newAuto.name}"`);
-    } catch {}
-
-    router.push(`/automations/${newAuto.id}`);
+      router.push(`/automations/${newAuto.id}`);
+    } catch (err: unknown) {
+      console.error("Failed to create automation from template:", err);
+      toast.error(extractErrorMessage(err, "Failed to create automation"));
+    }
   }
 
   return (

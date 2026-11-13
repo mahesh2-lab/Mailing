@@ -97,7 +97,9 @@ async function resolveFallbackSecretCandidates(
             secret: cleanSecret(decrypted),
             userId: record.userId,
           });
-        } catch {}
+        } catch (decryptErr) {
+          console.warn(`Failed to decrypt webhook secret for user ${record.userId}:`, decryptErr);
+        }
       }
     }
   } catch (err) {
@@ -156,7 +158,9 @@ async function handleStatusChange(
         .returning({ id: emails.id });
       try {
         if (updated) await pusherServer.trigger(emailChannelForUser(resolvedUserId), "read", { emailId: updated.id });
-      } catch {}
+      } catch (pusherErr) {
+        console.warn("[resend-webhook] Pusher trigger failed for read status:", pusherErr);
+      }
       break;
     }
     case "email.delivered": {
@@ -174,7 +178,9 @@ async function handleStatusChange(
             timestamp: new Date().toISOString(),
           },
         );
-      } catch {}
+      } catch (pusherErr) {
+        console.warn("[resend-webhook] Pusher trigger failed for delivered status:", pusherErr);
+      }
       break;
     }
     case "email.bounced": {
@@ -189,7 +195,9 @@ async function handleStatusChange(
           reason: eventData.bounce_summary || "Unknown",
           timestamp: new Date().toISOString(),
         });
-      } catch {}
+      } catch (pusherErr) {
+        console.warn("[resend-webhook] Pusher trigger failed for bounced status:", pusherErr);
+      }
       break;
     }
   }

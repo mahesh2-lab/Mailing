@@ -15,7 +15,7 @@ import type { MailItem } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { getActionsForFolder, type MailActionConfig } from "@/lib/mail-actions";
 import ConfirmDialog from "./confirm-dialog";
-import { cn } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -288,13 +288,14 @@ export default function MailListPane() {
         });
         toast.success(res.data.starred ? "Starred" : "Unstarred");
         refresh();
-      } catch {
+      } catch (err: unknown) {
+        console.error("Failed to update star:", err);
         setMail((prev) =>
           prev.map((m) =>
             m.id === id ? { ...m, starred: currentStarred } : m,
           ),
         );
-        toast.error("Failed to update star");
+        toast.error(extractErrorMessage(err, "Failed to update star"));
       }
     },
     [setMail, refresh],
@@ -316,8 +317,9 @@ export default function MailListPane() {
       setMail((prev) => prev.filter((m) => !targetIds.includes(m.id)));
       if (openId && targetIds.includes(openId)) setOpenId(null);
       refresh();
-    } catch {
-      toast.error("Failed to delete messages");
+    } catch (err: unknown) {
+      console.error("Failed to delete messages permanently:", err);
+      toast.error(extractErrorMessage(err, "Failed to delete messages"));
       refresh();
     }
   }, [selected, openId, setOpenId, setMail, setSelected, refresh]);
@@ -363,8 +365,9 @@ export default function MailListPane() {
         setMail((prev) => prev.filter((m) => !targetIds.includes(m.id)));
         if (openId && targetIds.includes(openId)) setOpenId(null);
         refresh();
-      } catch {
-        toast.error("Failed to process bulk action");
+      } catch (err: unknown) {
+        console.error("Failed to process bulk action:", err);
+        toast.error(extractErrorMessage(err, "Failed to process bulk action"));
         refresh();
       }
     },
@@ -382,8 +385,9 @@ export default function MailListPane() {
         });
         toast.success(currentlyUnread ? "Marked as read" : "Marked as unread");
         refresh();
-      } catch {
-        toast.error("Failed to update status");
+      } catch (err: unknown) {
+        console.error("Failed to update read status:", err);
+        toast.error(extractErrorMessage(err, "Failed to update status"));
         refresh();
       }
     },
@@ -401,8 +405,9 @@ export default function MailListPane() {
         });
         toast.success("Archived conversation");
         refresh();
-      } catch {
-        toast.error("Failed to archive");
+      } catch (err: unknown) {
+        console.error("Failed to archive message:", err);
+        toast.error(extractErrorMessage(err, "Failed to archive"));
         refresh();
       }
     },
@@ -420,8 +425,9 @@ export default function MailListPane() {
         });
         toast.success("Moved to trash");
         refresh();
-      } catch {
-        toast.error("Failed to move to trash");
+      } catch (err: unknown) {
+        console.error("Failed to move to trash:", err);
+        toast.error(extractErrorMessage(err, "Failed to move to trash"));
         refresh();
       }
     },
@@ -439,8 +445,9 @@ export default function MailListPane() {
         });
         toast.success("Restored to Inbox");
         refresh();
-      } catch {
-        toast.error("Failed to restore");
+      } catch (err: unknown) {
+        console.error("Failed to restore message:", err);
+        toast.error(extractErrorMessage(err, "Failed to restore"));
         refresh();
       }
     },
@@ -455,8 +462,9 @@ export default function MailListPane() {
         await axios.delete(`/api/v1/messages/${id}`);
         toast.success("Permanently deleted message");
         refresh();
-      } catch {
-        toast.error("Failed to delete message");
+      } catch (err: unknown) {
+        console.error("Failed to delete message:", err);
+        toast.error(extractErrorMessage(err, "Failed to delete message"));
         refresh();
       }
     },
@@ -474,8 +482,9 @@ export default function MailListPane() {
         });
         toast.success(`Tagged conversation with "${lbl}"`);
         refresh();
-      } catch {
-        toast.error("Failed to update labels");
+      } catch (err: unknown) {
+        console.error("Failed to update labels:", err);
+        toast.error(extractErrorMessage(err, "Failed to update labels"));
       }
     },
     [refresh],
@@ -594,8 +603,9 @@ export default function MailListPane() {
         });
         toast.success(`Tagged ${targetIds.length} conversations with "${lbl}"`);
         refresh();
-      } catch {
-        toast.error("Failed to update labels");
+      } catch (err: unknown) {
+        console.error("Failed to update bulk labels:", err);
+        toast.error(extractErrorMessage(err, "Failed to update labels"));
       }
     },
     [selected, setSelected, refresh],
@@ -609,8 +619,9 @@ export default function MailListPane() {
       setOpenId(null);
       setEmptyTrashConfirmOpen(false);
       refresh();
-    } catch {
-      toast.error("Failed to empty trash");
+    } catch (err: unknown) {
+      console.error("Failed to empty trash:", err);
+      toast.error(extractErrorMessage(err, "Failed to empty trash"));
     }
   }, [setMail, setOpenId, refresh]);
 

@@ -30,7 +30,7 @@ import {
 import { useSendMail } from "../hooks/use-mail";
 import { useMailContext } from "./mail-context";
 import { toast } from "sonner";
-import { generateId, cn, escapeHtml } from "@/lib/utils";
+import { generateId, cn, escapeHtml, extractErrorMessage } from "@/lib/utils";
 import { compressImage, formatFileSize } from "@/lib/image-compressor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -250,7 +250,8 @@ export default function ComposePanel() {
             minute: "2-digit",
           }),
         );
-      } catch {
+      } catch (autoSaveErr: unknown) {
+        console.warn("Autosave draft failed:", autoSaveErr);
       } finally {
         setAutoSaving(false);
       }
@@ -321,14 +322,17 @@ export default function ComposePanel() {
       if (draftId) {
         try {
           await axios.delete(`/api/v1/drafts/${draftId}`);
-        } catch {}
+        } catch (delDraftErr: unknown) {
+          console.warn("Failed to delete draft after send:", delDraftErr);
+        }
       }
 
       toast.success("Email sent successfully");
       setComposeOpen(false);
       refresh();
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to send email");
+      console.error("Failed to send email:", err);
+      toast.error(extractErrorMessage(err, "Failed to send email"));
     }
   };
 
@@ -374,8 +378,9 @@ export default function ComposePanel() {
       );
       refresh();
       if (closeAfter) setComposeOpen(false);
-    } catch {
-      toast.error("Failed to save draft");
+    } catch (err: unknown) {
+      console.error("Failed to save draft:", err);
+      toast.error(extractErrorMessage(err, "Failed to save draft"));
     } finally {
       setSavingDraft(false);
     }
@@ -387,8 +392,9 @@ export default function ComposePanel() {
         await axios.delete(`/api/v1/drafts/${draftId}`);
         toast.success("Draft discarded");
         refresh();
-      } catch {
-        toast.error("Failed to delete draft");
+      } catch (err: unknown) {
+        console.error("Failed to delete draft:", err);
+        toast.error(extractErrorMessage(err, "Failed to delete draft"));
       }
     }
     setComposeOpen(false);
@@ -432,7 +438,9 @@ export default function ComposePanel() {
             `Image compressed (${formatFileSize(compResult.originalSize)} → ${compResult.formattedCompressedSize})`,
           );
           continue;
-        } catch {}
+        } catch (compErr: unknown) {
+          console.warn("Image compression skipped or failed, using original file:", compErr);
+        }
       }
 
       if (file.size > 15 * 1024 * 1024) {
@@ -452,8 +460,9 @@ export default function ComposePanel() {
             base64,
           },
         ]);
-      } catch {
-        toast.error(`Failed to attach ${file.name}`);
+      } catch (attachErr: unknown) {
+        console.error(`Failed to read file "${file.name}":`, attachErr);
+        toast.error(extractErrorMessage(attachErr, `Failed to attach ${file.name}`));
       }
     }
   };

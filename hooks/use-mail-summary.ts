@@ -21,7 +21,9 @@ export function useMailSummary(refreshTick: number) {
         setCounts(summary.data || {});
         setLabels(labelResponse.data || []);
       })
-      .catch(() => {});
+      .catch((err: unknown) => {
+        if (mounted) console.warn("Failed to load mail summary counts/labels:", err);
+      });
 
     return () => {
       mounted = false;

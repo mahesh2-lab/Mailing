@@ -8,7 +8,7 @@ import { AuthenticatedPageShell } from "@/components/authenticated-page-shell";
 import { AutomationBuilder } from "@/components/automations/automation-builder";
 import { Automation, CustomTool } from "@/components/automations/automation-types";
 import { toast } from "sonner";
-import { generateId } from "@/lib/utils";
+import { generateId, extractErrorMessage } from "@/lib/utils";
 
 export default function AutomationEditorPage() {
   const params = useParams();
@@ -71,8 +71,9 @@ export default function AutomationEditorPage() {
       } else {
         toast.success("Workflow saved successfully");
       }
-    } catch {
-      toast.error("Failed to save changes to server");
+    } catch (err: unknown) {
+      console.error("Failed to save automation:", err);
+      toast.error(extractErrorMessage(err, "Failed to save changes to server"));
     }
   }
 
@@ -88,8 +89,9 @@ export default function AutomationEditorPage() {
         setCustomTools((prev) => [res.data, ...prev.filter((t) => t.id !== tool.id)]);
         toast.success(`Tool "${tool.name}" saved`);
       }
-    } catch {
-      toast.error("Failed to save tool to server");
+    } catch (err: unknown) {
+      console.error("Failed to save custom tool:", err);
+      toast.error(extractErrorMessage(err, "Failed to save tool to server"));
     }
   }
 
@@ -117,7 +119,7 @@ export default function AutomationEditorPage() {
       toast.success("Simulated workflow test queued", { id: "test-run" });
     } catch (err: unknown) {
       console.error("Test run error:", err);
-      toast.error(`Execution error: ${err instanceof Error ? err.message : "Unknown error"}`, { id: "test-run" });
+      toast.error(`Execution error: ${extractErrorMessage(err, "Unknown error")}`, { id: "test-run" });
     }
   }
 

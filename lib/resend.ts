@@ -23,8 +23,8 @@ export async function getResendClient(userId?: string | null): Promise<Resend | 
       try {
         const decryptedKey = await decrypt(apiKeyRecord.encryptedKey);
         return new Resend(decryptedKey);
-      } catch {
-        console.error("Failed to decrypt Resend API key for user:", userId);
+      } catch (err: unknown) {
+        console.error("Failed to decrypt Resend API key for user:", userId, err);
       }
     }
   }

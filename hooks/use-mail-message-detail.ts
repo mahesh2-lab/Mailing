@@ -3,6 +3,7 @@ import axios from "axios";
 import type { MailItem } from "./use-mail";
 import { parseSender } from "@/components/mail-thread-hierarchy";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 
 const MESSAGE_DETAIL_DEBOUNCE_MS = 100;
 
@@ -73,9 +74,10 @@ export function useMessageDetail(id: string | null) {
             });
           }
         })
-        .catch(() => {
+        .catch((err: unknown) => {
           if (mounted && !controller.signal.aborted) {
-            toast.error("Failed to load message");
+            console.error("Failed to load message:", err);
+            toast.error(extractErrorMessage(err, "Failed to load message"));
           }
         })
         .finally(() => {

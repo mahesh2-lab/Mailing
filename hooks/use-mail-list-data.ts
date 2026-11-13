@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import type { MailItem } from "./use-mail";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 interface ApiMailListRow {
   id: string;
   from?: string | null;
@@ -82,8 +83,9 @@ export function useMailListData(
       const mapped: MailItem[] = (res.data || []).map(mapMailItem);
       setMail((current) => [...current, ...mapped]);
       setHasMore(res.headers["x-has-more"] === "true");
-    } catch {
-      if (activeListKey.current === key) toast.error("Failed to load more messages");
+    } catch (err: unknown) {
+      console.error("Failed to load more messages:", err);
+      if (activeListKey.current === key) toast.error(extractErrorMessage(err, "Failed to load more messages"));
     } finally {
       if (activeListKey.current === key) {
         loadingMore.current = false;
@@ -111,8 +113,9 @@ export function useMailListData(
         setHasMore(res.headers["x-has-more"] === "true");
         hasLoadedOnce.current = true;
       })
-      .catch(() => {
-        if (mounted) toast.error("Failed to load messages");
+      .catch((err: unknown) => {
+        console.warn("Failed to load initial messages:", err);
+        if (mounted) toast.error(extractErrorMessage(err, "Failed to load messages"));
       })
       .finally(() => {
         if (mounted) {

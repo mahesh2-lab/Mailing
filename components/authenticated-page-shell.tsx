@@ -23,7 +23,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { cn } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 import { AnimatePresence } from "motion/react";
 import { ReducedMotionConfig } from "@animate-ui/react/utils/motion";
 
@@ -52,10 +52,12 @@ function ShellInner({
     hideSidebarProp !== undefined ? hideSidebarProp : isAutomationEditor;
 
   const [sidebarVisible, setSidebarVisible] = useState(!shouldHideSidebarDefault);
+  const [prevDefault, setPrevDefault] = useState(shouldHideSidebarDefault);
 
-  useEffect(() => {
+  if (prevDefault !== shouldHideSidebarDefault) {
+    setPrevDefault(shouldHideSidebarDefault);
     setSidebarVisible(!shouldHideSidebarDefault);
-  }, [shouldHideSidebarDefault]);
+  }
 
   const {
     mobileNavOpen,
@@ -115,8 +117,9 @@ function ShellInner({
           },
         },
       });
-    } catch {
-      toast.error("Failed to sign out");
+    } catch (err: unknown) {
+      console.error("Failed to sign out:", err);
+      toast.error(extractErrorMessage(err, "Failed to sign out"));
     }
   };
 

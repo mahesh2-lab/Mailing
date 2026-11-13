@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, extractErrorMessage } from "@/lib/utils";
 
 export interface AuthViewProps {
   initialMode?: "login" | "register";
@@ -137,8 +137,9 @@ export function AuthView({ initialMode = "login" }: AuthViewProps) {
           },
         );
       }
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+    } catch (err: unknown) {
+      console.error("Auth error:", err);
+      setError(extractErrorMessage(err, "An unexpected error occurred. Please try again."));
     } finally {
       setIsLoading(false);
     }

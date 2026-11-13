@@ -18,6 +18,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { authClient } from "@/src/lib/auth-client";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -64,8 +65,9 @@ export function SiteNav({
           },
         },
       });
-    } catch {
-      toast.error("Failed to sign out");
+    } catch (err: unknown) {
+      console.error("Failed to sign out:", err);
+      toast.error(extractErrorMessage(err, "Failed to sign out"));
     }
   };
 

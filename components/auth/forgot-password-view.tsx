@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { extractErrorMessage } from "@/lib/utils";
 import { authClient } from "@/src/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,8 +24,8 @@ export function ForgotPasswordView() {
       });
       if (result.error) setError(result.error.message || "Could not request a password reset.");
       else setSent(true);
-    } catch {
-      setError("Could not request a password reset. Please try again.");
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, "Could not request a password reset. Please try again."));
     } finally {
       setSending(false);
     }

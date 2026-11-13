@@ -50,3 +50,34 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+export function extractErrorMessage(
+  error: unknown,
+  fallback = "An unexpected error occurred",
+): string {
+  if (!error) return fallback;
+  if (typeof error === "string" && error.trim()) return error;
+
+  if (typeof error === "object") {
+    const responseData = (error as { response?: { data?: unknown } }).response?.data;
+    if (typeof responseData === "string" && responseData.trim()) {
+      return responseData;
+    }
+    if (typeof responseData === "object" && responseData !== null) {
+      const dataObj = responseData as Record<string, unknown>;
+      if (typeof dataObj.error === "string" && dataObj.error.trim()) return dataObj.error;
+      if (typeof dataObj.message === "string" && dataObj.message.trim()) return dataObj.message;
+    }
+
+    const errObj = error as Record<string, unknown>;
+    if (typeof errObj.error === "string" && errObj.error.trim()) return errObj.error;
+    if (typeof errObj.message === "string" && errObj.message.trim()) return errObj.message;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+

@@ -48,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { avatarColor, getInitials, cn } from "@/lib/utils";
+import { avatarColor, getInitials, cn, extractErrorMessage } from "@/lib/utils";
 
 const PREFERENCES_KEY = "mailing:preferences";
 const PREFERENCES_EVENT = "mailing:preferences-change";
@@ -111,7 +111,9 @@ function getPreferencesSnapshot() {
 function savePreferences(preferences: { density: "comfortable" | "compact"; reduceMotion: boolean }) {
   try {
     localStorage.setItem(PREFERENCES_KEY, JSON.stringify(preferences));
-  } catch {}
+  } catch (storageErr) {
+    console.warn("Failed to save preferences to localStorage:", storageErr);
+  }
   window.dispatchEvent(new Event(PREFERENCES_EVENT));
 }
 
@@ -670,8 +672,9 @@ const DangerZoneSection = React.memo(function DangerZoneSection() {
       sessionStorage.clear();
       toast.success("Local cache and storage cleared");
       setTimeout(() => window.location.reload(), 500);
-    } catch {
-      toast.error("Failed to clear local cache");
+    } catch (clearErr: unknown) {
+      console.error("Failed to clear local cache:", clearErr);
+      toast.error(extractErrorMessage(clearErr, "Failed to clear local cache"));
     }
   };
 
@@ -751,8 +754,9 @@ export function SettingsView() {
             resendWebhookSecret: data.resendWebhookSecret || prev.resendWebhookSecret || "",
           }));
         }
-      } catch {
-        if (mounted) toast.error("Failed to load settings");
+      } catch (loadErr: unknown) {
+        console.error("Failed to load settings:", loadErr);
+        if (mounted) toast.error(extractErrorMessage(loadErr, "Failed to load settings"));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -784,8 +788,9 @@ export function SettingsView() {
       } else {
         toast.error(res?.error || "Failed to save settings");
       }
-    } catch {
-      toast.error("Failed to save settings");
+    } catch (saveErr: unknown) {
+      console.error("Failed to save settings:", saveErr);
+      toast.error(extractErrorMessage(saveErr, "Failed to save settings"));
     } finally {
       setSaving(false);
     }
@@ -814,8 +819,9 @@ export function SettingsView() {
       } else {
         toast.error(res.error || res.message || "Verification failed");
       }
-    } catch {
-      toast.error("Failed to verify credentials");
+    } catch (verifyErr: unknown) {
+      console.error("Failed to verify credentials:", verifyErr);
+      toast.error(extractErrorMessage(verifyErr, "Failed to verify credentials"));
     } finally {
       setVerifying(false);
     }
@@ -837,8 +843,9 @@ export function SettingsView() {
           ? `Synced ${totalNew} new email${totalNew === 1 ? "" : "s"}`
           : "Emails are up to date",
       );
-    } catch {
-      toast.error("Failed to sync emails");
+    } catch (syncErr: unknown) {
+      console.error("Failed to sync emails:", syncErr);
+      toast.error(extractErrorMessage(syncErr, "Failed to sync emails"));
     } finally {
       setSyncing(false);
     }
@@ -855,8 +862,9 @@ export function SettingsView() {
           },
         },
       });
-    } catch {
-      toast.error("Failed to sign out");
+    } catch (logoutErr: unknown) {
+      console.error("Failed to sign out:", logoutErr);
+      toast.error(extractErrorMessage(logoutErr, "Failed to sign out"));
     } finally {
       setLoggingOut(false);
     }

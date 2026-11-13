@@ -7,6 +7,7 @@ import { authClient } from "@/src/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { extractErrorMessage } from "@/lib/utils";
 
 export function ResetPasswordView() {
   const router = useRouter();
@@ -36,8 +37,8 @@ export function ResetPasswordView() {
         toast.success("Password updated. Sign in with your new password.");
         router.replace("/login");
       }
-    } catch {
-      setError("Could not reset the password. Please request a new link.");
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, "Could not reset the password. Please request a new link."));
     } finally {
       setSaving(false);
     }

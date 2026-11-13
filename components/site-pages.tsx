@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
-import { getInitials, avatarColor } from "@/lib/utils";
+import { getInitials, avatarColor, extractErrorMessage } from "@/lib/utils";
 
 // ── Profile Panel ────────────────────────────────────────────────────────────
 
@@ -453,8 +453,9 @@ function ContactsPanel() {
     setLoading(true);
     try {
       setContacts(await loadContacts());
-    } catch {
-      toast.error("Failed to load contacts");
+    } catch (err: unknown) {
+      console.error("Failed to load contacts:", err);
+      toast.error(extractErrorMessage(err, "Failed to load contacts"));
     } finally {
       setLoading(false);
     }
@@ -466,8 +467,9 @@ function ContactsPanel() {
       .then((data) => {
         if (active) setContacts(data);
       })
-      .catch(() => {
-        if (active) toast.error("Failed to load contacts");
+      .catch((err: unknown) => {
+        console.warn("Failed to load contacts in background:", err);
+        if (active) toast.error(extractErrorMessage(err, "Failed to load contacts"));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -528,8 +530,9 @@ function ContactsPanel() {
       } else {
         toast.error(res?.error || `Failed to ${editingContact ? "update" : "add"} contact`);
       }
-    } catch {
-      toast.error(`Failed to ${editingContact ? "update" : "add"} contact`);
+    } catch (err: unknown) {
+      console.error(`Failed to ${editingContact ? "update" : "add"} contact:`, err);
+      toast.error(extractErrorMessage(err, `Failed to ${editingContact ? "update" : "add"} contact`));
     } finally {
       setSaving(false);
     }
@@ -542,8 +545,9 @@ function ContactsPanel() {
       toast.success(`Contact "${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
       refreshContacts();
-    } catch {
-      toast.error("Failed to delete contact");
+    } catch (err: unknown) {
+      console.error("Failed to delete contact:", err);
+      toast.error(extractErrorMessage(err, "Failed to delete contact"));
     }
   }
 

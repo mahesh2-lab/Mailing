@@ -57,8 +57,8 @@ export async function GET(
         filename = res.data.filename || filename;
         contentType = res.data.content_type || contentType;
       }
-    } catch {
-      // Fallback
+    } catch (receivingErr) {
+      console.warn(`Could not get attachment from receiving API for email ${messageId}:`, receivingErr);
     }
 
     // 2. If not found, try sent attachments
@@ -73,8 +73,8 @@ export async function GET(
           filename = res.data.filename || filename;
           contentType = res.data.content_type || contentType;
         }
-      } catch {
-        // Fallback
+      } catch (sentErr) {
+        console.warn(`Could not get attachment from sent API for email ${messageId}:`, sentErr);
       }
     }
 

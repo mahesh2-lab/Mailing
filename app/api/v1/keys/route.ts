@@ -199,7 +199,9 @@ export async function PATCH(request: Request) {
       if (!keyToTest && existing.encryptedKey) {
         try {
           keyToTest = await decrypt(existing.encryptedKey);
-        } catch {}
+        } catch (decryptErr) {
+          console.warn("Failed to decrypt existing key for verification:", decryptErr);
+        }
       }
 
       if (keyToTest) {
