@@ -177,28 +177,27 @@ export default function MailDetailPane() {
   }, [openId]);
 
   useEffect(() => {
-    if (!message?.unread) return;
+    if (!message?.unread || !message?.id) return;
 
-    const controller = new AbortController();
     let active = true;
     axios
-      .patch(`/api/v1/messages/${message.id}/read`, {}, {
-        signal: controller.signal,
-      })
+      .patch(`/api/v1/messages/${message.id}/read`, { unread: false, read: true })
       .then(() => {
         if (!active) return;
         setMessage((current) =>
           current?.id === message.id ? { ...current, unread: false } : current,
         );
         refresh();
+        window.dispatchEvent(
+          new CustomEvent("mail:refresh", { detail: { emailId: message.id } }),
+        );
       })
       .catch((err) => {
-        if (!axios.isCancel(err)) console.warn("Failed to mark message read:", err);
+        console.warn("Failed to mark message read:", err);
       });
 
     return () => {
       active = false;
-      controller.abort();
     };
   }, [message?.id, message?.unread, refresh, setMessage]);
 

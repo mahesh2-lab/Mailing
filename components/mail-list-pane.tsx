@@ -269,12 +269,57 @@ export default function MailListPane() {
 
   const isSelectionMode = selected.length > 0;
 
+  const lastMarkedReadIdRef = useRef<string | null>(null);
+
   const handleOpen = useCallback(
     (item: MailItem) => {
       setOpenId(item.id);
+      if (item.unread) {
+        lastMarkedReadIdRef.current = item.id;
+        setMail((prev) =>
+          prev.map((m) => (m.id === item.id ? { ...m, unread: false } : m)),
+        );
+        axios
+          .patch(`/api/v1/messages/${item.id}/read`, { unread: false, read: true })
+          .then(() => {
+            refresh();
+            window.dispatchEvent(
+              new CustomEvent("mail:refresh", { detail: { emailId: item.id } }),
+            );
+          })
+          .catch((err) => {
+            console.warn("Failed to mark message read on open:", err);
+          });
+      }
     },
-    [setOpenId],
+    [setOpenId, setMail, refresh],
   );
+
+  // When an email is opened directly (e.g. from URL ?id=...), keep the list item optimistically marked as read
+  useEffect(() => {
+    if (!openId) {
+      lastMarkedReadIdRef.current = null;
+      return;
+    }
+    const target = mail.find((m) => m.id === openId);
+    if (target?.unread && lastMarkedReadIdRef.current !== openId) {
+      lastMarkedReadIdRef.current = openId;
+      setMail((prev) =>
+        prev.map((m) => (m.id === openId ? { ...m, unread: false } : m)),
+      );
+      axios
+        .patch(`/api/v1/messages/${openId}/read`, { unread: false, read: true })
+        .then(() => {
+          refresh();
+          window.dispatchEvent(
+            new CustomEvent("mail:refresh", { detail: { emailId: openId } }),
+          );
+        })
+        .catch((err) => {
+          console.warn("Failed to mark message read on openId sync:", err);
+        });
+    }
+  }, [openId, mail, refresh, setMail]);
 
   const handleStarToggle = useCallback(
     async (id: string, currentStarred: boolean, e: React.MouseEvent) => {

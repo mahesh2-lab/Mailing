@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "db:migrate": "drizzle-kit migrate",
+    "postinstall": "drizzle-kit migrate",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

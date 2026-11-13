@@ -167,15 +167,23 @@ export function MailProvider({
     if (!pathname) return;
     const resolved = getFolderFromPath(pathname);
     if (resolved.label !== undefined) {
-      // Keep local mail selection aligned with external router navigation.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLabel(resolved.label);
+      setLabel((prev) => {
+        if (prev !== resolved.label) {
+          setOpenId(null);
+          return resolved.label;
+        }
+        return prev;
+      });
       setFolder(undefined);
-      setOpenId(null);
     } else if (resolved.folder !== undefined) {
-      setFolder(resolved.folder);
+      setFolder((prev) => {
+        if (prev !== resolved.folder) {
+          setOpenId(null);
+          return resolved.folder;
+        }
+        return prev;
+      });
       setLabel(undefined);
-      setOpenId(null);
     }
   }, [pathname]);
 
